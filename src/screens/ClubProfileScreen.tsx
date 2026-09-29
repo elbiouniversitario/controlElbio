@@ -1,15 +1,23 @@
 import React, { useState } from 'react';
 import { CLUB_CREST_URL } from '../data/initialData';
 import { ClubRole } from '../types';
+import { Textos } from '../lib/textos';
+import { TextosEditor } from '../components/TextosEditor';
 
 interface ClubProfileScreenProps {
   roles: ClubRole[];
+  textos: Textos;
+  onSaveTextos: (textos: Textos) => Promise<boolean>;
+  persistent: boolean;
   onOpenAssignRoleModal: () => void;
   showToast: (msg: string, icon?: string, type?: 'success' | 'warning' | 'info' | 'error') => void;
 }
 
 export const ClubProfileScreen: React.FC<ClubProfileScreenProps> = ({
   roles,
+  textos,
+  onSaveTextos,
+  persistent,
   onOpenAssignRoleModal,
   showToast,
 }) => {
@@ -22,7 +30,7 @@ export const ClubProfileScreen: React.FC<ClubProfileScreenProps> = ({
   };
 
   const handleExportCsv = () => {
-    showToast('Descargando planilla_elbio_mayores_2025.csv', 'table_view', 'success');
+    showToast(`Descargando planilla_elbio_${textos.categoria.toLowerCase()}_${textos.temporada}.csv`, 'table_view', 'success');
   };
 
   const handleExportPdf = () => {
@@ -99,6 +107,8 @@ export const ClubProfileScreen: React.FC<ClubProfileScreenProps> = ({
 
       {/* Content Container */}
       <div className="px-4 flex flex-col gap-5 mt-4">
+        <TextosEditor textos={textos} onSave={onSaveTextos} persistent={persistent} showToast={showToast} />
+
         {/* Section 1: Role & Permission Management */}
         <section className="flex flex-col gap-2.5">
           <div className="flex items-center justify-between">
@@ -211,7 +221,7 @@ export const ClubProfileScreen: React.FC<ClubProfileScreenProps> = ({
                     Liga Universitaria de Deportes
                   </span>
                   <span className="font-sans text-[12px] text-[#44474f] truncate">
-                    Categoría Mayores · Divisional A (Uruguay)
+                    Categoría {textos.categoria} · {textos.divisional} (Uruguay)
                   </span>
                 </div>
                 <span className="px-2.5 py-1 rounded bg-[#00183a] text-white font-heading text-[10px] font-bold uppercase shrink-0">

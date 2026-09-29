@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Player } from '../types';
 import { CLUB_CREST_URL, CLUB_CREST_WATERMARK } from '../data/initialData';
+import { fechaCorta, nombrePeriodo, sumarMeses } from '../lib/fechas';
+import { useTextos } from '../lib/textos';
 
 interface PerfilJugadorScreenProps {
   player: Player;
@@ -14,6 +16,7 @@ export const PerfilJugadorScreen: React.FC<PerfilJugadorScreenProps> = ({
   onUpdateAttendance,
   showToast,
 }) => {
+  const t = useTextos();
   const [attendance, setAttendance] = useState<'pending' | 'confirmed' | 'declined'>(
     player.matchStatus.attendanceConfirmed
       ? 'confirmed'
@@ -27,7 +30,7 @@ export const PerfilJugadorScreen: React.FC<PerfilJugadorScreenProps> = ({
   const handleConfirmAttendance = async () => {
     if (!(await onUpdateAttendance(true))) return;
     setAttendance('confirmed');
-    showToast('¡Asistencia confirmada para el Domingo 09:00 hs!', 'check_circle', 'success');
+    showToast(`¡Asistencia confirmada para el ${t.partido_dia}, citación ${t.citacion_hora}!`, 'check_circle', 'success');
   };
 
   const handleDeclineAttendance = async () => {
@@ -129,17 +132,17 @@ export const PerfilJugadorScreen: React.FC<PerfilJugadorScreenProps> = ({
             </span>
           </div>
           <span className="bg-[#b51a1b] text-white font-heading font-bold text-[10px] px-2.5 py-0.5 rounded-full">
-            Fecha 5
+            {t.fecha}
           </span>
         </div>
 
         <div className="space-y-1 mb-4">
           <h3 className="font-heading font-bold text-[22px] text-white leading-tight">
-            vs Playa Pascual
+            vs {t.rival}
           </h3>
           <div className="flex items-center gap-1.5 text-[#acc7fc] font-heading text-[12px]">
             <span className="material-symbols-outlined text-[16px]">schedule</span>
-            <span>Domingo • 10:00 hs (Puntual 09:00 hs para indumentaria)</span>
+            <span>{t.partido_dia} • {t.partido_hora} (Citación {t.citacion_hora})</span>
           </div>
         </div>
 
@@ -205,7 +208,7 @@ export const PerfilJugadorScreen: React.FC<PerfilJugadorScreenProps> = ({
                   task_alt
                 </span>
                 <span className="font-heading text-[12px] font-bold">
-                  Asistencia confirmada para las 09:00 hs
+                  Asistencia confirmada • Citación {t.citacion_hora}
                 </span>
               </div>
               <button
@@ -243,7 +246,7 @@ export const PerfilJugadorScreen: React.FC<PerfilJugadorScreenProps> = ({
             Documentación & Fichaje
           </h4>
           <span className="font-sans text-[11px] text-[#44474f]">
-            LUD Temporada 2025
+            LUD Temporada {t.temporada}
           </span>
         </div>
 
@@ -276,7 +279,7 @@ export const PerfilJugadorScreen: React.FC<PerfilJugadorScreenProps> = ({
                   Vencimiento
                 </span>
                 <span className="font-heading font-bold text-[16px] text-[#00183a]">
-                  22 Oct, 2025
+                  {fechaCorta(player.medicalCertificate.expiryDate) || 'Sin carné'}
                 </span>
                 <span className="font-sans text-[11px] text-emerald-700 block font-medium">
                   ({player.medicalCertificate.daysRemaining} días restantes)
@@ -356,7 +359,7 @@ export const PerfilJugadorScreen: React.FC<PerfilJugadorScreenProps> = ({
               <div>
                 <div className="flex items-center gap-2">
                   <span className="font-heading font-bold text-[14px] text-[#00183a]">
-                    Abril 2025
+                    {nombrePeriodo(player.dues.period)}
                   </span>
                   <span className="bg-emerald-200 text-emerald-900 font-heading text-[10px] font-bold px-2 py-0.5 rounded-full">
                     PAGADO
@@ -378,10 +381,11 @@ export const PerfilJugadorScreen: React.FC<PerfilJugadorScreenProps> = ({
           <div className="p-3 rounded-lg bg-[#f2f4f7] flex items-center justify-between border border-[#e0e3e6]">
             <div>
               <span className="font-heading font-bold text-[12px] text-[#00183a] block">
-                Próxima cuota: Mayo 2025
+                Próxima cuota: {nombrePeriodo(sumarMeses(player.dues.period, 1))}
               </span>
               <p className="font-sans text-[11px] text-[#44474f]">
-                Vencimiento: 10 de Mayo • $1.400
+                Vencimiento: {t.cuota_dia_vencimiento} de{' '}
+                {nombrePeriodo(sumarMeses(player.dues.period, 1)).split(' ')[0]} • $1.400
               </p>
             </div>
             <button

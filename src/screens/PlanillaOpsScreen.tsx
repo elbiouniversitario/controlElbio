@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Player } from '../types';
 import { CLUB_CREST_URL, CLUB_CREST_WATERMARK } from '../data/initialData';
+import { useTextos } from '../lib/textos';
+import { mesAnioCorto } from '../lib/fechas';
 
 interface PlanillaOpsScreenProps {
   players: Player[];
@@ -17,6 +19,7 @@ export const PlanillaOpsScreen: React.FC<PlanillaOpsScreenProps> = ({
   onOpenLineupModal,
   showToast,
 }) => {
+  const t = useTextos();
   const [filter, setFilter] = useState<'all' | 'warning' | 'blocked'>('all');
   const [bagConfirmed, setBagConfirmed] = useState(false);
 
@@ -85,7 +88,7 @@ export const PlanillaOpsScreen: React.FC<PlanillaOpsScreenProps> = ({
                   ROL: DELEGADO & DT
                 </span>
                 <span className="font-heading text-[10px] text-[#fabc4d]">
-                  Divisional A • Mayores
+                  {t.divisional} • {t.categoria}
                 </span>
               </div>
             </div>
@@ -100,7 +103,7 @@ export const PlanillaOpsScreen: React.FC<PlanillaOpsScreenProps> = ({
           <div className="flex items-center justify-between gap-1 mb-2">
             <span className="font-heading font-extrabold text-[10px] uppercase tracking-wider text-[#fabc4d] flex items-center gap-1">
               <span className="w-2 h-2 rounded-full bg-[#d93630] animate-pulse"></span>
-              Liga Universitaria • Torneo Apertura 2025 • Fecha 5
+              Liga Universitaria • {t.torneo} • {t.fecha}
             </span>
             <span className="font-heading text-[9px] px-2 py-0.5 rounded-full bg-white/20 text-white font-bold">
               Oficial
@@ -120,12 +123,12 @@ export const PlanillaOpsScreen: React.FC<PlanillaOpsScreenProps> = ({
                 VS
               </span>
               <span className="font-heading text-[10px] text-[#ffdad6] bg-[#b51a1b]/70 px-2 py-0.5 rounded-full mt-1 font-bold">
-                10:00 hs
+                {t.partido_hora}
               </span>
             </div>
             <div className="flex flex-col items-end">
               <span className="font-heading font-extrabold text-[22px] text-white tracking-tight text-right">
-                Playa Pascual
+                {t.rival}
               </span>
               <span className="font-sans text-[11px] text-[#7b96c8] text-right">
                 Visitante
@@ -139,13 +142,13 @@ export const PlanillaOpsScreen: React.FC<PlanillaOpsScreenProps> = ({
               <span className="material-symbols-outlined text-[16px] text-[#fabc4d]">
                 calendar_today
               </span>
-              <span>Domingo 27 de Abril • Citación 08:45 hs</span>
+              <span>{t.partido_dia} • Citación {t.citacion_hora}</span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="material-symbols-outlined text-[16px] text-[#fabc4d]">
                 stadium
               </span>
-              <span>Complejo Deportivo Elbio • Cancha 1 (Carrasco)</span>
+              <span>{t.cancha}</span>
             </div>
           </div>
         </div>
@@ -398,7 +401,7 @@ export const PlanillaOpsScreen: React.FC<PlanillaOpsScreenProps> = ({
                         <span>Habilitado • Carné OK</span>
                       </span>
                       <span className="font-sans text-[10px] text-[#44474f] mt-1">
-                        Ficha al día (Vence Oct 2025)
+                        Ficha al día (Vence {mesAnioCorto(player.medicalCertificate.expiryDate)})
                       </span>
                     </>
                   )}

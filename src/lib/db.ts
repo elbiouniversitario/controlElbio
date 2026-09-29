@@ -253,17 +253,19 @@ export interface DatosClub {
   rules: AutomationRule[];
   sentMessages: SentMessage[];
   roles: ClubRole[];
+  textos: Record<string, string>;
 }
 
 export async function cargarDatos(): Promise<DatosClub> {
   const db = cliente();
-  const [jugadores, reglas, mensajes, roles] = await Promise.all([
+  const [jugadores, reglas, mensajes, roles, textos] = await Promise.all([
     db.from('jugadores').select(JUGADOR_SELECT).order('created_at'),
     db.from('reglas_automatizacion').select('*').order('orden'),
     db.from('mensajes_enviados').select('*').order('enviado_en', { ascending: false }).limit(50),
     db.from('roles_club').select('*').order('orden'),
+    db.from('textos_app').select('clave, valor'),
   ]);
-  const error = jugadores.error ?? reglas.error ?? mensajes.error ?? roles.error;
+  const error = jugadores.error ?? reglas.error ?? mensajes.error ?? roles.error ?? textos.error;
   if (error) throw error;
 
   const players = (jugadores.data as JugadorRow[]).map(mapJugador);
@@ -272,6 +274,9 @@ export async function cargarDatos(): Promise<DatosClub> {
     rules: (reglas.data as ReglaRow[]).map(mapRegla),
     sentMessages: (mensajes.data as MensajeRow[]).map((m) => mapMensaje(m, players)),
     roles: (roles.data as RolRow[]).map(mapRol),
+    textos: Object.fromEntries(
+      (textos.data as { clave: string; valor: string }[]).map((r) => [r.clave, r.valor])
+    ),
   };
 }
 
@@ -366,4 +371,14 @@ export async function registrarMensajes(players: Player[], tema: string): Promis
     .select();
   if (error) throw error;
   return (data as MensajeRow[]).map((m) => mapMensaje(m, players));
+}
+
+// ---------------------------------------------------------------------------
+// Textos editables por el admin
+// ---------------------------------------------------------------------------
+export async function guardarTextos(textos: Record<string, string>): Promise<void> {
+  const filas = Object.entries(textos).map(([clave, valor]) => ({ clave, valor }));
+  if (filas.length === 0) return;
+  const { error } = await cliente().from('textos_app').upsert(filas, { onConflict: 'clave' });
+  if (error) throw error;
 }

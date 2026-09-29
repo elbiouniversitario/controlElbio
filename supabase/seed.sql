@@ -190,3 +190,5 @@ insert into public.roles_club (clave, titulo, subtitulo, descripcion, etiqueta, 
 on conflict (clave) do nothing;
 
 commit;
+
+select 'Listo: datos de ejemplo cargados' as resultado;

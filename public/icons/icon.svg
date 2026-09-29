@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#00183a"/>
+  <circle cx="256" cy="256" r="200" fill="#0d2d59"/>
+  <text x="256" y="300" text-anchor="middle" fill="#ffffff" font-family="DejaVu Sans, Arial, sans-serif" font-size="170" font-weight="700" letter-spacing="-6">EF</text>
+  <rect x="156" y="336" width="200" height="16" rx="8" fill="#b51a1b"/>
+  <text x="256" y="398" text-anchor="middle" fill="#fabc4d" font-family="DejaVu Sans, Arial, sans-serif" font-size="38" font-weight="700" letter-spacing="8">LUD</text>
+</svg>

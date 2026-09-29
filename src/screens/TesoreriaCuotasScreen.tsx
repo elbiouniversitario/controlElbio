@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Player } from '../types';
 import { CLUB_CREST_URL } from '../data/initialData';
-import { nombrePeriodo, periodoActual } from '../lib/fechas';
+import { nombrePeriodo, periodoActual, sumarMeses } from '../lib/fechas';
+import { useTextos } from '../lib/textos';
 
 interface TesoreriaCuotasScreenProps {
   players: Player[];
@@ -18,6 +19,7 @@ export const TesoreriaCuotasScreen: React.FC<TesoreriaCuotasScreenProps> = ({
   onSendMassReminder,
   showToast,
 }) => {
+  const t = useTextos();
   const [filter, setFilter] = useState<'all' | 'pending' | 'overdue' | 'paid'>('all');
   const [searchTerm, setSearchTerm] = useState('');
   // Período de la última cuota generada (en los datos de ejemplo, abril 2025).
@@ -73,14 +75,14 @@ export const TesoreriaCuotasScreen: React.FC<TesoreriaCuotasScreenProps> = ({
                 star
               </span>
               <span className="font-heading font-extrabold text-[10px] text-[#fabc4d] tracking-wider uppercase">
-                Temporada 2025 • Liga Universitaria
+                Temporada {t.temporada} • Liga Universitaria
               </span>
             </div>
             <h2 className="font-heading font-bold text-[20px] text-white leading-tight">
               Tesorería & Cuotas
             </h2>
             <span className="font-sans text-[12px] text-[#7b96c8]">
-              Plantel Mayores Masculino
+              Plantel {t.categoria} Masculino
             </span>
           </div>
           <img
@@ -95,8 +97,9 @@ export const TesoreriaCuotasScreen: React.FC<TesoreriaCuotasScreenProps> = ({
           <div className="flex items-center justify-between">
             <button
               onClick={() => {
-                setSelectedMonth('Marzo 2025');
-                showToast('Mostrando período: Marzo 2025');
+                const m = nombrePeriodo(sumarMeses(currentPeriod, -1));
+                setSelectedMonth(m);
+                showToast(`Mostrando período: ${m}`);
               }}
               aria-label="Mes anterior"
               className="w-8 h-8 rounded-full bg-[#0d2d59]/90 hover:bg-[#00183a] text-white flex items-center justify-center transition-transform active:scale-90"
@@ -113,8 +116,9 @@ export const TesoreriaCuotasScreen: React.FC<TesoreriaCuotasScreenProps> = ({
             </div>
             <button
               onClick={() => {
-                setSelectedMonth('Mayo 2025');
-                showToast('Mostrando período: Mayo 2025');
+                const m = nombrePeriodo(sumarMeses(currentPeriod, 1));
+                setSelectedMonth(m);
+                showToast(`Mostrando período: ${m}`);
               }}
               aria-label="Mes siguiente"
               className="w-8 h-8 rounded-full bg-[#0d2d59]/90 hover:bg-[#00183a] text-white flex items-center justify-center transition-transform active:scale-90"
@@ -258,7 +262,7 @@ export const TesoreriaCuotasScreen: React.FC<TesoreriaCuotasScreenProps> = ({
           </span>
           <p className="font-sans text-[12px] mt-0.5 leading-relaxed text-[#410002]">
             Jugadores con más de 2 cuotas pendientes{' '}
-            <strong>no podrán retirar su carné físico</strong> oficial para la Fecha 5.
+            <strong>no podrán retirar su carné físico</strong> oficial para la {t.fecha}.
           </p>
         </div>
       </section>
@@ -436,7 +440,7 @@ export const TesoreriaCuotasScreen: React.FC<TesoreriaCuotasScreenProps> = ({
                         {player.dues.debtAmount.toLocaleString('es-UY')}
                       </span>
                       <span className="text-[#b76e00] font-heading text-[10px] font-bold">
-                        Vence 15/04 (en 3 días)
+                        Vence {t.cuota_dia_vencimiento.padStart(2, '0')}/{player.dues.period.slice(5, 7)}
                       </span>
                     </div>
                     {/* Action buttons */}

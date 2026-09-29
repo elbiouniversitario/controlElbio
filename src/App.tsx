@@ -4,6 +4,7 @@ import { INITIAL_PLAYERS, INITIAL_RULES, INITIAL_SENT_MESSAGES, CLUB_ROLES } fro
 import { isSupabaseConfigured } from './lib/supabase';
 import * as db from './lib/db';
 import { initialsAvatar } from './lib/avatar';
+import { combinarTextos, Textos, TextosProvider, TEXTOS_DEFAULT } from './lib/textos';
 import { Header } from './components/Header';
 import { BottomNav } from './components/BottomNav';
 import { Toast } from './components/Toast';
@@ -24,8 +25,11 @@ import { ClubProfileScreen } from './screens/ClubProfileScreen';
 import { NuevoJugadorWizard } from './screens/NuevoJugadorWizard';
 
 // 'supabase': datos reales. 'demo': datos de ejemplo en memoria (sin variables
-// de entorno o si falló la conexión); los cambios se pierden al recargar.
-type DataMode = 'cargando' | 'supabase' | 'demo';
+// de entorno); los cambios se pierden al recargar. 'error': la base está
+// configurada pero no respondió (sin conexión, etc.): se ofrece reintentar.
+type DataMode = 'cargando' | 'supabase' | 'demo' | 'error';
+
+const LOAD_TIMEOUT_MS = 15000;
 
 export default function App() {
   const [currentTab, setCurrentTab] = useState<TabType>('alertas');
@@ -37,6 +41,7 @@ export default function App() {
   const [roles, setRoles] = useState<ClubRole[]>(isSupabaseConfigured ? [] : CLUB_ROLES);
   const [dataMode, setDataMode] = useState<DataMode>(isSupabaseConfigured ? 'cargando' : 'demo');
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [textos, setTextos] = useState<Textos>(TEXTOS_DEFAULT);
 
   // Toast feedback state
   const [toast, setToast] = useState<{
@@ -64,33 +69,41 @@ export default function App() {
     }, 3200);
   };
 
-  // Carga inicial desde Supabase; si falla, se sigue con los datos de ejemplo.
+  const [loadAttempt, setLoadAttempt] = useState(0);
+
+  // Carga inicial desde Supabase (y al tocar "Reintentar").
   useEffect(() => {
     if (!isSupabaseConfigured) return;
     let cancelado = false;
-    db.cargarDatos()
+    setDataMode('cargando');
+    const carga = navigator.onLine
+      ? Promise.race([
+          db.cargarDatos(),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('la base de datos tardó demasiado en responder')), LOAD_TIMEOUT_MS)
+          ),
+        ])
+      : Promise.reject(new Error('el teléfono no tiene conexión a internet'));
+    carga
       .then((datos) => {
         if (cancelado) return;
         setPlayers(datos.players);
         setRules(datos.rules);
         setSentMessages(datos.sentMessages);
         setRoles(datos.roles);
+        setTextos(combinarTextos(datos.textos));
         setDataMode('supabase');
       })
       .catch((err: unknown) => {
         if (cancelado) return;
         console.error('Error cargando datos de Supabase', err);
         setLoadError(err instanceof Error ? err.message : String((err as { message?: unknown })?.message ?? err));
-        setPlayers(INITIAL_PLAYERS);
-        setRules(INITIAL_RULES);
-        setSentMessages(INITIAL_SENT_MESSAGES);
-        setRoles(CLUB_ROLES);
-        setDataMode('demo');
+        setDataMode('error');
       });
     return () => {
       cancelado = true;
     };
-  }, []);
+  }, [loadAttempt]);
 
   const useDb = dataMode === 'supabase';
 
@@ -106,6 +119,20 @@ export default function App() {
 
   const replacePlayer = (updated: Player) => {
     setPlayers((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+  };
+
+  // Textos editados por el admin en Club Admin
+  const handleSaveTextos = async (nuevos: Textos): Promise<boolean> => {
+    if (useDb) {
+      try {
+        await db.guardarTextos(nuevos);
+      } catch (err) {
+        reportDbError('guardar los textos', err);
+        return false;
+      }
+    }
+    setTextos(combinarTextos(nuevos));
+    return true;
   };
 
   // Rule toggle handler
@@ -247,6 +274,7 @@ export default function App() {
   };
 
   return (
+    <TextosProvider value={textos}>
     <div className="min-h-screen bg-[#f7f9fc] flex flex-col antialiased">
       {/* Dynamic Top App Bar */}
       <Header
@@ -298,14 +326,25 @@ export default function App() {
             role="status"
             className="mb-3 flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-[11px] leading-snug text-amber-900"
           >
-            <span className="material-symbols-outlined text-[18px] shrink-0">
-              {loadError ? 'cloud_off' : 'science'}
-            </span>
+            <span className="material-symbols-outlined text-[18px] shrink-0">science</span>
             <span>
-              {loadError
-                ? `No se pudo conectar con la base de datos (${loadError}). Se muestran datos de ejemplo y los cambios no se guardan.`
-                : 'Modo demo: la base de datos no está configurada. Se muestran datos de ejemplo y los cambios se pierden al recargar.'}
+              Modo demo: la base de datos no está configurada. Se muestran datos de ejemplo y los cambios se pierden al recargar.
             </span>
+          </div>
+        )}
+
+        {dataMode === 'error' && (
+          <div className="flex flex-1 flex-col items-center justify-center gap-3 py-24 text-center text-[#44474f]">
+            <span className="material-symbols-outlined text-[40px] text-[#b51a1b]">cloud_off</span>
+            <p className="font-heading text-[15px] font-bold text-[#00183a]">No se pudieron cargar los datos del club</p>
+            <p className="font-sans text-[12px] max-w-xs">Motivo: {loadError}. Revisá la conexión y volvé a intentar.</p>
+            <button
+              type="button"
+              onClick={() => setLoadAttempt((n) => n + 1)}
+              className="mt-1 h-11 px-6 rounded-lg bg-[#00183a] text-white font-heading text-[12px] font-bold"
+            >
+              Reintentar
+            </button>
           </div>
         )}
 
@@ -316,7 +355,7 @@ export default function App() {
           </div>
         )}
 
-        {dataMode !== 'cargando' && (
+        {(dataMode === 'supabase' || dataMode === 'demo') && (
           <>
         {currentTab === 'alertas' && (
           <AlertasVencimientosScreen
@@ -357,7 +396,7 @@ export default function App() {
             players={players}
             onOpenPdfModal={() => setIsPdfModalOpen(true)}
             onSendWhatsappCitation={() => {
-              showToast('Citación oficial de Fecha 5 enviada al grupo del plantel por WhatsApp', 'chat', 'success');
+              showToast(`Citación oficial de ${textos.fecha} enviada al grupo del plantel por WhatsApp`, 'chat', 'success');
             }}
             onOpenLineupModal={() => setCurrentTab('nuevo-jugador')}
             showToast={showToast}
@@ -381,6 +420,9 @@ export default function App() {
         {currentTab === 'club' && (
           <ClubProfileScreen
             roles={roles}
+            textos={textos}
+            onSaveTextos={handleSaveTextos}
+            persistent={useDb}
             onOpenAssignRoleModal={() => setIsAssignRoleModalOpen(true)}
             showToast={showToast}
           />
@@ -452,5 +494,6 @@ export default function App() {
         type={toast.type}
       />
     </div>
+    </TextosProvider>
   );
 }

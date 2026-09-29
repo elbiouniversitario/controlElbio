@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Player } from '../types';
 import { initialsAvatar } from '../lib/avatar';
-import { periodoActual } from '../lib/fechas';
+import { hoyISO, periodoActual } from '../lib/fechas';
+import { useTextos } from '../lib/textos';
 
 interface NuevoJugadorWizardProps {
   onCancel: () => void;
@@ -15,6 +16,7 @@ export const NuevoJugadorWizard: React.FC<NuevoJugadorWizardProps> = ({
   onSavePlayer,
   showToast,
 }) => {
+  const t = useTextos();
   const [step, setStep] = useState<1 | 2 | 3>(2); // Start on Step 2 as in initial screenshots, with full ability to go to 1, 2, or 3!
 
   // Form State
@@ -37,7 +39,7 @@ export const NuevoJugadorWizard: React.FC<NuevoJugadorWizardProps> = ({
   const [memberNumber, setMemberNumber] = useState('142857-4');
 
   // Step 3 State
-  const [expiryDate, setExpiryDate] = useState('2025-11-28');
+  const [expiryDate, setExpiryDate] = useState(() => `${Number(hoyISO().slice(0, 4)) + 1}${hoyISO().slice(4)}`);
   const [clinic, setClinic] = useState('Centro Médico Elbio Fernández - Dpto. Aptitud');
   const [fileName, setFileName] = useState('carnet_salud_frente_dorso.jpg');
   const [medicalNotes, setMedicalNotes] = useState('');
@@ -851,7 +853,7 @@ export const NuevoJugadorWizard: React.FC<NuevoJugadorWizardProps> = ({
                 <h3 className="font-heading font-bold text-[14px] text-[#00183a]">
                   Liga Universitaria de Deportes
                 </h3>
-                <p className="font-sans text-[11px] text-[#44474f]">Filiación oficial 2025</p>
+                <p className="font-sans text-[11px] text-[#44474f]">Filiación oficial {t.temporada}</p>
               </div>
             </div>
 
@@ -942,7 +944,7 @@ export const NuevoJugadorWizard: React.FC<NuevoJugadorWizardProps> = ({
               />
               <span className="font-sans text-[12px] text-[#00183a] select-none leading-relaxed">
                 El jugador firmó el{' '}
-                <strong>consentimiento de responsabilidad deportiva</strong> de la temporada 2025
+                <strong>consentimiento de responsabilidad deportiva</strong> de la temporada {t.temporada}
                 bajo la tutela del Club Elbio Fernández.
               </span>
             </label>

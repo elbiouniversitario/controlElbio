@@ -8,9 +8,9 @@
 -- IMPORTANTE (seguridad): por ahora la app NO tiene login. Las políticas RLS
 -- de este archivo dejan leer y escribir a cualquiera que tenga la anon key
 -- (que viaja en el JavaScript de la app, o sea, es pública). Eso incluye datos
--- personales y de salud de los jugadores. Cada tabla tiene un bloque
--- "PARA ENDURECER CON LOGIN" con las políticas a aplicar cuando se agregue
--- Supabase Auth. No cargar datos reales sensibles hasta hacerlo.
+-- personales y de salud de los jugadores. Las políticas a aplicar cuando se
+-- agregue Supabase Auth están en supabase/ENDURECER_CON_LOGIN.md.
+-- No cargar datos reales sensibles hasta hacerlo.
 -- =============================================================================
 
 create extension if not exists pgcrypto;
@@ -229,6 +229,20 @@ create table public.roles_club (
   orden             smallint not null default 0
 );
 
+-- -----------------------------------------------------------------------------
+-- Textos de la app editables por el admin (datos del partido, temporada...).
+-- Si una clave no está acá, la app usa el valor por defecto de src/lib/textos.tsx.
+-- -----------------------------------------------------------------------------
+create table public.textos_app (
+  clave       text primary key check (clave ~ '^[a-z0-9_]+$'),
+  valor       text not null,
+  updated_at  timestamptz not null default now()
+);
+
+create trigger textos_app_updated_at
+  before update on public.textos_app
+  for each row execute function public.set_updated_at();
+
 -- =============================================================================
 -- Funciones (RPC) para operaciones de varios pasos, así quedan atómicas.
 -- security invoker: respetan RLS igual que un insert/update directo.
@@ -371,6 +385,7 @@ grant select, insert, update on
   public.cuotas, public.pagos, public.reglas_automatizacion, public.mensajes_enviados
   to anon, authenticated;
 grant select on public.roles_club to anon, authenticated;
+grant select, insert, update on public.textos_app to anon, authenticated;
 grant usage on sequence public.pagos_recibo_seq to anon, authenticated;
 grant execute on function public.alta_jugador(jsonb) to anon, authenticated;
 grant execute on function public.registrar_pago(uuid, text) to anon, authenticated;
@@ -386,12 +401,13 @@ alter table public.pagos                 enable row level security;
 alter table public.reglas_automatizacion enable row level security;
 alter table public.mensajes_enviados     enable row level security;
 alter table public.roles_club            enable row level security;
+alter table public.textos_app            enable row level security;
 
 -- ---------------------------------------------------------------------------
 -- ETAPA ACTUAL (sin login): acceso abierto con la anon key.
 -- No se permite DELETE desde la app en ninguna tabla.
 -- Todas las políticas se llaman "abierto_*" para poder borrarlas juntas
--- cuando se agregue el login (ver bloque de abajo).
+-- cuando se agregue el login: ver supabase/ENDURECER_CON_LOGIN.md.
 -- ---------------------------------------------------------------------------
 create policy abierto_select on public.jugadores for select to anon, authenticated using (true);
 create policy abierto_insert on public.jugadores for insert to anon, authenticated with check (true);
@@ -424,69 +440,9 @@ create policy abierto_insert on public.mensajes_enviados for insert to anon, aut
 
 create policy abierto_select on public.roles_club for select to anon, authenticated using (true);
 
--- ---------------------------------------------------------------------------
--- PARA ENDURECER CON LOGIN (no ejecutar todavía)
--- ---------------------------------------------------------------------------
--- Idea: cada usuario de Supabase Auth tiene una fila en una tabla de miembros
--- con su rol ('admin', 'dt' para cuerpo técnico/delegados, 'tesorero',
--- 'jugador'); los jugadores además se vinculan por jugadores.auth_user_id.
---
--- 1) Tabla de miembros y helper:
---
---   create table public.miembros_club (
---     user_id uuid primary key references auth.users (id) on delete cascade,
---     rol     text not null check (rol in ('admin', 'dt', 'tesorero', 'jugador'))
---   );
---   alter table public.miembros_club enable row level security;
---   create policy propio on public.miembros_club for select to authenticated
---     using (user_id = (select auth.uid()));
---
---   create function public.mi_rol() returns text
---   language sql stable security definer set search_path = public as $$
---     select rol from miembros_club where user_id = (select auth.uid())
---   $$;
---
---   create function public.mi_jugador_id() returns uuid
---   language sql stable security definer set search_path = public as $$
---     select id from jugadores where auth_user_id = (select auth.uid())
---   $$;
---
--- 2) Sacar TODO el acceso de anon y las políticas abiertas:
---
---   revoke all on all tables in schema public from anon;
---   revoke execute on all functions in schema public from anon;
---   -- y en cada tabla: drop policy abierto_select / abierto_insert / abierto_update
---
--- 3) Políticas por rol (todas "to authenticated"):
---
---   jugadores, carnes_salud, fichas_lud, estado_planilla:
---     select: mi_rol() in ('admin','dt','tesorero') or jugador_id = mi_jugador_id()
---             (en jugadores: id = mi_jugador_id())
---     insert/update: mi_rol() in ('admin','dt')
---     El jugador puede además:
---       - update en estado_planilla de su propia fila (confirmar asistencia),
---         idealmente vía una RPC que solo toque asistencia_confirmada/motivo_baja.
---       - insert en carnes_salud con jugador_id = mi_jugador_id() y
---         verificado = false (subir renovación; lo verifica el DT).
---
---   cuotas, pagos:
---     select: mi_rol() in ('admin','tesorero') or jugador_id = mi_jugador_id()
---     insert/update: mi_rol() in ('admin','tesorero')
---     (el DT puede necesitar solo saber si está al día: exponer una vista
---      sin montos si hace falta)
---
---   reglas_automatizacion:
---     select: mi_rol() in ('admin','dt','tesorero')
---     update: mi_rol() = 'admin'
---
---   mensajes_enviados:
---     select: mi_rol() in ('admin','dt','tesorero') or jugador_id = mi_jugador_id()
---     insert: mi_rol() in ('admin','dt','tesorero')
---
---   roles_club:
---     select: cualquier authenticated; cambios solo 'admin'.
---
--- 4) Las RPC alta_jugador y registrar_pago son security invoker, así que
---    quedan cubiertas por estas políticas sin cambios; conviene igualmente
---    revocarles execute a anon (paso 2).
--- ---------------------------------------------------------------------------
+create policy abierto_select on public.textos_app for select to anon, authenticated using (true);
+create policy abierto_insert on public.textos_app for insert to anon, authenticated with check (true);
+create policy abierto_update on public.textos_app for update to anon, authenticated using (true) with check (true);
+
+-- Fin. Si todo salió bien, el SQL Editor muestra una fila con "Listo".
+select 'Listo: tablas creadas' as resultado;
