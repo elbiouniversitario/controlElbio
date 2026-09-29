@@ -4,7 +4,8 @@ import { CLUB_CREST_URL, CLUB_CREST_WATERMARK } from '../data/initialData';
 
 interface PerfilJugadorScreenProps {
   player: Player;
-  onUpdateAttendance: (confirmed: boolean, reason?: string) => void;
+  /** Devuelve false si no se pudo guardar. */
+  onUpdateAttendance: (confirmed: boolean, reason?: string) => Promise<boolean>;
   showToast: (msg: string, icon?: string, type?: 'success' | 'warning' | 'info' | 'error') => void;
 }
 
@@ -14,22 +15,26 @@ export const PerfilJugadorScreen: React.FC<PerfilJugadorScreenProps> = ({
   showToast,
 }) => {
   const [attendance, setAttendance] = useState<'pending' | 'confirmed' | 'declined'>(
-    player.matchStatus.attendanceConfirmed ? 'confirmed' : 'pending'
+    player.matchStatus.attendanceConfirmed
+      ? 'confirmed'
+      : player.matchStatus.declineReason
+      ? 'declined'
+      : 'pending'
   );
   const [likedNotice, setLikedNotice] = useState(false);
   const [likesCount, setLikesCount] = useState(16);
 
-  const handleConfirmAttendance = () => {
+  const handleConfirmAttendance = async () => {
+    if (!(await onUpdateAttendance(true))) return;
     setAttendance('confirmed');
-    onUpdateAttendance(true);
     showToast('¡Asistencia confirmada para el Domingo 09:00 hs!', 'check_circle', 'success');
   };
 
-  const handleDeclineAttendance = () => {
+  const handleDeclineAttendance = async () => {
     const reason = window.prompt('Indica breve motivo para el cuerpo técnico (Ej: Estudio, Lesión, Trabajo):');
     if (reason !== null) {
+      if (!(await onUpdateAttendance(false, reason || 'Motivo no especificado'))) return;
       setAttendance('declined');
-      onUpdateAttendance(false, reason || 'Motivo no especificado');
       showToast('Aviso de ausencia enviado al DT y Delegado', 'event_busy', 'warning');
     }
   };

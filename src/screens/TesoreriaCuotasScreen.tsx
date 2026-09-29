@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Player } from '../types';
 import { CLUB_CREST_URL } from '../data/initialData';
+import { nombrePeriodo, periodoActual } from '../lib/fechas';
 
 interface TesoreriaCuotasScreenProps {
   players: Player[];
@@ -19,11 +20,16 @@ export const TesoreriaCuotasScreen: React.FC<TesoreriaCuotasScreenProps> = ({
 }) => {
   const [filter, setFilter] = useState<'all' | 'pending' | 'overdue' | 'paid'>('all');
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedMonth, setSelectedMonth] = useState('Abril 2025');
+  // Período de la última cuota generada (en los datos de ejemplo, abril 2025).
+  const currentPeriod = players.reduce(
+    (max, p) => (p.dues.period > max ? p.dues.period : max),
+    players[0]?.dues.period ?? periodoActual()
+  );
+  const [selectedMonth, setSelectedMonth] = useState(nombrePeriodo(currentPeriod));
 
-  const paidCount = players.filter((p) => p.dues.april2025 === 'paid').length;
-  const pendingCount = players.filter((p) => p.dues.april2025 === 'pending').length;
-  const overdueCount = players.filter((p) => p.dues.april2025 === 'overdue').length;
+  const paidCount = players.filter((p) => p.dues.status === 'paid').length;
+  const pendingCount = players.filter((p) => p.dues.status === 'pending').length;
+  const overdueCount = players.filter((p) => p.dues.status === 'overdue').length;
   const totalCount = players.length;
 
   const totalCollected = paidCount * 1400 + 4200; // Realistic math
@@ -36,10 +42,10 @@ export const TesoreriaCuotasScreen: React.FC<TesoreriaCuotasScreenProps> = ({
       filter === 'all'
         ? true
         : filter === 'paid'
-        ? p.dues.april2025 === 'paid'
+        ? p.dues.status === 'paid'
         : filter === 'pending'
-        ? p.dues.april2025 === 'pending'
-        : p.dues.april2025 === 'overdue';
+        ? p.dues.status === 'pending'
+        : p.dues.status === 'overdue';
 
     const term = searchTerm.toLowerCase();
     const matchesSearch =
@@ -338,9 +344,9 @@ export const TesoreriaCuotasScreen: React.FC<TesoreriaCuotasScreenProps> = ({
           </div>
         ) : (
           filteredPlayers.map((player) => {
-            const isPaid = player.dues.april2025 === 'paid';
-            const isPending = player.dues.april2025 === 'pending';
-            const isOverdue = player.dues.april2025 === 'overdue';
+            const isPaid = player.dues.status === 'paid';
+            const isPending = player.dues.status === 'pending';
+            const isOverdue = player.dues.status === 'overdue';
 
             return (
               <div
@@ -426,7 +432,8 @@ export const TesoreriaCuotasScreen: React.FC<TesoreriaCuotasScreenProps> = ({
                   <>
                     <div className="flex items-center justify-between text-[#44474f] font-sans text-[12px] bg-[#f2f4f7] px-2.5 py-1.5 rounded-lg">
                       <span className="font-heading text-[12px] font-bold text-[#00183a]">
-                        Abril: $1.400
+                        {nombrePeriodo(player.dues.period).split(' ')[0]}: $
+                        {player.dues.debtAmount.toLocaleString('es-UY')}
                       </span>
                       <span className="text-[#b76e00] font-heading text-[10px] font-bold">
                         Vence 15/04 (en 3 días)
@@ -462,7 +469,7 @@ export const TesoreriaCuotasScreen: React.FC<TesoreriaCuotasScreenProps> = ({
                           error
                         </span>
                         <span className="font-heading text-[12px] font-bold">
-                          Deuda: ${player.dues.debtAmount.toLocaleString('es-UY')} (Mar + Abr)
+                          Deuda: ${player.dues.debtAmount.toLocaleString('es-UY')}
                         </span>
                       </div>
                       <span className="font-heading text-[10px] bg-[#b51a1b] text-white px-1.5 py-0.5 rounded font-bold">

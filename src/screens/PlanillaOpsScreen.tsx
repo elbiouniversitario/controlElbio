@@ -37,7 +37,7 @@ export const PlanillaOpsScreen: React.FC<PlanillaOpsScreenProps> = ({
       return (
         p.matchStatus.lineupRole === 'BAJA' ||
         p.medicalCertificate.daysRemaining <= 0 ||
-        p.dues.april2025 === 'overdue'
+        p.dues.status === 'overdue'
       );
     return true;
   });

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Player } from '../types';
 import { CLUB_CREST_URL } from '../data/initialData';
+import { nombrePeriodo } from '../lib/fechas';
 
 // Modal 1: New Mass Broadcast Modal
 interface NewBroadcastModalProps {
@@ -232,7 +233,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                 {player.firstName} {player.lastName} (#{player.number})
               </h4>
               <p className="font-sans text-[11px] text-[#44474f]">
-                {player.position} • Período: Abril 2025
+                {player.position} • Período: {nombrePeriodo(player.dues.period)}
               </p>
             </div>
           </div>

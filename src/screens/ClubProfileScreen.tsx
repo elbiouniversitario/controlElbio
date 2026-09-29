@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
-import { CLUB_ROLES, CLUB_CREST_URL } from '../data/initialData';
+import { CLUB_CREST_URL } from '../data/initialData';
+import { ClubRole } from '../types';
 
 interface ClubProfileScreenProps {
+  roles: ClubRole[];
   onOpenAssignRoleModal: () => void;
   showToast: (msg: string, icon?: string, type?: 'success' | 'warning' | 'info' | 'error') => void;
 }
 
 export const ClubProfileScreen: React.FC<ClubProfileScreenProps> = ({
+  roles,
   onOpenAssignRoleModal,
   showToast,
 }) => {
@@ -127,7 +130,7 @@ export const ClubProfileScreen: React.FC<ClubProfileScreenProps> = ({
 
           {/* Roles Stack */}
           <div className="flex flex-col gap-2.5 mt-1">
-            {CLUB_ROLES.map((role) => (
+            {roles.map((role) => (
               <div
                 key={role.id}
                 className="bg-white rounded-xl p-4 shadow-sm relative overflow-hidden border border-[#e0e3e6]/60"
