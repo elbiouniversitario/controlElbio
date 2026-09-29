@@ -6,6 +6,8 @@ export type TabType =
   | 'club'
   | 'nuevo-jugador';
 
+export type DuesStatus = 'paid' | 'pending' | 'overdue';
+
 export interface Player {
   id: string;
   number: number;
@@ -58,9 +60,10 @@ export interface Player {
     declineReason?: string;
   };
 
-  // Treasury
+  // Treasury: estado de la cuota del último mes generado y deuda acumulada
   dues: {
-    april2025: 'paid' | 'pending' | 'overdue';
+    period: string; // YYYY-MM
+    status: DuesStatus;
     debtAmount: number;
     paymentMethod?: string;
     receiptNumber?: string;

@@ -1,9 +1,13 @@
 import React, { useState } from 'react';
 import { Player } from '../types';
+import { initialsAvatar } from '../lib/avatar';
+import { hoyISO, periodoActual } from '../lib/fechas';
+import { useTextos } from '../lib/textos';
 
 interface NuevoJugadorWizardProps {
   onCancel: () => void;
-  onSavePlayer: (player: Player) => void;
+  /** Devuelve false si no se pudo guardar. */
+  onSavePlayer: (player: Player) => Promise<boolean>;
   showToast: (msg: string, icon?: string, type?: 'success' | 'warning' | 'info' | 'error') => void;
 }
 
@@ -12,6 +16,7 @@ export const NuevoJugadorWizard: React.FC<NuevoJugadorWizardProps> = ({
   onSavePlayer,
   showToast,
 }) => {
+  const t = useTextos();
   const [step, setStep] = useState<1 | 2 | 3>(2); // Start on Step 2 as in initial screenshots, with full ability to go to 1, 2, or 3!
 
   // Form State
@@ -34,7 +39,7 @@ export const NuevoJugadorWizard: React.FC<NuevoJugadorWizardProps> = ({
   const [memberNumber, setMemberNumber] = useState('142857-4');
 
   // Step 3 State
-  const [expiryDate, setExpiryDate] = useState('2025-11-28');
+  const [expiryDate, setExpiryDate] = useState(() => `${Number(hoyISO().slice(0, 4)) + 1}${hoyISO().slice(4)}`);
   const [clinic, setClinic] = useState('Centro Médico Elbio Fernández - Dpto. Aptitud');
   const [fileName, setFileName] = useState('carnet_salud_frente_dorso.jpg');
   const [medicalNotes, setMedicalNotes] = useState('');
@@ -51,7 +56,10 @@ export const NuevoJugadorWizard: React.FC<NuevoJugadorWizardProps> = ({
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleFinish = () => {
+  const [saving, setSaving] = useState(false);
+
+  const handleFinish = async () => {
+    if (saving) return;
     if (!signedConsent) {
       showToast('Debe aceptar el consentimiento de responsabilidad deportiva', 'error', 'error');
       return;
@@ -65,8 +73,7 @@ export const NuevoJugadorWizard: React.FC<NuevoJugadorWizardProps> = ({
       position,
       category: 'Mayores (Fútbol Universitario)',
       birthYear: Number(birthYear) || 2000,
-      avatarUrl:
-        'https://lh3.googleusercontent.com/aida-public/AB6AXuBJMXJCXkF_FZs0ElDuk3oYLHtiYeu-wa0W9XL0IciT3B2rdNvNtgf_g5q5YkJsM85-waoPIryX3EBaX1dGJwPZf8SqTUMlgp3h4aR-Wq-WH8sY6yMtD2qfAUMhqdx6qnEOT2julyg3ob7TL88T7BuJn1ZQwNAoISHc4J4CsH1W0LXUeEL_MVwJUKwomN4fLDRd8cdrCA8ZgdD5LzGMd6SaXl7TCXUKA1bLvy7Ug4KFbd62nbPDd4FY',
+      avatarUrl: initialsAvatar(firstName, lastName),
       phone,
       email,
       address,
@@ -97,15 +104,18 @@ export const NuevoJugadorWizard: React.FC<NuevoJugadorWizardProps> = ({
         lineupRole: 'SUPLENTE',
         attendanceConfirmed: false,
       },
+      // La cuota del mes arranca pendiente; el cobro se registra desde Tesorería.
       dues: {
-        april2025: 'paid',
-        debtAmount: 0,
-        paidDate: 'Hoy',
-        paymentMethod: 'Efectivo',
+        period: periodoActual(),
+        status: 'pending',
+        debtAmount: 1400,
       },
     };
 
-    onSavePlayer(newPlayer);
+    setSaving(true);
+    const ok = await onSavePlayer(newPlayer);
+    setSaving(false);
+    if (!ok) return;
     showToast(`¡${firstName} ${lastName} dado de alta como jugador HABILITADO!`, 'how_to_reg', 'success');
   };
 
@@ -843,7 +853,7 @@ export const NuevoJugadorWizard: React.FC<NuevoJugadorWizardProps> = ({
                 <h3 className="font-heading font-bold text-[14px] text-[#00183a]">
                   Liga Universitaria de Deportes
                 </h3>
-                <p className="font-sans text-[11px] text-[#44474f]">Filiación oficial 2025</p>
+                <p className="font-sans text-[11px] text-[#44474f]">Filiación oficial {t.temporada}</p>
               </div>
             </div>
 
@@ -934,7 +944,7 @@ export const NuevoJugadorWizard: React.FC<NuevoJugadorWizardProps> = ({
               />
               <span className="font-sans text-[12px] text-[#00183a] select-none leading-relaxed">
                 El jugador firmó el{' '}
-                <strong>consentimiento de responsabilidad deportiva</strong> de la temporada 2025
+                <strong>consentimiento de responsabilidad deportiva</strong> de la temporada {t.temporada}
                 bajo la tutela del Club Elbio Fernández.
               </span>
             </label>
@@ -967,7 +977,8 @@ export const NuevoJugadorWizard: React.FC<NuevoJugadorWizardProps> = ({
           <div className="flex flex-col gap-2.5 pt-2">
             <button
               onClick={handleFinish}
-              className="w-full h-14 rounded-xl bg-[#00183a] hover:bg-[#0d2d59] text-white font-heading text-[13px] font-bold uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg active:scale-98 transition-all"
+              disabled={saving}
+              className="w-full h-14 rounded-xl bg-[#00183a] hover:bg-[#0d2d59] text-white font-heading text-[13px] font-bold uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg active:scale-98 transition-all disabled:opacity-60"
               type="button"
             >
               <span className="material-symbols-outlined text-[24px]">how_to_reg</span>

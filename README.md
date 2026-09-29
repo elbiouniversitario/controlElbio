@@ -27,11 +27,69 @@ Otros comandos:
 - **Club admin**: roles y configuración general
 - **Nuevo jugador**: alta de jugador paso a paso
 
-## Estado actual
+## Base de datos (Supabase)
 
-Los datos son de ejemplo (`src/data/initialData.ts`) y viven en memoria: se reinician al recargar la página.
+La app guarda los datos en [Supabase](https://supabase.com). Si las variables de entorno no están cargadas, arranca en **modo demo** con los datos de ejemplo de `src/data/initialData.ts` y muestra un aviso amarillo arriba: en ese modo los cambios se pierden al recargar. Si las variables están pero la base no responde (por ejemplo, sin internet), muestra "No se pudieron cargar los datos" con un botón para reintentar.
+
+Archivos:
+
+- `supabase/migrations/20260929000000_esquema_inicial.sql`: tablas, índices, funciones y permisos (RLS)
+- `supabase/seed.sql`: los datos de ejemplo (9 jugadores, reglas, mensajes y roles)
+- `supabase/ENDURECER_CON_LOGIN.md`: permisos a aplicar cuando haya login (no ejecutar todavía)
+- `src/lib/supabase.ts`: cliente; `src/lib/db.ts`: lecturas y escrituras
+
+### Puesta en marcha (una sola vez)
+
+1. **Crear el proyecto.** En [supabase.com/dashboard](https://supabase.com/dashboard) → *New project*, con la cuenta del club. Región: **South America (São Paulo) – `sa-east-1`**. Guardar la contraseña de la base en un lugar seguro.
+2. **Crear las tablas.** En el proyecto: *SQL Editor* → *New query*, pegar **todo** el contenido de `supabase/migrations/20260929000000_esquema_inicial.sql` y apretar *Run*. Tiene que mostrar una fila que dice **"Listo: tablas creadas"**.
+   - Si aparece `syntax error at end of input`: asegurate de no tener texto seleccionado en el editor (si hay algo seleccionado, Supabase corre solo eso), borrá todo, pegá de nuevo el archivo completo y volvé a apretar *Run*.
+   - Si aparece `already exists`: la migración ya se había corrido; seguí con el paso 3.
+   - Para copiar el archivo desde GitHub: abrilo y usá el botón *Copy raw file* (ícono de copiar, arriba a la derecha).
+3. **Cargar los datos de ejemplo** (opcional, recomendado para probar). Nueva query con el contenido de `supabase/seed.sql` → *Run* (muestra "Listo: datos de ejemplo cargados"). Se puede correr más de una vez sin duplicar nada. En el encabezado del archivo están los `delete` para borrarlos antes de cargar jugadores reales.
+4. **Copiar las credenciales.** En *Project Settings* → *API* (o el botón *Connect*):
+   - **Project URL** (`https://xxxx.supabase.co`)
+   - **anon / publishable key** (la que empieza con `eyJ...` o con `sb_publishable_...`; cualquiera de las dos sirve).
+   - ⚠️ **Nunca** usar la `service_role` / `secret` key en la app: esa saltea todos los permisos.
+5. **Cargarlas en Vercel.** En el proyecto de Vercel → *Settings* → *Environment Variables*, agregar para *Production* y *Preview*:
+   - `VITE_SUPABASE_URL` = la Project URL
+   - `VITE_SUPABASE_ANON_KEY` = la anon / publishable key
+6. **Redeployar.** *Deployments* → en el último deploy, menú `⋯` → *Redeploy*. Las variables `VITE_` se leen al compilar, así que sin redeploy no toman efecto. Al abrir la app ya no tiene que aparecer el aviso de "Modo demo".
+
+### Textos editables
+
+En **Club Admin → Textos de la app** se editan los datos que cambian cada semana o cada temporada: rival, fecha del torneo, día y hora del partido, citación, cancha, temporada, divisional, etc. Se guardan en la tabla `textos_app`. Si una clave no está guardada se usa el valor por defecto de `src/lib/textos.tsx`, que es también donde se agregan claves nuevas.
+
+### En local
+
+```bash
+cp .env.example .env.local   # completar las dos variables
+npm run dev
+```
+
+### Tareas de mantenimiento
+
+- **Cuotas del mes nuevo:** a principio de mes, en el SQL Editor: `select public.generar_cuotas_mes();` (crea la cuota de $1.400 del mes para cada jugador que no la tenga). Otro monto: `select public.generar_cuotas_mes(current_date, 1500);`
+- **Cuotas vencidas:** pasar a vencidas las impagas de meses anteriores: `update public.cuotas set estado = 'vencida' where estado = 'pendiente' and periodo < date_trunc('month', current_date);`
+
+### Seguridad: pendiente para cuando haya login
+
+Por ahora la app **no tiene login**: cualquiera con el link puede leer y modificar los datos (la anon key viaja en el JavaScript de la página). Eso incluye teléfonos, direcciones y datos de salud de los jugadores, así que **no conviene cargar datos reales hasta agregar el login**. La migración ya deja escrito (comentado al final) cómo endurecer los permisos por rol: DT/delegados, tesorero y jugadores viendo solo lo suyo. Desde la app no se puede borrar nada.
+
+## Instalar en el celular (PWA)
+
+La app se puede instalar como una aplicación más: queda con su ícono en la pantalla de inicio y abre a pantalla completa, sin la barra del navegador.
+
+- **iPhone:** abrir la URL de Vercel en **Safari** → botón *Compartir* (cuadrado con flecha) → **Agregar a inicio** → *Agregar*.
+- **Android:** abrir en Chrome → menú `⋮` → **Instalar app** (o *Agregar a pantalla principal*).
+- **Computadora (Chrome/Edge):** ícono de instalar en la barra de direcciones.
+
+Las actualizaciones llegan solas: cuando se hace un deploy nuevo, la app instalada lo toma la próxima vez que se abre con internet. Sin conexión, la app abre igual y muestra un aviso para reintentar la carga de datos.
+
+Archivos: `public/manifest.webmanifest` (nombre, colores e íconos), `public/sw.js` (service worker: funcionamiento sin conexión), `public/icons/` y `public/apple-touch-icon.png` (ícono "EF"; para usar el escudo real, reemplazar esos PNG por versiones del escudo de 192, 512 y 180 px).
 
 ## Próximos pasos
 
-- Deploy en Vercel (ya incluye `vercel.json`)
-- Base de datos en Supabase (variables en `.env.example`)
+- Login con Supabase Auth y permisos por rol (ver final de la migración)
+- Fotos de jugadores y escaneos de carné en Supabase Storage (hoy se muestran las iniciales)
+- Escudo del club: hoy apunta a una URL temporal de AI Studio; conviene subirlo a `public/`
+- Envío real por WhatsApp (hoy los avisos solo quedan registrados en el historial)

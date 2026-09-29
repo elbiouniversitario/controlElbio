@@ -1,0 +1,18 @@
+{
+  "name": "Club Elbio Fernández — Gestión LUD",
+  "short_name": "Elbio LUD",
+  "description": "Fichas médicas, tesorería, planilla y convocatorias del Club Elbio Fernández.",
+  "lang": "es-UY",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f7f9fc",
+  "theme_color": "#00183a",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

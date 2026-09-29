@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Player } from '../types';
 import { CLUB_CREST_URL } from '../data/initialData';
+import { nombrePeriodo } from '../lib/fechas';
+import { useTextos } from '../lib/textos';
 
 // Modal 1: New Mass Broadcast Modal
 interface NewBroadcastModalProps {
@@ -14,6 +16,7 @@ export const NewBroadcastModal: React.FC<NewBroadcastModalProps> = ({
   onClose,
   onSend,
 }) => {
+  const t = useTextos();
   const [audience, setAudience] = useState<'deudores' | 'por_vencer' | 'plantel' | 'citados'>('por_vencer');
   const [customMsg, setCustomMsg] = useState(
     'Hola {nombre}, te recordamos desde Club Elbio Fernández regularizar tu situación deportiva de cara a la próxima fecha de la Liga Universitaria. ¡Arriba Elbio!'
@@ -54,7 +57,7 @@ export const NewBroadcastModal: React.FC<NewBroadcastModalProps> = ({
             {[
               { id: 'por_vencer', label: 'Carnés por vencer (3)' },
               { id: 'deudores', label: 'Cuotas pendientes (8)' },
-              { id: 'citados', label: 'Citados Fecha 5 (18)' },
+              { id: 'citados', label: `Citados ${t.fecha}` },
               { id: 'plantel', label: 'Todo el plantel (26)' },
             ].map((item) => (
               <button
@@ -232,7 +235,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                 {player.firstName} {player.lastName} (#{player.number})
               </h4>
               <p className="font-sans text-[11px] text-[#44474f]">
-                {player.position} • Período: Abril 2025
+                {player.position} • Período: {nombrePeriodo(player.dues.period)}
               </p>
             </div>
           </div>
@@ -410,6 +413,7 @@ export const PlanillaPdfModal: React.FC<PlanillaPdfModalProps> = ({
   onClose,
   players,
 }) => {
+  const t = useTextos();
   if (!isOpen) return null;
 
   const convocados = players.filter((p) => p.matchStatus.lineupRole !== 'BAJA');
@@ -425,7 +429,7 @@ export const PlanillaPdfModal: React.FC<PlanillaPdfModalProps> = ({
                 Planilla Oficial de Juego LUD
               </h3>
               <p className="font-sans text-[11px] text-[#44474f]">
-                Torneo Apertura 2025 • Fecha 5
+                {t.torneo} • {t.fecha}
               </p>
             </div>
           </div>
@@ -443,7 +447,7 @@ export const PlanillaPdfModal: React.FC<PlanillaPdfModalProps> = ({
             <p className="font-black text-[12px] uppercase">LIGA UNIVERSITARIA DE DEPORTES</p>
             <p className="text-[10px] text-[#44474f]">PLANILLA DE PARTIDO OFICIAL - CATEGORÍA MAYORES</p>
             <p className="text-[10px] font-bold text-[#b51a1b] mt-0.5">
-              ELBIO FERNÁNDEZ vs PLAYA PASCUAL • 27/04/2025 10:00 HS
+              ELBIO FERNÁNDEZ vs {t.rival.toUpperCase()} • {t.partido_dia_corto} {t.partido_hora.toUpperCase()}
             </p>
           </div>
 

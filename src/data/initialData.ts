@@ -42,7 +42,8 @@ export const INITIAL_PLAYERS: Player[] = [
       attendanceConfirmed: true,
     },
     dues: {
-      april2025: 'paid',
+      period: '2025-04',
+      status: 'paid',
       debtAmount: 0,
       paymentMethod: 'Transferencia BROU',
       receiptNumber: '#4819',
@@ -88,7 +89,8 @@ export const INITIAL_PLAYERS: Player[] = [
       attendanceConfirmed: true,
     },
     dues: {
-      april2025: 'paid',
+      period: '2025-04',
+      status: 'paid',
       debtAmount: 0,
       paymentMethod: 'Efectivo a delegado',
       receiptNumber: '#429',
@@ -133,7 +135,8 @@ export const INITIAL_PLAYERS: Player[] = [
       attendanceConfirmed: false,
     },
     dues: {
-      april2025: 'pending',
+      period: '2025-04',
+      status: 'pending',
       debtAmount: 1400,
     },
   },
@@ -176,7 +179,8 @@ export const INITIAL_PLAYERS: Player[] = [
       declineReason: 'Ficha médica inhabilitada por reglamento',
     },
     dues: {
-      april2025: 'overdue',
+      period: '2025-04',
+      status: 'overdue',
       debtAmount: 2800,
     },
   },
@@ -216,7 +220,8 @@ export const INITIAL_PLAYERS: Player[] = [
       attendanceConfirmed: true,
     },
     dues: {
-      april2025: 'paid',
+      period: '2025-04',
+      status: 'paid',
       debtAmount: 0,
       paymentMethod: 'Transferencia Santander',
       paidDate: '09/04',
@@ -258,7 +263,8 @@ export const INITIAL_PLAYERS: Player[] = [
       attendanceConfirmed: true,
     },
     dues: {
-      april2025: 'pending',
+      period: '2025-04',
+      status: 'pending',
       debtAmount: 1400,
     },
   },
@@ -298,7 +304,8 @@ export const INITIAL_PLAYERS: Player[] = [
       attendanceConfirmed: true,
     },
     dues: {
-      april2025: 'paid',
+      period: '2025-04',
+      status: 'paid',
       debtAmount: 0,
       paymentMethod: 'Transferencia ITAÚ',
       paidDate: '12/04',
@@ -340,7 +347,8 @@ export const INITIAL_PLAYERS: Player[] = [
       attendanceConfirmed: true,
     },
     dues: {
-      april2025: 'paid',
+      period: '2025-04',
+      status: 'paid',
       debtAmount: 0,
       paymentMethod: 'Transferencia BROU',
       paidDate: '05/04',
@@ -382,7 +390,8 @@ export const INITIAL_PLAYERS: Player[] = [
       attendanceConfirmed: true,
     },
     dues: {
-      april2025: 'paid',
+      period: '2025-04',
+      status: 'paid',
       debtAmount: 0,
       paymentMethod: 'Transferencia BROU',
       paidDate: '06/04',

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Player, AutomationRule, SentMessage } from '../types';
 import { CLUB_CREST_URL, CLUB_CREST_WATERMARK } from '../data/initialData';
+import { useTextos } from '../lib/textos';
 
 interface AlertasVencimientosScreenProps {
   players: Player[];
@@ -23,6 +24,7 @@ export const AlertasVencimientosScreen: React.FC<AlertasVencimientosScreenProps>
   onOpenEditTemplateModal,
   showToast,
 }) => {
+  const t = useTextos();
   const [activeSubTab, setActiveSubTab] = useState<'automaticos' | 'historial' | 'plantillas'>('automaticos');
 
   // Players needing urgent alert (expired or < 5 days)
@@ -70,7 +72,7 @@ export const AlertasVencimientosScreen: React.FC<AlertasVencimientosScreenProps>
               </span>
               <span className="inline-block w-1.5 h-1.5 rounded-full bg-[#fabc4d]"></span>
               <span className="font-heading font-extrabold text-[10px] uppercase tracking-wider text-[#e0e3e6]">
-                Mayores
+                {t.categoria}
               </span>
             </div>
             <h2 className="font-heading font-bold text-[20px] tracking-tight text-white truncate">
@@ -195,10 +197,10 @@ export const AlertasVencimientosScreen: React.FC<AlertasVencimientosScreenProps>
             </div>
             <div className="min-w-0">
               <h3 className="font-heading text-[14px] font-bold text-[#00183a] truncate">
-                Convocatoria: Fecha 5 vs Playa Pascual
+                Convocatoria: {t.fecha} vs {t.rival}
               </h3>
               <p className="font-sans text-[12px] text-[#44474f]">
-                Domingo 10:00 hs • Cancha 1 Carrasco
+                {t.partido_dia} {t.partido_hora} • {t.cancha_corta}
               </p>
             </div>
           </div>
