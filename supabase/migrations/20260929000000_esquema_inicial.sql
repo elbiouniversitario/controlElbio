@@ -4,6 +4,7 @@
 --
 -- Cómo usarla: pegar TODO este archivo en Supabase → SQL Editor → Run.
 -- Después correr supabase/seed.sql si se quieren los datos de ejemplo.
+-- Se puede correr más de una vez sin problema (no borra datos).
 --
 -- IMPORTANTE (seguridad): por ahora la app NO tiene login. Las políticas RLS
 -- de este archivo dejan leer y escribir a cualquiera que tenga la anon key
@@ -31,7 +32,7 @@ $$;
 -- -----------------------------------------------------------------------------
 -- Jugadores (datos personales, contacto de emergencia y cobertura médica)
 -- -----------------------------------------------------------------------------
-create table public.jugadores (
+create table if not exists public.jugadores (
   id                     uuid primary key default gen_random_uuid(),
   numero                 smallint not null check (numero between 0 and 99),
   nombre                 text not null,
@@ -66,9 +67,10 @@ create table public.jugadores (
   updated_at             timestamptz not null default now()
 );
 
-create index jugadores_apellido_idx on public.jugadores (apellido, nombre);
-create index jugadores_created_at_idx on public.jugadores (created_at);
+create index if not exists jugadores_apellido_idx on public.jugadores (apellido, nombre);
+create index if not exists jugadores_created_at_idx on public.jugadores (created_at);
 
+drop trigger if exists jugadores_updated_at on public.jugadores;
 create trigger jugadores_updated_at
   before update on public.jugadores
   for each row execute function public.set_updated_at();
@@ -77,7 +79,7 @@ create trigger jugadores_updated_at
 -- Carné de salud (historial: una fila por carné presentado; vigente = el de
 -- vencimiento más lejano). Los días restantes se calculan en la app.
 -- -----------------------------------------------------------------------------
-create table public.carnes_salud (
+create table if not exists public.carnes_salud (
   id                uuid primary key default gen_random_uuid(),
   jugador_id        uuid not null references public.jugadores (id) on delete cascade,
   vencimiento       date not null,
@@ -91,13 +93,13 @@ create table public.carnes_salud (
   created_at        timestamptz not null default now()
 );
 
-create index carnes_salud_jugador_venc_idx on public.carnes_salud (jugador_id, vencimiento desc);
-create index carnes_salud_vencimiento_idx on public.carnes_salud (vencimiento);
+create index if not exists carnes_salud_jugador_venc_idx on public.carnes_salud (jugador_id, vencimiento desc);
+create index if not exists carnes_salud_vencimiento_idx on public.carnes_salud (vencimiento);
 
 -- -----------------------------------------------------------------------------
 -- Ficha LUD (1 a 1 con jugador)
 -- -----------------------------------------------------------------------------
-create table public.fichas_lud (
+create table if not exists public.fichas_lud (
   jugador_id              uuid primary key references public.jugadores (id) on delete cascade,
   carne_en_mano           text not null default 'En trámite secretaría'
     check (carne_en_mano in ('En mano del delegado', 'En poder del jugador', 'En trámite secretaría')),
@@ -107,6 +109,7 @@ create table public.fichas_lud (
   updated_at              timestamptz not null default now()
 );
 
+drop trigger if exists fichas_lud_updated_at on public.fichas_lud;
 create trigger fichas_lud_updated_at
   before update on public.fichas_lud
   for each row execute function public.set_updated_at();
@@ -114,7 +117,7 @@ create trigger fichas_lud_updated_at
 -- -----------------------------------------------------------------------------
 -- Estado en planilla del próximo partido (1 a 1 con jugador)
 -- -----------------------------------------------------------------------------
-create table public.estado_planilla (
+create table if not exists public.estado_planilla (
   jugador_id              uuid primary key references public.jugadores (id) on delete cascade,
   rol                     text not null default 'SUPLENTE'
     check (rol in ('TITULAR', 'SUPLENTE', 'BAJA', 'RESERVA')),
@@ -123,8 +126,9 @@ create table public.estado_planilla (
   updated_at              timestamptz not null default now()
 );
 
-create index estado_planilla_rol_idx on public.estado_planilla (rol);
+create index if not exists estado_planilla_rol_idx on public.estado_planilla (rol);
 
+drop trigger if exists estado_planilla_updated_at on public.estado_planilla;
 create trigger estado_planilla_updated_at
   before update on public.estado_planilla
   for each row execute function public.set_updated_at();
@@ -132,7 +136,7 @@ create trigger estado_planilla_updated_at
 -- -----------------------------------------------------------------------------
 -- Cuotas: una fila por jugador y mes (periodo = primer día del mes)
 -- -----------------------------------------------------------------------------
-create table public.cuotas (
+create table if not exists public.cuotas (
   id            uuid primary key default gen_random_uuid(),
   jugador_id    uuid not null references public.jugadores (id) on delete cascade,
   periodo       date not null check (periodo = date_trunc('month', periodo)::date),
@@ -144,8 +148,9 @@ create table public.cuotas (
   unique (jugador_id, periodo)
 );
 
-create index cuotas_periodo_estado_idx on public.cuotas (periodo, estado);
+create index if not exists cuotas_periodo_estado_idx on public.cuotas (periodo, estado);
 
+drop trigger if exists cuotas_updated_at on public.cuotas;
 create trigger cuotas_updated_at
   before update on public.cuotas
   for each row execute function public.set_updated_at();
@@ -153,9 +158,9 @@ create trigger cuotas_updated_at
 -- -----------------------------------------------------------------------------
 -- Pagos: cada cobro registrado (una cuota puede tener un pago)
 -- -----------------------------------------------------------------------------
-create sequence public.pagos_recibo_seq start 5000;
+create sequence if not exists public.pagos_recibo_seq start 5000;
 
-create table public.pagos (
+create table if not exists public.pagos (
   id            uuid primary key default gen_random_uuid(),
   cuota_id      uuid not null references public.cuotas (id) on delete cascade,
   jugador_id    uuid not null references public.jugadores (id) on delete cascade,
@@ -167,14 +172,14 @@ create table public.pagos (
   created_at    timestamptz not null default now()
 );
 
-create index pagos_jugador_idx on public.pagos (jugador_id, pagado_en desc);
-create index pagos_cuota_idx on public.pagos (cuota_id);
-create index pagos_recibo_idx on public.pagos (recibo);
+create index if not exists pagos_jugador_idx on public.pagos (jugador_id, pagado_en desc);
+create index if not exists pagos_cuota_idx on public.pagos (cuota_id);
+create index if not exists pagos_recibo_idx on public.pagos (recibo);
 
 -- -----------------------------------------------------------------------------
 -- Reglas de automatización (avisos por WhatsApp)
 -- -----------------------------------------------------------------------------
-create table public.reglas_automatizacion (
+create table if not exists public.reglas_automatizacion (
   id                uuid primary key default gen_random_uuid(),
   clave             text not null unique,
   titulo            text not null,
@@ -190,6 +195,7 @@ create table public.reglas_automatizacion (
   updated_at        timestamptz not null default now()
 );
 
+drop trigger if exists reglas_automatizacion_updated_at on public.reglas_automatizacion;
 create trigger reglas_automatizacion_updated_at
   before update on public.reglas_automatizacion
   for each row execute function public.set_updated_at();
@@ -197,7 +203,7 @@ create trigger reglas_automatizacion_updated_at
 -- -----------------------------------------------------------------------------
 -- Mensajes enviados (historial de avisos)
 -- -----------------------------------------------------------------------------
-create table public.mensajes_enviados (
+create table if not exists public.mensajes_enviados (
   id              uuid primary key default gen_random_uuid(),
   jugador_id      uuid references public.jugadores (id) on delete set null,
   -- Se guarda el nombre por si el jugador se borra.
@@ -210,13 +216,13 @@ create table public.mensajes_enviados (
   enviado_en      timestamptz not null default now()
 );
 
-create index mensajes_enviados_enviado_en_idx on public.mensajes_enviados (enviado_en desc);
-create index mensajes_enviados_jugador_idx on public.mensajes_enviados (jugador_id);
+create index if not exists mensajes_enviados_enviado_en_idx on public.mensajes_enviados (enviado_en desc);
+create index if not exists mensajes_enviados_jugador_idx on public.mensajes_enviados (jugador_id);
 
 -- -----------------------------------------------------------------------------
 -- Roles del club
 -- -----------------------------------------------------------------------------
-create table public.roles_club (
+create table if not exists public.roles_club (
   id                uuid primary key default gen_random_uuid(),
   clave             text not null unique,
   titulo            text not null,
@@ -233,12 +239,13 @@ create table public.roles_club (
 -- Textos de la app editables por el admin (datos del partido, temporada...).
 -- Si una clave no está acá, la app usa el valor por defecto de src/lib/textos.tsx.
 -- -----------------------------------------------------------------------------
-create table public.textos_app (
+create table if not exists public.textos_app (
   clave       text primary key check (clave ~ '^[a-z0-9_]+$'),
   valor       text not null,
   updated_at  timestamptz not null default now()
 );
 
+drop trigger if exists textos_app_updated_at on public.textos_app;
 create trigger textos_app_updated_at
   before update on public.textos_app
   for each row execute function public.set_updated_at();
@@ -409,40 +416,40 @@ alter table public.textos_app            enable row level security;
 -- Todas las políticas se llaman "abierto_*" para poder borrarlas juntas
 -- cuando se agregue el login: ver supabase/ENDURECER_CON_LOGIN.md.
 -- ---------------------------------------------------------------------------
-create policy abierto_select on public.jugadores for select to anon, authenticated using (true);
-create policy abierto_insert on public.jugadores for insert to anon, authenticated with check (true);
-create policy abierto_update on public.jugadores for update to anon, authenticated using (true) with check (true);
+drop policy if exists abierto_select on public.jugadores; create policy abierto_select on public.jugadores for select to anon, authenticated using (true);
+drop policy if exists abierto_insert on public.jugadores; create policy abierto_insert on public.jugadores for insert to anon, authenticated with check (true);
+drop policy if exists abierto_update on public.jugadores; create policy abierto_update on public.jugadores for update to anon, authenticated using (true) with check (true);
 
-create policy abierto_select on public.carnes_salud for select to anon, authenticated using (true);
-create policy abierto_insert on public.carnes_salud for insert to anon, authenticated with check (true);
-create policy abierto_update on public.carnes_salud for update to anon, authenticated using (true) with check (true);
+drop policy if exists abierto_select on public.carnes_salud; create policy abierto_select on public.carnes_salud for select to anon, authenticated using (true);
+drop policy if exists abierto_insert on public.carnes_salud; create policy abierto_insert on public.carnes_salud for insert to anon, authenticated with check (true);
+drop policy if exists abierto_update on public.carnes_salud; create policy abierto_update on public.carnes_salud for update to anon, authenticated using (true) with check (true);
 
-create policy abierto_select on public.fichas_lud for select to anon, authenticated using (true);
-create policy abierto_insert on public.fichas_lud for insert to anon, authenticated with check (true);
-create policy abierto_update on public.fichas_lud for update to anon, authenticated using (true) with check (true);
+drop policy if exists abierto_select on public.fichas_lud; create policy abierto_select on public.fichas_lud for select to anon, authenticated using (true);
+drop policy if exists abierto_insert on public.fichas_lud; create policy abierto_insert on public.fichas_lud for insert to anon, authenticated with check (true);
+drop policy if exists abierto_update on public.fichas_lud; create policy abierto_update on public.fichas_lud for update to anon, authenticated using (true) with check (true);
 
-create policy abierto_select on public.estado_planilla for select to anon, authenticated using (true);
-create policy abierto_insert on public.estado_planilla for insert to anon, authenticated with check (true);
-create policy abierto_update on public.estado_planilla for update to anon, authenticated using (true) with check (true);
+drop policy if exists abierto_select on public.estado_planilla; create policy abierto_select on public.estado_planilla for select to anon, authenticated using (true);
+drop policy if exists abierto_insert on public.estado_planilla; create policy abierto_insert on public.estado_planilla for insert to anon, authenticated with check (true);
+drop policy if exists abierto_update on public.estado_planilla; create policy abierto_update on public.estado_planilla for update to anon, authenticated using (true) with check (true);
 
-create policy abierto_select on public.cuotas for select to anon, authenticated using (true);
-create policy abierto_insert on public.cuotas for insert to anon, authenticated with check (true);
-create policy abierto_update on public.cuotas for update to anon, authenticated using (true) with check (true);
+drop policy if exists abierto_select on public.cuotas; create policy abierto_select on public.cuotas for select to anon, authenticated using (true);
+drop policy if exists abierto_insert on public.cuotas; create policy abierto_insert on public.cuotas for insert to anon, authenticated with check (true);
+drop policy if exists abierto_update on public.cuotas; create policy abierto_update on public.cuotas for update to anon, authenticated using (true) with check (true);
 
-create policy abierto_select on public.pagos for select to anon, authenticated using (true);
-create policy abierto_insert on public.pagos for insert to anon, authenticated with check (true);
+drop policy if exists abierto_select on public.pagos; create policy abierto_select on public.pagos for select to anon, authenticated using (true);
+drop policy if exists abierto_insert on public.pagos; create policy abierto_insert on public.pagos for insert to anon, authenticated with check (true);
 
-create policy abierto_select on public.reglas_automatizacion for select to anon, authenticated using (true);
-create policy abierto_update on public.reglas_automatizacion for update to anon, authenticated using (true) with check (true);
+drop policy if exists abierto_select on public.reglas_automatizacion; create policy abierto_select on public.reglas_automatizacion for select to anon, authenticated using (true);
+drop policy if exists abierto_update on public.reglas_automatizacion; create policy abierto_update on public.reglas_automatizacion for update to anon, authenticated using (true) with check (true);
 
-create policy abierto_select on public.mensajes_enviados for select to anon, authenticated using (true);
-create policy abierto_insert on public.mensajes_enviados for insert to anon, authenticated with check (true);
+drop policy if exists abierto_select on public.mensajes_enviados; create policy abierto_select on public.mensajes_enviados for select to anon, authenticated using (true);
+drop policy if exists abierto_insert on public.mensajes_enviados; create policy abierto_insert on public.mensajes_enviados for insert to anon, authenticated with check (true);
 
-create policy abierto_select on public.roles_club for select to anon, authenticated using (true);
+drop policy if exists abierto_select on public.roles_club; create policy abierto_select on public.roles_club for select to anon, authenticated using (true);
 
-create policy abierto_select on public.textos_app for select to anon, authenticated using (true);
-create policy abierto_insert on public.textos_app for insert to anon, authenticated with check (true);
-create policy abierto_update on public.textos_app for update to anon, authenticated using (true) with check (true);
+drop policy if exists abierto_select on public.textos_app; create policy abierto_select on public.textos_app for select to anon, authenticated using (true);
+drop policy if exists abierto_insert on public.textos_app; create policy abierto_insert on public.textos_app for insert to anon, authenticated with check (true);
+drop policy if exists abierto_update on public.textos_app; create policy abierto_update on public.textos_app for update to anon, authenticated using (true) with check (true);
 
 -- Fin. Si todo salió bien, el SQL Editor muestra una fila con "Listo".
 select 'Listo: tablas creadas' as resultado;
