@@ -8,6 +8,8 @@ interface HeaderProps {
   subtitle?: string;
   onSearchClick?: () => void;
   onNotificationsClick?: () => void;
+  /** Cantidad de notificaciones pendientes (el punto rojo solo aparece si hay). */
+  notificaciones?: number;
   onBackClick?: () => void;
   showBack?: boolean;
   /** Email y rol de quien ingresó (sin definir en modo demo). */
@@ -20,6 +22,7 @@ export const Header: React.FC<HeaderProps> = ({
   subtitle = 'Club Elbio Fernández',
   onSearchClick,
   onNotificationsClick,
+  notificaciones = 0,
   onBackClick,
   showBack = false,
   usuario,
@@ -71,7 +74,11 @@ export const Header: React.FC<HeaderProps> = ({
               className="w-10 h-10 flex items-center justify-center text-[#44474f] hover:text-[#00183a] transition-colors rounded-full active:bg-[#eceef1] relative"
             >
               <span className="material-symbols-outlined text-[22px]">notifications</span>
-              <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-[#b51a1b] animate-pulse"></span>
+              {notificaciones > 0 && (
+                <span className="absolute top-1.5 right-1 min-w-4 h-4 px-1 rounded-full bg-[#b51a1b] text-white text-[9px] font-bold flex items-center justify-center">
+                  {notificaciones > 9 ? '9+' : notificaciones}
+                </span>
+              )}
             </button>
           )}
 

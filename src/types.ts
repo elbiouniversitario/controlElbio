@@ -87,11 +87,17 @@ export interface Player {
     paymentMethod?: string;
     receiptNumber?: string;
     paidDate?: string;
+    /** Cuotas por mes (más reciente primero). Sin definir en los datos de ejemplo. */
+    history?: { period: string; status: DuesStatus; amount: number }[];
+    /** Monto del último pago (para el recibo). */
+    paidAmount?: number;
   };
 }
 
 export interface AutomationRule {
   id: string;
+  /** Clave estable: carne_30_dias, alerta_urgente, cumpleanios, cuota_mensual. */
+  key?: string;
   title: string;
   categoryTag: string;
   tagClass?: string;
@@ -115,6 +121,8 @@ export interface SentMessage {
 
 export interface ClubRole {
   id: string;
+  /** admin, dt, tesorero o jugador. */
+  key?: string;
   title: string;
   subtitle: string;
   activeCount: number;

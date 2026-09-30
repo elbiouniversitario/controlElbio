@@ -23,7 +23,7 @@ export interface EstadoHabilitacion {
  * Si el staff forzó la habilitación, manda eso. Si no, se calcula: ficha
  * médica vigente, carné LUD vigente (si está cargado) y no estar de baja.
  */
-export function estadoHabilitacion(p: Player): EstadoHabilitacion {
+export function estadoHabilitacion(p: Player, opciones: { bloquearPorDeuda?: boolean } = {}): EstadoHabilitacion {
   const o = p.eligibilityOverride;
   if (o) {
     return {
@@ -35,5 +35,10 @@ export function estadoHabilitacion(p: Player): EstadoHabilitacion {
   if (p.medicalCertificate.daysRemaining <= 0) return { habilitado: false, motivo: 'Ficha médica vencida', manual: false };
   if (carneLudVencido(p)) return { habilitado: false, motivo: 'Carné LUD vencido', manual: false };
   if (p.matchStatus.lineupRole === 'BAJA') return { habilitado: false, motivo: 'Dado de baja', manual: false };
+  if (opciones.bloquearPorDeuda && p.dues.status === 'overdue')
+    return { habilitado: false, motivo: 'Cuota vencida', manual: false };
   return { habilitado: true, motivo: null, manual: false };
 }
+
+/** El admin lo activa en Textos de la app ("Inhabilitar por cuota vencida": si / no). */
+export const bloquearPorDeuda = (valor: string) => valor.trim().toLowerCase().startsWith('s');

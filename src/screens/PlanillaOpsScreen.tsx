@@ -1,15 +1,21 @@
 import React, { useState } from 'react';
 import { Player } from '../types';
+import { AsistenciaModal, ConvocatoriaModal } from '../components/PlanillaModals';
 import { CLUB_CREST_URL, CLUB_CREST_WATERMARK } from '../data/initialData';
 import { useTextos } from '../lib/textos';
 import { mesAnioCorto } from '../lib/fechas';
-import { diasCarneLud, estadoHabilitacion } from '../lib/habilitacion';
+import { bloquearPorDeuda, diasCarneLud, estadoHabilitacion } from '../lib/habilitacion';
 
 interface PlanillaOpsScreenProps {
   players: Player[];
   onOpenPdfModal: () => void;
   onSendWhatsappCitation: () => void;
+  /** Alta de jugador. */
   onOpenLineupModal: () => void;
+  /** Guarda la convocatoria (roles). Sin definir = sin permiso. */
+  onGuardarConvocatoria?: (cambios: Record<string, Player['matchStatus']['lineupRole']>) => Promise<boolean>;
+  /** Recordar por WhatsApp a los que no respondieron la citación. */
+  onRecordarAsistencia?: (pendientes: Player[]) => void;
   /** Sin definir = no se muestra el botón de editar (sin permiso). */
   onEditPlayer?: (player: Player) => void;
   /** Habilitación y documentos (ficha médica, carné). Sin definir = sin permiso. */
@@ -22,6 +28,8 @@ export const PlanillaOpsScreen: React.FC<PlanillaOpsScreenProps> = ({
   onOpenPdfModal,
   onSendWhatsappCitation,
   onOpenLineupModal,
+  onGuardarConvocatoria,
+  onRecordarAsistencia,
   onEditPlayer,
   onOpenDocuments,
   showToast,
@@ -31,39 +39,46 @@ export const PlanillaOpsScreen: React.FC<PlanillaOpsScreenProps> = ({
   const [bagConfirmed, setBagConfirmed] = useState(false);
 
   // Carnés físicos count
-  const cardsInHandCount = players.filter(
-    (p) => p.ludRegistration.cardInHand === 'En mano del delegado'
-  ).length;
-  const totalCardsNeeded = 20;
+  // Bolso: carnés de los convocados (todos menos las bajas).
+  const convocados = players.filter((p) => p.matchStatus.lineupRole !== 'BAJA');
+  const faltanCarne = convocados.filter((p) => p.ludRegistration.cardInHand !== 'En mano del delegado');
+  const totalCardsNeeded = convocados.length;
+  const cardsInHandCount = totalCardsNeeded - faltanCarne.length;
+  const [verAsistencia, setVerAsistencia] = useState(false);
+  const [verConvocatoria, setVerConvocatoria] = useState(false);
 
-  const filteredPlayers = players.filter((p) => {
-    if (filter === 'all') return p.matchStatus.lineupRole !== 'BAJA';
-    if (filter === 'warning')
+  const bloqueaDeuda = bloquearPorDeuda(t.bloquear_por_deuda);
+  const enFiltro = (p: Player, f: typeof filter) => {
+    if (f === 'all') return p.matchStatus.lineupRole !== 'BAJA';
+    if (f === 'warning')
       return (
         p.medicalCertificate.daysRemaining <= 15 ||
         (diasCarneLud(p) ?? 99) <= 15 ||
         p.ludRegistration.cardInHand !== 'En mano del delegado'
       );
-    if (filter === 'blocked')
-      return (
-        !estadoHabilitacion(p).habilitado ||
-        p.dues.status === 'overdue'
-      );
+    if (f === 'blocked')
+      return !estadoHabilitacion(p, { bloquearPorDeuda: bloqueaDeuda }).habilitado || p.dues.status === 'overdue';
     return true;
-  });
+  };
+  const filteredPlayers = players.filter((p) => enFiltro(p, filter));
+  const cantidad = (f: typeof filter) => players.filter((p) => enFiltro(p, f)).length;
 
   const handleBagToggle = (checked: boolean) => {
     setBagConfirmed(checked);
     if (checked) {
-      showToast('Bolso de 18 carnés validado y firmado para el veedor de Liga', 'verified', 'success');
+      showToast(
+        faltanCarne.length
+          ? `Bolso marcado como listo, pero faltan ${faltanCarne.length} carnés`
+          : `Bolso completo: ${cardsInHandCount} carnés listos para la mesa`,
+        faltanCarne.length ? 'warning' : 'verified',
+        faltanCarne.length ? 'warning' : 'success'
+      );
     } else {
       showToast('Revisión de bolso pendiente', 'warning', 'warning');
     }
   };
 
-  const handleAttendanceControl = () => {
-    showToast('Iniciando control de asistencia y entrada en calor en campo', 'sports', 'info');
-  };
+  const handleAttendanceControl = () => setVerAsistencia(true);
 
   return (
     <div className="flex flex-col w-full space-y-4 pb-28">
@@ -162,13 +177,20 @@ export const PlanillaOpsScreen: React.FC<PlanillaOpsScreenProps> = ({
 
         {/* Primary Action: Build Roster */}
         <button
-          onClick={onOpenLineupModal}
+          onClick={() => (onGuardarConvocatoria ? setVerConvocatoria(true) : onOpenLineupModal())}
           className="w-full h-12 bg-[#b51a1b] hover:bg-[#d93630] text-white rounded-lg font-heading text-[12px] font-bold uppercase tracking-wider flex items-center justify-center gap-2 shadow-md active:scale-[0.98] transition-all"
         >
           <span className="material-symbols-outlined text-[20px]">
             assignment_turned_in
           </span>
-          <span>Armar Convocatoria / Planilla Oficial</span>
+          <span>Armar Convocatoria</span>
+        </button>
+        <button
+          onClick={onOpenLineupModal}
+          className="w-full mt-2 h-10 rounded-lg bg-white/10 hover:bg-white/20 text-white font-heading text-[11px] font-bold flex items-center justify-center gap-1.5"
+        >
+          <span className="material-symbols-outlined text-[18px]">person_add</span>
+          Dar de alta un jugador
         </button>
       </section>
 
@@ -197,24 +219,30 @@ export const PlanillaOpsScreen: React.FC<PlanillaOpsScreenProps> = ({
         <div className="w-full bg-[#e6e8eb] rounded-full h-2 mb-3 overflow-hidden">
           <div
             className="bg-[#00183a] h-2 rounded-full transition-all duration-500"
-            style={{ width: `${(cardsInHandCount / totalCardsNeeded) * 100}%` }}
+            style={{ width: `${totalCardsNeeded ? (cardsInHandCount / totalCardsNeeded) * 100 : 0}%` }}
           ></div>
         </div>
 
         {/* Alert Callout: Missing Cards */}
-        <div className="bg-[#ffdad6] text-[#410002] rounded-lg p-3 mb-3 flex items-start gap-2.5 border border-[#ba1a1a]/20">
-          <span className="material-symbols-outlined text-[20px] text-[#ba1a1a] shrink-0 mt-0.5">
-            report_problem
-          </span>
-          <div className="flex flex-col">
-            <span className="font-heading font-bold text-[12px] text-[#ba1a1a]">
-              ¡Atención! 2 carnés físicos pendientes
-            </span>
-            <span className="font-sans text-[11px] text-[#410002] mt-0.5 leading-relaxed">
-              Silveira y Varela deben entregar credencial física al delegado antes de pisar el campo.
-            </span>
+        {faltanCarne.length > 0 ? (
+          <div className="bg-[#ffdad6] text-[#410002] rounded-lg p-3 mb-3 flex items-start gap-2.5 border border-[#ba1a1a]/20">
+            <span className="material-symbols-outlined text-[20px] text-[#ba1a1a] shrink-0 mt-0.5">report_problem</span>
+            <div className="flex flex-col">
+              <span className="font-heading font-bold text-[12px] text-[#ba1a1a]">
+                {faltanCarne.length === 1 ? 'Falta 1 carné físico' : `Faltan ${faltanCarne.length} carnés físicos`}
+              </span>
+              <span className="font-sans text-[11px] text-[#410002] mt-0.5 leading-relaxed">
+                {faltanCarne.map((p) => p.lastName).join(', ')}: entregar el carné al delegado antes del partido (se marca
+                en Editar → Carné LUD).
+              </span>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="bg-emerald-50 text-emerald-900 rounded-lg p-3 mb-3 flex items-center gap-2.5 border border-emerald-200">
+            <span className="material-symbols-outlined text-[20px] text-emerald-700">task_alt</span>
+            <span className="font-heading font-bold text-[12px]">Todos los carnés de los convocados están en el bolso</span>
+          </div>
+        )}
 
         {/* Rapid Switch Control for Referee Handover */}
         <label className="flex items-center justify-between p-2.5 rounded-lg bg-[#f2f4f7] cursor-pointer active:bg-[#e6e8eb] transition-colors border border-[#e0e3e6]">
@@ -227,7 +255,7 @@ export const PlanillaOpsScreen: React.FC<PlanillaOpsScreenProps> = ({
                 Confirmar bolso completo para jueces
               </span>
               <span className="font-sans text-[10px] text-[#44474f]">
-                Habilita firma digital de la cuarteta
+                Marcalo cuando revisaste el bolso antes del partido
               </span>
             </div>
           </div>
@@ -277,7 +305,7 @@ export const PlanillaOpsScreen: React.FC<PlanillaOpsScreenProps> = ({
                   : 'bg-white text-[#44474f]'
               }`}
             >
-              18
+              {cantidad('all')}
             </span>
           </button>
           <button
@@ -289,7 +317,7 @@ export const PlanillaOpsScreen: React.FC<PlanillaOpsScreenProps> = ({
             }`}
           >
             <span>En duda</span>
-            <span className="bg-[#e0e3e6] px-1.5 py-0.2 rounded-full">2</span>
+            <span className="bg-[#e0e3e6] px-1.5 py-0.2 rounded-full">{cantidad('warning')}</span>
           </button>
           <button
             onClick={() => setFilter('blocked')}
@@ -301,7 +329,7 @@ export const PlanillaOpsScreen: React.FC<PlanillaOpsScreenProps> = ({
           >
             <span>Inhabilitados</span>
             <span className="bg-[#ffdad6] text-[#ba1a1a] px-1.5 py-0.2 rounded-full font-bold">
-              2
+              {cantidad('blocked')}
             </span>
           </button>
         </div>
@@ -309,7 +337,7 @@ export const PlanillaOpsScreen: React.FC<PlanillaOpsScreenProps> = ({
         {/* Player Cards Stack */}
         <div className="flex flex-col gap-2.5">
           {filteredPlayers.map((player) => {
-            const estado = estadoHabilitacion(player);
+            const estado = estadoHabilitacion(player, { bloquearPorDeuda: bloquearPorDeuda(t.bloquear_por_deuda) });
             const isHabilitado = estado.habilitado;
             const diasLud = diasCarneLud(player);
             const isWarning =
@@ -521,6 +549,21 @@ export const PlanillaOpsScreen: React.FC<PlanillaOpsScreenProps> = ({
         </div>
       </section>
 
+      {onGuardarConvocatoria && (
+        <ConvocatoriaModal
+          abierto={verConvocatoria}
+          players={players}
+          onClose={() => setVerConvocatoria(false)}
+          onGuardar={onGuardarConvocatoria}
+        />
+      )}
+      <AsistenciaModal
+        abierto={verAsistencia}
+        players={players}
+        onClose={() => setVerAsistencia(false)}
+        onRecordar={onRecordarAsistencia}
+      />
+
       {/* Pitch-Side Primed CTA: Pre-Match Countdown / Warmup Entry */}
       <section className="pt-1">
         <button
@@ -530,7 +573,7 @@ export const PlanillaOpsScreen: React.FC<PlanillaOpsScreenProps> = ({
           <div className="flex items-center gap-3">
             <span className="w-3 h-3 rounded-full bg-[#b51a1b] animate-ping"></span>
             <span className="text-left font-heading font-bold text-[15px] leading-tight text-white">
-              Control de Asistencia & Calentamiento
+              Control de Asistencia
             </span>
           </div>
           <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center">

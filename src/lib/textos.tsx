@@ -20,8 +20,61 @@ export const TEXTOS = {
   cancha: { grupo: 'Próximo partido', label: 'Cancha', valor: 'Complejo Deportivo Elbio • Cancha 1 (Carrasco)' },
   cancha_corta: { grupo: 'Próximo partido', label: 'Cancha (corto)', valor: 'Cancha 1 Carrasco' },
 
+  cuota_monto: { grupo: 'Tesorería', label: 'Valor de la cuota mensual ($)', valor: '1400' },
   cuota_dia_vencimiento: { grupo: 'Tesorería', label: 'Día del mes en que vence la cuota', valor: '10' },
-} as const satisfies Record<string, { grupo: string; label: string; valor: string }>;
+  datos_pago: {
+    grupo: 'Tesorería',
+    label: 'Cómo pagar (lo ven los jugadores en Mi ficha)',
+    valor: 'Transferencia BROU a la cuenta del club, o en efectivo al delegado.\nMandá el comprobante al tesorero.',
+    multilinea: true,
+  },
+
+  delegado_nombre: { grupo: 'Contactos', label: 'Delegado: nombre', valor: 'Delegado' },
+  delegado_celular: { grupo: 'Contactos', label: 'Delegado: celular (para WhatsApp)', valor: '' },
+  tesorero_celular: { grupo: 'Contactos', label: 'Tesorería: celular (para avisar pagos)', valor: '' },
+
+  aviso_dt: {
+    grupo: 'Tablón del equipo',
+    label: 'Aviso para el plantel (se ve en Mi ficha)',
+    valor: 'Bienvenidos a la app del club. Acá van a ver los avisos del cuerpo técnico.',
+    multilinea: true,
+  },
+  aviso_dt_autor: { grupo: 'Tablón del equipo', label: 'Firma del aviso', valor: 'Cuerpo Técnico' },
+
+  dias_aviso_preventivo: { grupo: 'Alertas', label: 'Avisar vencimientos con cuántos días de anticipación', valor: '30' },
+  dias_alerta_urgente: { grupo: 'Alertas', label: 'Alerta urgente: días antes de vencer', valor: '5' },
+  bloquear_por_deuda: { grupo: 'Alertas', label: 'Inhabilitar por cuota vencida (si / no)', valor: 'no' },
+
+  plantilla_vencimiento: {
+    grupo: 'Plantillas de WhatsApp',
+    label: 'Vencimiento de ficha médica o carné',
+    valor:
+      'Hola {nombre}, desde el Club Elbio Fernández te recordamos que tu {documento} vence el {vencimiento}. Para seguir habilitado en la Liga Universitaria, renovalo y avisale al delegado. ¡Arriba Elbio!',
+    multilinea: true,
+  },
+  plantilla_cuota: {
+    grupo: 'Plantillas de WhatsApp',
+    label: 'Recordatorio de cuota',
+    valor: 'Hola {nombre}, te recordamos que tenés pendiente la cuota del club (${deuda}). Cualquier duda, escribinos. ¡Gracias!',
+    multilinea: true,
+  },
+  plantilla_convocatoria: {
+    grupo: 'Plantillas de WhatsApp',
+    label: 'Convocatoria / citación',
+    valor:
+      '⚽ Convocatoria {fecha} vs {rival}\n📅 {dia} · {hora}\n⏰ Citación {citacion}\n📍 {cancha}\nConfirmen asistencia en la app. ¡Arriba Elbio!',
+    multilinea: true,
+  },
+  plantilla_cumpleanios: {
+    grupo: 'Plantillas de WhatsApp',
+    label: 'Saludo de cumpleaños',
+    valor: '¡Feliz cumpleaños {nombre}! 🎉 Un abrazo grande de todo el Club Elbio Fernández.',
+    multilinea: true,
+  },
+
+  club_direccion: { grupo: 'Club', label: 'Dirección de la sede', valor: 'Canelones 1382 esq. Ejido, Montevideo' },
+  club_contacto: { grupo: 'Club', label: 'Contacto (teléfono / email)', valor: '' },
+} as const satisfies Record<string, { grupo: string; label: string; valor: string; multilinea?: boolean }>;
 
 export type ClaveTexto = keyof typeof TEXTOS;
 export type Textos = Record<ClaveTexto, string>;

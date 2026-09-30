@@ -1,23 +1,29 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Player } from '../types';
 import { CLUB_CREST_URL } from '../data/initialData';
 import { nombrePeriodo } from '../lib/fechas';
 import { useTextos } from '../lib/textos';
+import { estadoHabilitacion } from '../lib/habilitacion';
+
+export type Audiencia = 'deudores' | 'por_vencer' | 'plantel' | 'citados';
 
 // Modal 1: New Mass Broadcast Modal
 interface NewBroadcastModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSend: (targetAudience: string, message: string) => void;
+  onSend: (targetAudience: Audiencia, message: string) => void;
+  /** Cuántos jugadores hay en cada audiencia. */
+  conteos: Record<Audiencia, number>;
 }
 
 export const NewBroadcastModal: React.FC<NewBroadcastModalProps> = ({
   isOpen,
   onClose,
   onSend,
+  conteos,
 }) => {
   const t = useTextos();
-  const [audience, setAudience] = useState<'deudores' | 'por_vencer' | 'plantel' | 'citados'>('por_vencer');
+  const [audience, setAudience] = useState<Audiencia>('plantel');
   const [customMsg, setCustomMsg] = useState(
     'Hola {nombre}, te recordamos desde Club Elbio Fernández regularizar tu situación deportiva de cara a la próxima fecha de la Liga Universitaria. ¡Arriba Elbio!'
   );
@@ -37,7 +43,7 @@ export const NewBroadcastModal: React.FC<NewBroadcastModalProps> = ({
                 Nuevo Mensaje Masivo
               </h3>
               <p className="font-sans text-[11px] text-[#44474f]">
-                Envío oficial WhatsApp Cloud API
+                Se abre en tu WhatsApp, listo para mandar
               </p>
             </div>
           </div>
@@ -55,15 +61,15 @@ export const NewBroadcastModal: React.FC<NewBroadcastModalProps> = ({
           </label>
           <div className="grid grid-cols-2 gap-2">
             {[
-              { id: 'por_vencer', label: 'Carnés por vencer (3)' },
-              { id: 'deudores', label: 'Cuotas pendientes (8)' },
-              { id: 'citados', label: `Citados ${t.fecha}` },
-              { id: 'plantel', label: 'Todo el plantel (26)' },
+              { id: 'por_vencer' as const, label: `Fichas/carnés por vencer (${conteos.por_vencer})` },
+              { id: 'deudores' as const, label: `Cuotas pendientes (${conteos.deudores})` },
+              { id: 'citados' as const, label: `Citados ${t.fecha} (${conteos.citados})` },
+              { id: 'plantel' as const, label: `Todo el plantel (${conteos.plantel})` },
             ].map((item) => (
               <button
                 key={item.id}
                 type="button"
-                onClick={() => setAudience(item.id as any)}
+                onClick={() => setAudience(item.id)}
                 className={`py-2 px-3 rounded-lg font-heading text-[11px] font-bold text-left transition-all border ${
                   audience === item.id
                     ? 'bg-[#00183a] text-white border-[#00183a] shadow-xs'
@@ -102,8 +108,8 @@ export const NewBroadcastModal: React.FC<NewBroadcastModalProps> = ({
             }}
             className="flex-1 h-11 rounded-lg bg-[#00183a] hover:bg-[#0d2d59] text-white font-heading text-[12px] font-bold uppercase shadow-sm flex items-center justify-center gap-1.5 active:scale-95 transition-all"
           >
-            <span className="material-symbols-outlined text-[18px]">send</span>
-            Enviar Masivo
+            <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
+            Siguiente
           </button>
         </div>
       </div>
@@ -111,38 +117,36 @@ export const NewBroadcastModal: React.FC<NewBroadcastModalProps> = ({
   );
 };
 
-// Modal 2: Edit WhatsApp Template Modal
+// Modal 2: Editor de una plantilla de WhatsApp (se guarda en "Textos de la app")
 interface EditTemplateModalProps {
-  isOpen: boolean;
+  /** Plantilla a editar; null = cerrado. */
+  plantilla: { titulo: string; valor: string } | null;
   onClose: () => void;
-  onSave: (template: string) => void;
+  /** Devuelve false si no se pudo guardar. */
+  onSave: (template: string) => Promise<boolean>;
 }
 
-export const EditTemplateModal: React.FC<EditTemplateModalProps> = ({
-  isOpen,
-  onClose,
-  onSave,
-}) => {
-  const [templateText, setTemplateText] = useState(
-    'Hola [Nombre], desde Club Elbio Fernández te recordamos que tu Carné de Salud vence el [Fecha]. Para mantenerte habilitado en la Liga Universitaria, gestioná tu renovación y envianos la foto de comprobante aquí. ¡Arriba Elbio! 🔴⚪🔵'
-  );
+export const EditTemplateModal: React.FC<EditTemplateModalProps> = ({ plantilla, onClose, onSave }) => {
+  const [templateText, setTemplateText] = useState('');
+  const [saving, setSaving] = useState(false);
 
-  if (!isOpen) return null;
+  useEffect(() => {
+    setTemplateText(plantilla?.valor ?? '');
+  }, [plantilla]);
+
+  if (!plantilla) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-[#00183a]/70 backdrop-blur-xs p-4 animate-in fade-in duration-200">
       <div className="w-full max-w-md bg-white rounded-2xl p-5 shadow-2xl flex flex-col gap-4">
         <div className="flex items-center justify-between border-b border-[#e0e3e6] pb-3">
-          <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-[#00183a] text-[22px]">
-              edit_note
-            </span>
-            <h3 className="font-heading font-bold text-[16px] text-[#00183a]">
-              Editor de Plantilla HSM
-            </h3>
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="material-symbols-outlined text-[#00183a] text-[22px]">edit_note</span>
+            <h3 className="font-heading font-bold text-[16px] text-[#00183a] truncate">{plantilla.titulo}</h3>
           </div>
           <button
             onClick={onClose}
+            aria-label="Cerrar"
             className="w-8 h-8 rounded-full flex items-center justify-center text-[#747780] hover:bg-[#eceef1]"
           >
             <span className="material-symbols-outlined text-[20px]">close</span>
@@ -150,16 +154,20 @@ export const EditTemplateModal: React.FC<EditTemplateModalProps> = ({
         </div>
 
         <p className="font-sans text-[12px] text-[#44474f]">
-          Esta plantilla está pre-aprobada por Meta Business. Modifica el texto manteniendo las
-          etiquetas dinámicas <code className="bg-[#e6e8eb] px-1 rounded">[Nombre]</code> y{' '}
-          <code className="bg-[#e6e8eb] px-1 rounded">[Fecha]</code>.
+          Podés usar <code className="bg-[#e6e8eb] px-1 rounded">{'{nombre}'}</code>,{' '}
+          <code className="bg-[#e6e8eb] px-1 rounded">{'{vencimiento}'}</code>,{' '}
+          <code className="bg-[#e6e8eb] px-1 rounded">{'{documento}'}</code>,{' '}
+          <code className="bg-[#e6e8eb] px-1 rounded">{'{deuda}'}</code> y los datos del partido (
+          <code className="bg-[#e6e8eb] px-1 rounded">{'{rival}'}</code>,{' '}
+          <code className="bg-[#e6e8eb] px-1 rounded">{'{dia}'}</code>,{' '}
+          <code className="bg-[#e6e8eb] px-1 rounded">{'{citacion}'}</code>…): se completan solos en cada envío.
         </p>
 
         <textarea
           value={templateText}
           onChange={(e) => setTemplateText(e.target.value)}
-          rows={5}
-          className="w-full p-3 rounded-lg bg-[#f2f4f7] text-[#00183a] font-sans text-[13px] outline-none focus:bg-white focus:ring-2 focus:ring-[#00183a] border border-[#e0e3e6] resize-none"
+          rows={6}
+          className="w-full p-3 rounded-lg bg-[#f2f4f7] text-[#00183a] font-sans text-[16px] sm:text-[13px] outline-none focus:bg-white focus:ring-2 focus:ring-[#00183a] border border-[#e0e3e6] resize-none select-text"
         ></textarea>
 
         <div className="flex gap-2 pt-1">
@@ -170,13 +178,16 @@ export const EditTemplateModal: React.FC<EditTemplateModalProps> = ({
             Cancelar
           </button>
           <button
-            onClick={() => {
-              onSave(templateText);
-              onClose();
+            disabled={saving || !templateText.trim()}
+            onClick={async () => {
+              setSaving(true);
+              const ok = await onSave(templateText);
+              setSaving(false);
+              if (ok) onClose();
             }}
-            className="flex-1 h-11 rounded-lg bg-[#00183a] text-white font-heading text-[12px] font-bold uppercase shadow-sm active:scale-95"
+            className="flex-1 h-11 rounded-lg bg-[#00183a] text-white font-heading text-[12px] font-bold uppercase shadow-sm active:scale-95 disabled:opacity-60"
           >
-            Guardar Plantilla
+            {saving ? 'Guardando…' : 'Guardar plantilla'}
           </button>
         </div>
       </div>
@@ -189,19 +200,30 @@ interface PaymentModalProps {
   isOpen: boolean;
   onClose: () => void;
   player?: Player;
+  /** Para elegir a quién cobrarle cuando se abre sin jugador (botón +). */
+  players?: Player[];
   onConfirmPayment: (playerId: string, amount: number, method: string) => void;
 }
 
 export const PaymentModal: React.FC<PaymentModalProps> = ({
   isOpen,
   onClose,
-  player,
+  player: jugadorInicial,
+  players = [],
   onConfirmPayment,
 }) => {
-  const [amount, setAmount] = useState(1400);
   const [method, setMethod] = useState('Transferencia BROU');
+  const [elegidoId, setElegidoId] = useState('');
+
+  useEffect(() => {
+    if (isOpen) setElegidoId('');
+  }, [isOpen]);
 
   if (!isOpen) return null;
+
+  const deudores = players.filter((p) => p.dues.debtAmount > 0);
+  const player = jugadorInicial ?? players.find((p) => p.id === elegidoId);
+  const amount = player?.dues.debtAmount ?? 0;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-[#00183a]/70 backdrop-blur-xs p-4 animate-in fade-in duration-200">
@@ -240,22 +262,35 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
             </div>
           </div>
         ) : (
-          <p className="font-sans text-[12px] text-[#44474f]">
-            Registro de ingreso manual para caja de tesorería del club.
-          </p>
+          <div className="flex flex-col gap-1">
+            <label className="font-heading text-[12px] font-bold text-[#00183a]">Jugador</label>
+            <select
+              value={elegidoId}
+              onChange={(e) => setElegidoId(e.target.value)}
+              className="h-12 px-3 rounded-lg bg-[#f2f4f7] font-sans text-[16px] sm:text-[14px] text-[#00183a] outline-none border border-[#e0e3e6]"
+            >
+              <option value="">{deudores.length ? 'Elegí a quién cobrarle…' : 'Nadie tiene cuotas pendientes'}</option>
+              {deudores.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.lastName}, {p.firstName} — ${p.dues.debtAmount.toLocaleString('es-UY')}
+                </option>
+              ))}
+            </select>
+          </div>
         )}
 
-        <div className="flex flex-col gap-1">
-          <label className="font-heading text-[12px] font-bold text-[#00183a]">
-            Monto en UYU ($)
-          </label>
-          <input
-            type="number"
-            value={amount}
-            onChange={(e) => setAmount(Number(e.target.value))}
-            className="h-12 px-3 rounded-lg bg-[#f2f4f7] font-heading font-bold text-[16px] text-[#00183a] outline-none focus:bg-white focus:ring-2 focus:ring-[#00183a] border border-[#e0e3e6]"
-          />
+        <div className="flex items-center justify-between bg-[#f2f4f7] rounded-lg px-3 py-2.5 border border-[#e0e3e6]">
+          <span className="font-heading text-[12px] font-bold text-[#00183a]">A cobrar</span>
+          <span className="font-heading font-bold text-[18px] text-[#00183a]">${amount.toLocaleString('es-UY')}</span>
         </div>
+        {player && amount === 0 && (
+          <p className="font-sans text-[12px] text-[#b76e00]">
+            {player.firstName} no tiene cuotas pendientes. Si falta generar la cuota del mes, hacelo desde Tesorería.
+          </p>
+        )}
+        {amount > 0 && (
+          <p className="font-sans text-[11px] text-[#747780] -mt-2">Salda todas sus cuotas pendientes con un mismo recibo.</p>
+        )}
 
         <div className="flex flex-col gap-1">
           <label className="font-heading text-[12px] font-bold text-[#00183a]">
@@ -282,11 +317,12 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
             Cancelar
           </button>
           <button
+            disabled={!player || amount === 0}
             onClick={() => {
               if (player) onConfirmPayment(player.id, amount, method);
               onClose();
             }}
-            className="flex-1 h-11 rounded-lg bg-[#1b5e20] hover:bg-[#154a19] text-white font-heading text-[12px] font-bold uppercase shadow-sm active:scale-95"
+            className="flex-1 h-11 rounded-lg bg-[#1b5e20] hover:bg-[#154a19] text-white font-heading text-[12px] font-bold uppercase shadow-sm active:scale-95 disabled:opacity-50"
           >
             Asentar Cobro
           </button>
@@ -452,7 +488,7 @@ export const PlanillaPdfModal: React.FC<PlanillaPdfModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#00183a]/75 backdrop-blur-xs p-3 animate-in fade-in duration-200">
-      <div className="w-full max-w-lg bg-white rounded-2xl p-5 shadow-2xl flex flex-col gap-3.5 max-h-[92vh] overflow-y-auto">
+      <div className="area-impresion w-full max-w-lg bg-white rounded-2xl p-5 shadow-2xl flex flex-col gap-3.5 max-h-[92vh] overflow-y-auto">
         <div className="flex items-center justify-between border-b border-[#e0e3e6] pb-3">
           <div className="flex items-center gap-2.5">
             <img src={CLUB_CREST_URL} alt="Crest" className="w-8 h-9 object-contain" />
@@ -467,7 +503,8 @@ export const PlanillaPdfModal: React.FC<PlanillaPdfModalProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full flex items-center justify-center text-[#747780] hover:bg-[#eceef1]"
+            aria-label="Cerrar"
+            className="no-imprimir w-8 h-8 rounded-full flex items-center justify-center text-[#747780] hover:bg-[#eceef1]"
           >
             <span className="material-symbols-outlined text-[20px]">close</span>
           </button>
@@ -505,7 +542,9 @@ export const PlanillaPdfModal: React.FC<PlanillaPdfModalProps> = ({
                   <td className="p-1 text-[9px] uppercase font-bold text-[#00183a]">
                     {p.matchStatus.lineupRole}
                   </td>
-                  <td className="p-1 text-[9px] text-[#1b5e20] font-bold">OK</td>
+                  <td className={`p-1 text-[9px] font-bold ${estadoHabilitacion(p).habilitado ? 'text-[#1b5e20]' : 'text-[#b51a1b]'}`}>
+                    {estadoHabilitacion(p).habilitado ? 'OK' : 'NO'}
+                  </td>
                   <td className="p-1 text-center text-[#747780]">_________</td>
                 </tr>
               ))}
@@ -513,12 +552,12 @@ export const PlanillaPdfModal: React.FC<PlanillaPdfModalProps> = ({
           </table>
 
           <div className="pt-2 border-t border-[#e0e3e6] flex justify-between text-[9px] text-[#44474f]">
-            <span>Delegado: Matías Romero (Firma: _________)</span>
-            <span>Veedor LUD: Aprobado</span>
+            <span>Delegado: {t.delegado_nombre} (Firma: _________)</span>
+            <span>Veedor LUD: _________</span>
           </div>
         </div>
 
-        <div className="flex gap-2 pt-1">
+        <div className="no-imprimir flex gap-2 pt-1">
           <button
             onClick={() => window.print()}
             className="flex-1 h-11 rounded-lg bg-[#00183a] hover:bg-[#0d2d59] text-white font-heading text-[12px] font-bold uppercase flex items-center justify-center gap-1.5 shadow-sm active:scale-95"

@@ -46,7 +46,6 @@ export const NuevoJugadorWizard: React.FC<NuevoJugadorWizardProps> = ({
   // Step 3 State
   const [expiryDate, setExpiryDate] = useState(() => `${Number(hoyISO().slice(0, 4)) + 1}${hoyISO().slice(4)}`);
   const [clinic, setClinic] = useState(ej('Centro Médico Elbio Fernández - Dpto. Aptitud', ''));
-  const [fileName, setFileName] = useState(ej('carnet_salud_frente_dorso.jpg', ''));
   const [medicalNotes, setMedicalNotes] = useState('');
   const [cardInHand, setCardInHand] = useState<'En mano del delegado' | 'En poder del jugador' | 'En trámite secretaría'>('En mano del delegado');
   const [federatedId, setFederatedId] = useState(ej(48291, 0));
@@ -100,8 +99,6 @@ export const NuevoJugadorWizard: React.FC<NuevoJugadorWizardProps> = ({
         expiryDate,
         daysRemaining: 245,
         clinic,
-        fileName,
-        fileSize: '1.8 MB',
         verified: true,
         notes: medicalNotes,
       },
@@ -127,7 +124,7 @@ export const NuevoJugadorWizard: React.FC<NuevoJugadorWizardProps> = ({
     const ok = await onSavePlayer(newPlayer);
     setSaving(false);
     if (!ok) return;
-    showToast(`¡${firstName} ${lastName} dado de alta como jugador HABILITADO!`, 'how_to_reg', 'success');
+    showToast(`¡${firstName} ${lastName} dado de alta!`, 'how_to_reg', 'success');
   };
 
   return (
@@ -792,46 +789,6 @@ export const NuevoJugadorWizard: React.FC<NuevoJugadorWizardProps> = ({
               </div>
             </div>
 
-            {/* Archivo / Foto del Carné de Salud */}
-            <div className="flex flex-col gap-1.5">
-              <label className="font-heading text-[12px] font-bold text-[#00183a]">
-                Adjuntar foto o PDF del carné por ambos lados
-              </label>
-              <div className="bg-[#f2f4f7] rounded-xl p-3 flex items-center justify-between gap-3 border border-[#e0e3e6]">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-11 h-11 rounded-lg bg-[#0d2d59] text-white flex items-center justify-center shrink-0">
-                    <span className="material-symbols-outlined text-[24px]">description</span>
-                  </div>
-                  <div className="min-w-0 flex flex-col">
-                    <span className="font-heading font-bold text-[12px] text-[#00183a] truncate">
-                      {fileName}
-                    </span>
-                    <span className="font-sans text-[11px] text-[#44474f] flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span> 1.8 MB ·
-                      Verificado
-                    </span>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setFileName('comprobante_actualizado.jpg')}
-                  aria-label="Eliminar archivo"
-                  className="w-9 h-9 rounded-full bg-white flex items-center justify-center text-[#b51a1b] active:scale-95 transition-transform border border-[#e0e3e6]"
-                >
-                  <span className="material-symbols-outlined text-[18px]">close</span>
-                </button>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => showToast('Abriendo selector de cámara o archivos del dispositivo')}
-                className="w-full h-11 rounded-lg bg-[#e6e8eb] hover:bg-[#eceef1] text-[#00183a] font-heading text-[12px] font-bold flex items-center justify-center gap-2 active:scale-98 transition-transform"
-              >
-                <span className="material-symbols-outlined text-[20px]">add_a_photo</span>
-                Reemplazar documento o tomar foto
-              </button>
-            </div>
-
             {/* Observaciones Médicas */}
             <div className="flex flex-col gap-1">
               <label className="font-heading text-[12px] font-bold text-[#00183a]">
@@ -969,10 +926,10 @@ export const NuevoJugadorWizard: React.FC<NuevoJugadorWizardProps> = ({
                 ESTADO AUTOMÁTICO
               </span>
               <p className="font-heading font-bold text-[15px] text-white leading-tight mt-0.5">
-                Jugador quedará automáticamente HABILITADO
+                La habilitación se calcula sola
               </p>
               <span className="font-sans text-[11px] text-[#acc7fc] mt-0.5">
-                Apto para la próxima fecha oficial de Liga
+                Con la ficha médica vigente y el carné LUD cargado queda habilitado
               </span>
             </div>
           </div>
