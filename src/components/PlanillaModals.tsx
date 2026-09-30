@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Player } from '../types';
 import { ROLES_PLANILLA } from '../lib/opciones';
+import { CLAVES_PARTIDO, TEXTOS, Textos, useTextos } from '../lib/textos';
 
 type RolPlanilla = Player['matchStatus']['lineupRole'];
 
@@ -177,6 +178,71 @@ export const AsistenciaModal: React.FC<{
       <Grupo titulo="Confirmaron" color="text-emerald-700" lista={confirmados} detalle={(p) => ETIQUETA[p.matchStatus.lineupRole]} />
       <Grupo titulo="Avisaron que faltan" color="text-[#b51a1b]" lista={ausentes} detalle={(p) => p.matchStatus.declineReason ?? ''} />
       <Grupo titulo="Sin respuesta" color="text-[#b76e00]" lista={pendientes} />
+    </Marco>
+  );
+};
+
+/** Cargar fecha, rival, día, horas y cancha del próximo partido (admin y cuerpo técnico). */
+export const PartidoModal: React.FC<{
+  abierto: boolean;
+  onClose: () => void;
+  /** Recibe solo los datos del partido. Devuelve false si no se pudo guardar. */
+  onGuardar: (valores: Partial<Textos>) => Promise<boolean>;
+}> = ({ abierto, onClose, onGuardar }) => {
+  const t = useTextos();
+  const [valores, setValores] = useState<Partial<Textos>>({});
+  const [guardando, setGuardando] = useState(false);
+
+  useEffect(() => {
+    if (abierto) setValores(Object.fromEntries(CLAVES_PARTIDO.map((c) => [c, t[c]])));
+  }, [abierto, t]);
+
+  if (!abierto) return null;
+
+  const cambios = Object.fromEntries(
+    CLAVES_PARTIDO.filter((c) => (valores[c] ?? '').trim() !== t[c]).map((c) => [c, (valores[c] ?? '').trim()])
+  ) as Partial<Textos>;
+  const faltaAlgo = CLAVES_PARTIDO.some((c) => !(valores[c] ?? '').trim());
+
+  return (
+    <Marco
+      titulo="Próximo partido"
+      subtitulo="Se ve en la Planilla, la ficha de cada jugador, la convocatoria y el PDF."
+      onClose={onClose}
+      pie={
+        <div className="flex gap-2">
+          <button
+            onClick={onClose}
+            className="flex-1 h-11 rounded-lg bg-[#eceef1] text-[#00183a] font-heading text-[12px] font-bold uppercase"
+          >
+            Cancelar
+          </button>
+          <button
+            disabled={guardando || faltaAlgo || Object.keys(cambios).length === 0}
+            onClick={async () => {
+              setGuardando(true);
+              const ok = await onGuardar(cambios);
+              setGuardando(false);
+              if (ok) onClose();
+            }}
+            className="flex-1 h-11 rounded-lg bg-[#b51a1b] text-white font-heading text-[12px] font-bold uppercase disabled:opacity-50"
+          >
+            {guardando ? 'Guardando…' : 'Guardar'}
+          </button>
+        </div>
+      }
+    >
+      {CLAVES_PARTIDO.map((clave) => (
+        <label key={clave} className="flex flex-col gap-1">
+          <span className="font-heading text-[11px] font-bold text-[#44474f] uppercase">{TEXTOS[clave].label}</span>
+          <input
+            value={valores[clave] ?? ''}
+            onChange={(e) => setValores((v) => ({ ...v, [clave]: e.target.value }))}
+            placeholder={TEXTOS[clave].valor}
+            className="h-11 rounded-lg border border-[#c4c6d0] px-3 font-sans text-[14px] text-[#191c1e] focus:outline-none focus:border-[#00183a]"
+          />
+        </label>
+      ))}
     </Marco>
   );
 };

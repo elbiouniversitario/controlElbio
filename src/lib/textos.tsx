@@ -78,6 +78,11 @@ export const TEXTOS = {
 export type ClaveTexto = keyof typeof TEXTOS;
 export type Textos = Record<ClaveTexto, string>;
 
+/** Datos del próximo partido: los puede cargar el admin y el cuerpo técnico. */
+export const CLAVES_PARTIDO = (Object.keys(TEXTOS) as ClaveTexto[]).filter(
+  (clave) => TEXTOS[clave].grupo === 'Próximo partido'
+);
+
 export const TEXTOS_DEFAULT = Object.fromEntries(
   Object.entries(TEXTOS).map(([clave, def]) => [clave, def.valor])
 ) as Textos;
