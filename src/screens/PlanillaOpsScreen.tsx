@@ -342,7 +342,7 @@ export const PlanillaOpsScreen: React.FC<PlanillaOpsScreenProps> = ({
             const diasLud = diasCarneLud(player);
             const isWarning =
               (player.medicalCertificate.daysRemaining <= 15 && player.medicalCertificate.daysRemaining > 0) ||
-              (diasLud !== null && diasLud <= 15 && diasLud > 0);
+              (diasLud !== null && diasLud <= 15);
             const isBlocked = !isHabilitado;
 
             return (
@@ -432,12 +432,15 @@ export const PlanillaOpsScreen: React.FC<PlanillaOpsScreenProps> = ({
                           warning
                         </span>
                         <span>
-                          Vence en{' '}
-                          {Math.min(player.medicalCertificate.daysRemaining, diasLud ?? Infinity)}d
+                          {diasLud !== null && diasLud <= 0
+                            ? 'Carné LUD vencido'
+                            : `Vence en ${Math.min(player.medicalCertificate.daysRemaining, diasLud ?? Infinity)}d`}
                         </span>
                       </span>
                       <span className="font-sans text-[10px] text-[#b51a1b] font-medium mt-1">
-                        {diasLud !== null && diasLud <= 15 && diasLud < player.medicalCertificate.daysRemaining
+                        {diasLud !== null && diasLud <= 0
+                          ? 'Habilitado (renovar carné)'
+                          : diasLud !== null && diasLud <= 15 && diasLud < player.medicalCertificate.daysRemaining
                           ? 'Carné LUD por vencer'
                           : player.ludRegistration.cardInHand !== 'En mano del delegado'
                           ? 'Falta carné físico'
