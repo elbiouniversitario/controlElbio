@@ -7,6 +7,7 @@ import { AutomationRule, ClubRole, DuesStatus, Player, SentMessage } from '../ty
 // Filas tal como vienen de Supabase (ver supabase/migrations/)
 // ---------------------------------------------------------------------------
 interface PagoRow {
+  monto?: number;
   metodo: string;
   recibo: string;
   pagado_en: string;
@@ -77,6 +78,7 @@ interface JugadorRow {
 
 interface ReglaRow {
   id: string;
+  clave: string;
   titulo: string;
   etiqueta: string;
   descripcion: string;
@@ -101,6 +103,7 @@ interface MensajeRow {
 
 interface RolRow {
   id: string;
+  clave: string;
   titulo: string;
   subtitulo: string;
   descripcion: string;
@@ -111,7 +114,7 @@ interface RolRow {
 }
 
 const JUGADOR_SELECT =
-  '*, carnes_salud(*), fichas_lud(*), estado_planilla(*), cuotas(periodo, monto, estado, pagos(metodo, recibo, pagado_en))';
+  '*, carnes_salud(*), fichas_lud(*), estado_planilla(*), cuotas(periodo, monto, estado, pagos(monto, metodo, recibo, pagado_en))';
 
 // ---------------------------------------------------------------------------
 // Mapeos fila → tipos de la app
@@ -192,6 +195,10 @@ function mapJugador(r: JugadorRow): Player {
       paymentMethod: ultimoPago?.metodo,
       receiptNumber: ultimoPago?.recibo,
       paidDate: ultimoPago ? diaMes(ultimoPago.pagado_en) : undefined,
+      paidAmount: ultimoPago
+        ? cuotas.flatMap((c) => c.pagos ?? []).filter((x) => x.recibo === ultimoPago.recibo).reduce((s, x) => s + (x.monto ?? 0), 0)
+        : undefined,
+      history: cuotas.map((c) => ({ period: c.periodo.slice(0, 7), status: ESTADO_CUOTA[c.estado], amount: c.monto })),
     },
   };
 }
@@ -199,6 +206,7 @@ function mapJugador(r: JugadorRow): Player {
 function mapRegla(r: ReglaRow): AutomationRule {
   return {
     id: r.id,
+    key: r.clave,
     title: r.titulo,
     categoryTag: r.etiqueta,
     tagClass: r.clase_etiqueta ?? undefined,
@@ -237,6 +245,7 @@ function mapMensaje(r: MensajeRow, players: Player[]): SentMessage {
 function mapRol(r: RolRow): ClubRole {
   return {
     id: r.id,
+    key: r.clave,
     title: r.titulo,
     subtitle: r.subtitulo,
     activeCount: r.cantidad_activos,
@@ -390,6 +399,31 @@ export async function actualizarJugador(p: Player): Promise<Player> {
   return cargarJugador(p.id);
 }
 
+/** Crea la cuota del mes actual para cada jugador activo que no la tenga. Devuelve cuántas creó. */
+export async function generarCuotasDelMes(monto: number): Promise<number> {
+  const { data, error } = await cliente().rpc('generar_cuotas_del_mes', { p_monto: monto });
+  if (error) throw error;
+  return data as number;
+}
+
+/** Cambia el rol en la planilla (titular, suplente, reserva, baja) de varios jugadores. */
+export async function actualizarRolesPlanilla(cambios: Record<string, Player['matchStatus']['lineupRole']>): Promise<void> {
+  const filas = Object.entries(cambios).map(([jugador_id, rol]) => ({ jugador_id, rol }));
+  if (filas.length === 0) return;
+  const { error } = await cliente().from('estado_planilla').upsert(filas, { onConflict: 'jugador_id' });
+  if (error) throw error;
+}
+
+/** Asocia un archivo subido a la ficha médica que el jugador tiene sin archivo (p. ej. recién dado de alta). */
+export async function adjuntarArchivoFicha(jugadorId: string, ruta: string): Promise<void> {
+  const { error } = await cliente()
+    .from('carnes_salud')
+    .update({ archivo_path: ruta, archivo_nombre: ruta.split('/').pop() })
+    .eq('jugador_id', jugadorId)
+    .is('archivo_path', null);
+  if (error) throw error;
+}
+
 /** Registra el cobro de todas las cuotas impagas del jugador. Devuelve el jugador actualizado. */
 export async function registrarPago(jugadorId: string, metodo: string): Promise<Player> {
   const { error } = await cliente().rpc('registrar_pago', { p_jugador_id: jugadorId, p_metodo: metodo });
@@ -420,6 +454,17 @@ export async function actualizarRegla(id: string, activa: boolean): Promise<void
   if (error) throw error;
   // RLS no da error al actualizar sin permiso: simplemente no toca ninguna fila.
   if (!data?.length) throw sinPermiso();
+}
+
+/** Guarda en el historial un mensaje mandado al grupo del plantel. */
+export async function registrarMensajeGrupo(tema: string): Promise<SentMessage> {
+  const { data, error } = await cliente()
+    .from('mensajes_enviados')
+    .insert({ jugador_id: null, jugador_nombre: 'Grupo del plantel', tema, tipo: tipoDeTema(tema), estado: 'Enviado' })
+    .select()
+    .single();
+  if (error) throw error;
+  return mapMensaje(data as MensajeRow, []);
 }
 
 /** Guarda un aviso enviado a varios jugadores. Devuelve los mensajes guardados (más nuevo primero). */

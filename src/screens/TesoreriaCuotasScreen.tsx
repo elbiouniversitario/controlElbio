@@ -1,14 +1,17 @@
 import React, { useState } from 'react';
-import { Player } from '../types';
+import { DuesStatus, Player } from '../types';
 import { CLUB_CREST_URL } from '../data/initialData';
 import { nombrePeriodo, periodoActual, sumarMeses } from '../lib/fechas';
 import { useTextos } from '../lib/textos';
+import { bloquearPorDeuda } from '../lib/habilitacion';
 
 interface TesoreriaCuotasScreenProps {
   players: Player[];
   onOpenPaymentModal: (player?: Player) => void;
   onSendWhatsAppReminder: (player: Player) => void;
   onSendMassReminder: () => void;
+  /** Genera las cuotas del mes actual. Sin definir = sin permiso (solo admin y tesorería). */
+  onGenerarCuotas?: () => Promise<void>;
   showToast: (msg: string, icon?: string, type?: 'success' | 'warning' | 'info' | 'error') => void;
 }
 
@@ -17,37 +20,63 @@ export const TesoreriaCuotasScreen: React.FC<TesoreriaCuotasScreenProps> = ({
   onOpenPaymentModal,
   onSendWhatsAppReminder,
   onSendMassReminder,
+  onGenerarCuotas,
   showToast,
 }) => {
   const t = useTextos();
   const [filter, setFilter] = useState<'all' | 'pending' | 'overdue' | 'paid'>('all');
   const [searchTerm, setSearchTerm] = useState('');
-  // Período de la última cuota generada (en los datos de ejemplo, abril 2025).
-  const currentPeriod = players.reduce(
-    (max, p) => (p.dues.period > max ? p.dues.period : max),
-    players[0]?.dues.period ?? periodoActual()
-  );
-  const [selectedMonth, setSelectedMonth] = useState(nombrePeriodo(currentPeriod));
+  const monto = Number(t.cuota_monto) || 1400;
+  const mesActual = periodoActual();
+  const [verConcepto, setVerConcepto] = useState(false);
+  const [generando, setGenerando] = useState(false);
 
-  const paidCount = players.filter((p) => p.dues.status === 'paid').length;
-  const pendingCount = players.filter((p) => p.dues.status === 'pending').length;
-  const overdueCount = players.filter((p) => p.dues.status === 'overdue').length;
+  /** Estado de la cuota de un jugador en un mes (null = no tiene cuota ese mes). */
+  const cuotaEn = (p: Player, period: string): { status: DuesStatus; amount: number } | null => {
+    if (p.dues.history) return p.dues.history.find((h) => h.period === period) ?? null;
+    return p.dues.period === period ? { status: p.dues.status, amount: monto } : null;
+  };
+
+  // Meses con cuotas, más el actual; se navega con las flechas.
+  const periodos = [
+    ...new Set([mesActual, ...players.flatMap((p) => (p.dues.history ?? [{ period: p.dues.period }]).map((h) => h.period))]),
+  ].sort();
+  const [selectedPeriod, setSelectedPeriod] = useState(() => {
+    const conCuotas = periodos.filter((m) => players.some((p) => cuotaEn(p, m)));
+    return conCuotas.includes(mesActual) || conCuotas.length === 0 ? mesActual : conCuotas[conCuotas.length - 1];
+  });
+  const idx = periodos.indexOf(selectedPeriod);
+  const selectedMonth = nombrePeriodo(selectedPeriod);
+
+  const cuotasDelMes = players.map((p) => cuotaEn(p, selectedPeriod)).filter((c) => c !== null);
+  const paidCount = cuotasDelMes.filter((c) => c.status === 'paid').length;
+  const pendingCount = cuotasDelMes.filter((c) => c.status === 'pending').length;
+  const overdueCount = cuotasDelMes.filter((c) => c.status === 'overdue').length;
   const totalCount = players.length;
 
-  const totalCollected = paidCount * 1400 + 4200; // Realistic math
-  const totalGoal = totalCount * 1400;
+  const totalCollected = cuotasDelMes.filter((c) => c.status === 'paid').reduce((s, c) => s + c.amount, 0);
+  const totalGoal = cuotasDelMes.reduce((s, c) => s + c.amount, 0);
   const remaining = Math.max(0, totalGoal - totalCollected);
-  const percentage = Math.min(100, Math.round((totalCollected / totalGoal) * 100));
+  const percentage = totalGoal ? Math.min(100, Math.round((totalCollected / totalGoal) * 100)) : 0;
+  const deudoresTotales = players.filter((p) => p.dues.debtAmount > 0 || p.dues.status === 'overdue').length;
+
+  const generar = async () => {
+    if (!onGenerarCuotas) return;
+    setGenerando(true);
+    await onGenerarCuotas();
+    setGenerando(false);
+    setSelectedPeriod(mesActual);
+  };
 
   const filteredPlayers = players.filter((p) => {
     const matchesFilter =
       filter === 'all'
         ? true
         : filter === 'paid'
-        ? p.dues.status === 'paid'
+        ? cuotaEn(p, selectedPeriod)?.status === 'paid'
         : filter === 'pending'
-        ? p.dues.status === 'pending'
-        : p.dues.status === 'overdue';
+        ? cuotaEn(p, selectedPeriod)?.status === 'pending'
+        : cuotaEn(p, selectedPeriod)?.status === 'overdue';
 
     const term = searchTerm.toLowerCase();
     const matchesSearch =
@@ -96,13 +125,10 @@ export const TesoreriaCuotasScreen: React.FC<TesoreriaCuotasScreenProps> = ({
         <div className="mt-4 pt-2 bg-[#00183a]/50 rounded-lg p-2.5 flex flex-col gap-2 border border-white/10">
           <div className="flex items-center justify-between">
             <button
-              onClick={() => {
-                const m = nombrePeriodo(sumarMeses(currentPeriod, -1));
-                setSelectedMonth(m);
-                showToast(`Mostrando período: ${m}`);
-              }}
+              onClick={() => setSelectedPeriod(idx > 0 ? periodos[idx - 1] : sumarMeses(selectedPeriod, -1))}
+              disabled={idx <= 0}
               aria-label="Mes anterior"
-              className="w-8 h-8 rounded-full bg-[#0d2d59]/90 hover:bg-[#00183a] text-white flex items-center justify-center transition-transform active:scale-90"
+              className="w-8 h-8 rounded-full bg-[#0d2d59]/90 hover:bg-[#00183a] text-white flex items-center justify-center transition-transform active:scale-90 disabled:opacity-30"
             >
               <span className="material-symbols-outlined text-[18px]">chevron_left</span>
             </button>
@@ -115,13 +141,10 @@ export const TesoreriaCuotasScreen: React.FC<TesoreriaCuotasScreenProps> = ({
               </span>
             </div>
             <button
-              onClick={() => {
-                const m = nombrePeriodo(sumarMeses(currentPeriod, 1));
-                setSelectedMonth(m);
-                showToast(`Mostrando período: ${m}`);
-              }}
+              onClick={() => setSelectedPeriod(periodos[idx + 1] ?? selectedPeriod)}
+              disabled={idx >= periodos.length - 1}
               aria-label="Mes siguiente"
-              className="w-8 h-8 rounded-full bg-[#0d2d59]/90 hover:bg-[#00183a] text-white flex items-center justify-center transition-transform active:scale-90"
+              className="w-8 h-8 rounded-full bg-[#0d2d59]/90 hover:bg-[#00183a] text-white flex items-center justify-center transition-transform active:scale-90 disabled:opacity-30"
             >
               <span className="material-symbols-outlined text-[18px]">chevron_right</span>
             </button>
@@ -137,17 +160,41 @@ export const TesoreriaCuotasScreen: React.FC<TesoreriaCuotasScreenProps> = ({
                   Concepto Actual
                 </span>
                 <span className="font-heading font-bold text-[12px] text-[#00183a]">
-                  Cuota Social Mensual ($1.400)
+                  Cuota Social Mensual (${monto.toLocaleString('es-UY')})
                 </span>
               </div>
             </div>
             <button
-              onClick={() => showToast('Conceptos: Cuota Social, Cuota Indumentaria, Ficha Médica LUD')}
+              onClick={() => setVerConcepto((v) => !v)}
+              aria-expanded={verConcepto}
+              aria-label="Ver detalle de la cuota"
               className="text-[#00183a] hover:text-[#b51a1b] p-1 flex items-center"
             >
-              <span className="material-symbols-outlined text-[18px]">expand_more</span>
+              <span className="material-symbols-outlined text-[18px]">{verConcepto ? 'expand_less' : 'expand_more'}</span>
             </button>
           </div>
+          {(verConcepto || (totalGoal === 0 && selectedPeriod === mesActual)) && (
+            <div className="bg-white/95 text-[#191c1e] rounded-lg px-3 py-2.5 flex flex-col gap-2 font-sans text-[12px]">
+              <p>
+                Cuota de ${monto.toLocaleString('es-UY')} que vence el día {t.cuota_dia_vencimiento} de cada mes. El valor y
+                el día se cambian en Club → Textos de la app.
+              </p>
+              {totalGoal === 0 && selectedPeriod === mesActual && (
+                <p className="font-bold text-[#b76e00]">Todavía no se generaron las cuotas de {nombrePeriodo(mesActual)}.</p>
+              )}
+              {onGenerarCuotas && selectedPeriod === mesActual && (
+                <button
+                  onClick={generar}
+                  disabled={generando}
+                  className="h-10 rounded-lg bg-[#00183a] text-white font-heading text-[12px] font-bold disabled:opacity-60"
+                >
+                  {generando
+                    ? 'Generando…'
+                    : `Generar cuotas de ${nombrePeriodo(mesActual)} ($${monto.toLocaleString('es-UY')} c/u)`}
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </section>
 
@@ -348,9 +395,11 @@ export const TesoreriaCuotasScreen: React.FC<TesoreriaCuotasScreenProps> = ({
           </div>
         ) : (
           filteredPlayers.map((player) => {
-            const isPaid = player.dues.status === 'paid';
-            const isPending = player.dues.status === 'pending';
-            const isOverdue = player.dues.status === 'overdue';
+            const cuota = cuotaEn(player, selectedPeriod);
+            const isPaid = cuota?.status === 'paid';
+            const isPending = cuota?.status === 'pending';
+            const isOverdue = cuota?.status === 'overdue';
+            const bloquea = bloquearPorDeuda(t.bloquear_por_deuda);
 
             return (
               <div
@@ -411,7 +460,12 @@ export const TesoreriaCuotasScreen: React.FC<TesoreriaCuotasScreenProps> = ({
                   {isOverdue && (
                     <span className="inline-flex items-center gap-1 bg-[#ffebee] text-[#b51a1b] px-2.5 py-1 rounded-full font-heading text-[10px] font-bold shrink-0">
                       <span className="material-symbols-outlined text-[14px]">block</span>
-                      Carné Retenido
+                      Vencida
+                    </span>
+                  )}
+                  {!cuota && (
+                    <span className="inline-flex items-center gap-1 bg-[#f2f4f7] text-[#747780] px-2.5 py-1 rounded-full font-heading text-[10px] font-bold shrink-0">
+                      Sin cuota
                     </span>
                   )}
                 </div>
@@ -423,10 +477,10 @@ export const TesoreriaCuotasScreen: React.FC<TesoreriaCuotasScreenProps> = ({
                       <span className="material-symbols-outlined text-[16px] text-[#1b5e20]">
                         receipt_long
                       </span>
-                      Pagado: {player.dues.paidDate || '08/04'}
+                      Pagado{player.dues.paidDate ? `: ${player.dues.paidDate}` : ''}
                     </span>
                     <span className="font-heading text-[10px] font-bold text-[#00183a]">
-                      {player.dues.paymentMethod || 'Transferencia BROU'}{' '}
+                      {player.dues.paymentMethod}{' '}
                       {player.dues.receiptNumber && `(${player.dues.receiptNumber})`}
                     </span>
                   </div>
@@ -436,11 +490,11 @@ export const TesoreriaCuotasScreen: React.FC<TesoreriaCuotasScreenProps> = ({
                   <>
                     <div className="flex items-center justify-between text-[#44474f] font-sans text-[12px] bg-[#f2f4f7] px-2.5 py-1.5 rounded-lg">
                       <span className="font-heading text-[12px] font-bold text-[#00183a]">
-                        {nombrePeriodo(player.dues.period).split(' ')[0]}: $
-                        {player.dues.debtAmount.toLocaleString('es-UY')}
+                        {nombrePeriodo(selectedPeriod).split(' ')[0]}: $
+                        {(cuota?.amount ?? 0).toLocaleString('es-UY')}
                       </span>
                       <span className="text-[#b76e00] font-heading text-[10px] font-bold">
-                        Vence {t.cuota_dia_vencimiento.padStart(2, '0')}/{player.dues.period.slice(5, 7)}
+                        Vence {t.cuota_dia_vencimiento.padStart(2, '0')}/{selectedPeriod.slice(5, 7)}
                       </span>
                     </div>
                     {/* Action buttons */}
@@ -476,19 +530,28 @@ export const TesoreriaCuotasScreen: React.FC<TesoreriaCuotasScreenProps> = ({
                           Deuda: ${player.dues.debtAmount.toLocaleString('es-UY')}
                         </span>
                       </div>
-                      <span className="font-heading text-[10px] bg-[#b51a1b] text-white px-1.5 py-0.5 rounded font-bold">
-                        Inhabilitado
-                      </span>
+                      {bloquea && (
+                        <span className="font-heading text-[10px] bg-[#b51a1b] text-white px-1.5 py-0.5 rounded font-bold">
+                          Inhabilitado
+                        </span>
+                      )}
                     </div>
-                    <button
-                      onClick={() => onSendWhatsAppReminder(player)}
-                      className="w-full bg-[#b51a1b] hover:bg-[#d93630] text-white font-heading text-[12px] font-bold py-2.5 px-3 rounded-lg flex items-center justify-center gap-1.5 shadow-sm active:scale-98 transition-all"
-                    >
-                      <span className="material-symbols-outlined text-[18px]">
-                        notifications_active
-                      </span>
-                      Reclamar Pago Urgente
-                    </button>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => onOpenPaymentModal(player)}
+                        className="bg-[#00183a] hover:bg-[#0d2d59] text-white font-heading text-[12px] font-bold py-2.5 px-3 rounded-lg flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all"
+                      >
+                        <span className="material-symbols-outlined text-[18px]">add_card</span>
+                        Cobrar
+                      </button>
+                      <button
+                        onClick={() => onSendWhatsAppReminder(player)}
+                        className="bg-[#b51a1b] hover:bg-[#d93630] text-white font-heading text-[12px] font-bold py-2.5 px-3 rounded-lg flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all"
+                      >
+                        <span className="material-symbols-outlined text-[18px]">notifications_active</span>
+                        Reclamar
+                      </button>
+                    </div>
                   </>
                 )}
               </div>
@@ -506,7 +569,7 @@ export const TesoreriaCuotasScreen: React.FC<TesoreriaCuotasScreenProps> = ({
           <span className="material-symbols-outlined text-[20px] text-[#fabc4d]">
             campaign
           </span>
-          Recordatorio Masivo a Deudores ({pendingCount + overdueCount})
+          Recordatorio Masivo a Deudores ({deudoresTotales})
         </button>
       </div>
 

@@ -38,6 +38,7 @@ Archivos:
 - `supabase/migrations/20260930000000_login_y_roles.sql`: login, roles y permisos por rol; columnas del padrón LUD
 - `supabase/migrations/20260930010000_vincular_jugador.sql`: ingreso de jugadores con celular + cédula
 - `supabase/migrations/20260930020000_habilitacion_y_documentos.sql`: habilitación manual y fotos/PDF de ficha médica y carné LUD
+- `supabase/migrations/20260930030000_cuotas_desde_la_app.sql`: generar las cuotas del mes desde Tesorería; perfil "Tesorería"
 - `src/lib/supabase.ts`: cliente; `src/lib/db.ts`: lecturas y escrituras
 
 ### Puesta en marcha (una sola vez)
@@ -70,8 +71,7 @@ npm run dev
 
 ### Tareas de mantenimiento
 
-- **Cuotas del mes nuevo:** a principio de mes, en el SQL Editor: `select public.generar_cuotas_mes();` (crea la cuota de $1.400 del mes para cada jugador que no la tenga). Otro monto: `select public.generar_cuotas_mes(current_date, 1500);`
-- **Cuotas vencidas:** pasar a vencidas las impagas de meses anteriores: `update public.cuotas set estado = 'vencida' where estado = 'pendiente' and periodo < date_trunc('month', current_date);`
+- **Cuotas del mes nuevo:** en **Tesorería**, la flechita de "Concepto actual" → **Generar cuotas del mes** (admin y tesorería). Crea la cuota de cada jugador activo con el valor de *Textos de la app → Tesorería* y pasa a vencidas las impagas de meses anteriores. Se puede tocar más de una vez sin duplicar.
 
 ### Login y permisos por rol
 
@@ -120,6 +120,17 @@ Las fotos y PDF (hasta 10 MB) van al bucket **privado** `documentos` de Supabase
 ### Cargar el padrón de jugadores
 
 El padrón de la liga (Excel con carné, cédula, nombre, nacimiento y vencimientos) se carga con un SQL generado a partir del Excel. **Ese SQL no se sube al repo** porque tiene datos personales y el repo es público. Identifica a cada jugador por cédula, así que se puede volver a correr con un padrón actualizado sin duplicar a nadie. Los jugadores marcados como inactivos no aparecen en la app. El carné LUD vencido inhabilita al jugador en la planilla, igual que la ficha médica vencida.
+
+### Avisos por WhatsApp
+
+La app no manda mensajes sola (eso requeriría la API paga de WhatsApp Business). Cada botón de aviso abre **el WhatsApp de quien lo toca** con el mensaje ya escrito:
+
+- **Uno por uno:** la lista de destinatarios con un botón *Enviar* por jugador (personalizado con su nombre, vencimiento o deuda). Usa el celular cargado en la ficha; los que no tienen celular aparecen marcados.
+- **Al grupo:** *Mandar al grupo* abre WhatsApp para elegir el chat o grupo del plantel.
+
+Cada mensaje abierto queda en **Alertas → Historial**. Las plantillas se ven en **Alertas → Plantillas** y las edita el admin. Ahí o en *Textos de la app → Plantillas de WhatsApp* se pueden usar `{nombre}`, `{vencimiento}`, `{documento}`, `{deuda}`, `{fecha}`, `{rival}`, `{dia}`, `{hora}`, `{citacion}` y `{cancha}`.
+
+En **Textos de la app** conviene completar: celular y nombre del **delegado** (botón "Escribir al delegado" de los jugadores), celular de **tesorería** ("Avisar que pagué"), **cómo pagar** (datos de la cuenta) y el **aviso del tablón**.
 
 ## Instalar en el celular (PWA)
 

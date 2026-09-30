@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Player } from '../types';
-import { estadoHabilitacion } from '../lib/habilitacion';
+import { bloquearPorDeuda, estadoHabilitacion } from '../lib/habilitacion';
+import { useTextos } from '../lib/textos';
 import { fechaCorta } from '../lib/fechas';
 
 export interface FichaMedicaForm {
@@ -86,6 +87,7 @@ export const DocumentosModal: React.FC<DocumentosModalProps> = ({
   onGuardarCarneLud,
   onVerArchivo,
 }) => {
+  const t = useTextos();
   const [modo, setModo] = useState<'auto' | 'habilitado' | 'inhabilitado'>('auto');
   const [motivo, setMotivo] = useState('');
   const [ficha, setFicha] = useState<FichaMedicaForm>({ vencimiento: '', fechaExamen: '', clinica: '', archivo: null });
@@ -108,7 +110,10 @@ export const DocumentosModal: React.FC<DocumentosModalProps> = ({
 
   if (!player) return null;
 
-  const automatico = estadoHabilitacion({ ...player, eligibilityOverride: undefined });
+  const automatico = estadoHabilitacion(
+    { ...player, eligibilityOverride: undefined },
+    { bloquearPorDeuda: bloquearPorDeuda(t.bloquear_por_deuda) }
+  );
   const mc = player.medicalCertificate;
 
   const guardar = async (seccion: 'hab' | 'ficha' | 'carne', accion: () => Promise<boolean>) => {

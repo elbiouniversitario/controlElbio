@@ -23,10 +23,6 @@ export const TextosEditor: React.FC<TextosEditorProps> = ({ textos, onSave, pers
   const dirty = CLAVES.some((c) => draft[c] !== textos[c]);
 
   const handleSave = async () => {
-    if (CLAVES.some((c) => !draft[c].trim())) {
-      showToast('Ningún texto puede quedar vacío', 'error', 'error');
-      return;
-    }
     setSaving(true);
     const ok = await onSave(draft);
     setSaving(false);
@@ -63,6 +59,10 @@ export const TextosEditor: React.FC<TextosEditorProps> = ({ textos, onSave, pers
 
       {open && (
         <div className="bg-white rounded-xl p-4 shadow-sm border border-[#e0e3e6]/60 flex flex-col gap-4">
+          <p className="font-sans text-[12px] text-[#44474f] -mb-1">
+            Si dejás un campo vacío se usa el valor de fábrica. En las plantillas podés usar {'{nombre}'}, {'{vencimiento}'},{' '}
+            {'{documento}'}, {'{deuda}'}, {'{fecha}'}, {'{rival}'}, {'{dia}'}, {'{hora}'}, {'{citacion}'} y {'{cancha}'}.
+          </p>
           {GRUPOS.map((grupo) => (
             <div key={grupo} className="flex flex-col gap-2.5">
               <span className="font-heading text-[10px] uppercase tracking-wider font-black text-[#b51a1b]">
@@ -71,12 +71,20 @@ export const TextosEditor: React.FC<TextosEditorProps> = ({ textos, onSave, pers
               {CLAVES.filter((c) => TEXTOS[c].grupo === grupo).map((clave) => (
                 <label key={clave} className="flex flex-col gap-1">
                   <span className="font-heading text-[11px] font-bold text-[#00183a]">{TEXTOS[clave].label}</span>
-                  <input
-                    type="text"
-                    value={draft[clave]}
-                    onChange={(e) => setDraft((d) => ({ ...d, [clave]: e.target.value }))}
-                    className="h-10 px-3 rounded-lg bg-[#f2f4f7] border border-[#e0e3e6] font-sans text-[16px] sm:text-[13px] text-[#191c1e] focus:outline-none focus:border-[#00183a] select-text"
-                  />
+                  {'multilinea' in TEXTOS[clave] ? (
+                    <textarea
+                      value={draft[clave]}
+                      onChange={(e) => setDraft((d) => ({ ...d, [clave]: e.target.value }))}
+                      className="min-h-24 px-3 py-2 leading-snug rounded-lg bg-[#f2f4f7] border border-[#e0e3e6] font-sans text-[16px] sm:text-[13px] text-[#191c1e] focus:outline-none focus:border-[#00183a] select-text"
+                    />
+                  ) : (
+                    <input
+                      type="text"
+                      value={draft[clave]}
+                      onChange={(e) => setDraft((d) => ({ ...d, [clave]: e.target.value }))}
+                      className="h-10 px-3 rounded-lg bg-[#f2f4f7] border border-[#e0e3e6] font-sans text-[16px] sm:text-[13px] text-[#191c1e] focus:outline-none focus:border-[#00183a] select-text"
+                    />
+                  )}
                 </label>
               ))}
             </div>

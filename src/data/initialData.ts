@@ -402,6 +402,7 @@ export const INITIAL_PLAYERS: Player[] = [
 export const INITIAL_RULES: AutomationRule[] = [
   {
     id: 'rule1',
+    key: 'carne_30_dias',
     title: 'Carné de Salud a 30 días',
     categoryTag: 'Prevención',
     description: 'Aviso preventivo individual cada lunes a las 11:00 hs con enlace al prestador médico.',
@@ -412,6 +413,7 @@ export const INITIAL_RULES: AutomationRule[] = [
   },
   {
     id: 'rule2',
+    key: 'alerta_urgente',
     title: 'Alerta Urgente (5 días y Vencidos)',
     categoryTag: 'Crítico',
     tagClass: 'bg-error-container text-on-error-container font-bold',
@@ -423,6 +425,7 @@ export const INITIAL_RULES: AutomationRule[] = [
   },
   {
     id: 'rule3',
+    key: 'cumpleanios',
     title: 'Saludo de Cumpleaños',
     categoryTag: '09:00 hs',
     tagClass: 'bg-tertiary-fixed-dim/30 text-tertiary-container font-semibold',
@@ -434,6 +437,7 @@ export const INITIAL_RULES: AutomationRule[] = [
   },
   {
     id: 'rule4',
+    key: 'cuota_mensual',
     title: 'Cuota Social Mensual',
     categoryTag: 'Día 1 al 10',
     description: 'Recordatorio de liquidación de cuota deportiva y cuota de indumentaria anual.',
@@ -480,6 +484,7 @@ export const INITIAL_SENT_MESSAGES: SentMessage[] = [
 export const CLUB_ROLES: ClubRole[] = [
   {
     id: 'role1',
+    key: 'admin',
     title: 'Administrador General',
     subtitle: 'Acceso Irrestricto',
     activeCount: 2,
@@ -490,6 +495,7 @@ export const CLUB_ROLES: ClubRole[] = [
   },
   {
     id: 'role2',
+    key: 'dt',
     title: 'Cuerpo Técnico & Delegados',
     subtitle: 'Gestión de Cancha',
     activeCount: 4,
@@ -500,6 +506,7 @@ export const CLUB_ROLES: ClubRole[] = [
   },
   {
     id: 'role3',
+    key: 'jugador',
     title: 'Jugadores',
     subtitle: 'Portal Deportista',
     activeCount: 26,

@@ -9,11 +9,14 @@ import { NOMBRE_ROL, Perfil } from './lib/auth';
 import { diasProximoVencimiento } from './lib/habilitacion';
 import { Header } from './components/Header';
 import { EditarJugadorModal } from './components/EditarJugadorModal';
+import { BuscadorJugadores, Notificacion, PanelNotificaciones } from './components/HeaderPaneles';
+import { bloquearPorDeuda, estadoHabilitacion } from './lib/habilitacion';
 import { CarneLudForm, DocumentosModal, FichaMedicaForm } from './components/DocumentosModal';
-import { diasHasta } from './lib/fechas';
+import { diasHasta, periodoActual } from './lib/fechas';
 import { BottomNav } from './components/BottomNav';
 import { Toast } from './components/Toast';
 import {
+  Audiencia,
   NewBroadcastModal,
   EditTemplateModal,
   PaymentModal,
@@ -22,7 +25,10 @@ import {
 } from './components/Modals';
 
 // Screens
-import { AlertasVencimientosScreen } from './screens/AlertasVencimientosScreen';
+import { AlertasVencimientosScreen, ClavePlantilla, PLANTILLAS } from './screens/AlertasVencimientosScreen';
+import { EnvioWhatsApp, EnvioWhatsAppModal } from './components/EnvioWhatsAppModal';
+import { abrirWhatsApp, normalizarCelular, rellenarPlantilla } from './lib/whatsapp';
+import { variablesMensaje } from './lib/mensajes';
 import { TesoreriaCuotasScreen } from './screens/TesoreriaCuotasScreen';
 import { PlanillaOpsScreen } from './screens/PlanillaOpsScreen';
 import { PerfilJugadorScreen } from './screens/PerfilJugadorScreen';
@@ -88,7 +94,10 @@ export default function App({ perfil, onLogout }: AppProps) {
 
   // Modal states
   const [isBroadcastModalOpen, setIsBroadcastModalOpen] = useState(false);
-  const [isEditTemplateModalOpen, setIsEditTemplateModalOpen] = useState(false);
+  const [plantillaEditando, setPlantillaEditando] = useState<ClavePlantilla | null>(null);
+  const [envio, setEnvio] = useState<EnvioWhatsApp | null>(null);
+  const [verBuscador, setVerBuscador] = useState(false);
+  const [verNotificaciones, setVerNotificaciones] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [selectedPlayerForPayment, setSelectedPlayerForPayment] = useState<Player | undefined>();
   const [isAssignRoleModalOpen, setIsAssignRoleModalOpen] = useState(false);
@@ -240,32 +249,108 @@ export default function App({ perfil, onLogout }: AppProps) {
     );
   };
 
-  // Broadcast sender
-  const handleSendBroadcast = async (playerIds: string[], topic: string) => {
+  // Historial de envíos por WhatsApp. Sin destinatarios = mensaje al grupo.
+  const handleRegistrarEnvio = async (destinatarios: Player[], tema: string) => {
     if (useDb) {
-      const destinatarios = players.filter((p) => playerIds.includes(p.id));
       try {
-        const guardados = await db.registrarMensajes(destinatarios, topic);
+        const guardados = destinatarios.length
+          ? await db.registrarMensajes(destinatarios, tema)
+          : [await db.registrarMensajeGrupo(tema)];
         setSentMessages((prev) => [...guardados, ...prev]);
       } catch (err) {
         reportDbError('guardar el historial de mensajes', err);
       }
       return;
     }
-    const newSent: SentMessage[] = playerIds.map((id, index) => {
-      const p = players.find((pl) => pl.id === id);
-      return {
-        id: `sent-${Date.now()}-${index}`,
-        playerName: p ? `${p.firstName} ${p.lastName}` : 'Jugador Elbio',
-        playerAvatar: p?.avatarUrl || initialsAvatar('Elbio', 'Fernández'),
-        topic: `${topic} • Hace unos instantes`,
-        timestamp: 'Ahora',
-        status: 'Entregado',
-        statusColor: 'text-[#445e8d]',
-        avatarIndicatorColor: 'bg-[#445e8d]',
-      };
-    });
+    const lista = destinatarios.length ? destinatarios : [null];
+    const newSent: SentMessage[] = lista.map((p, index) => ({
+      id: `sent-${Date.now()}-${index}`,
+      playerName: p ? `${p.firstName} ${p.lastName}` : 'Grupo del plantel',
+      playerAvatar: p?.avatarUrl || initialsAvatar('Grupo', 'Plantel'),
+      topic: `${tema} • Recién`,
+      timestamp: 'Ahora',
+      status: 'Enviado',
+      statusColor: 'text-[#445e8d]',
+      avatarIndicatorColor: 'bg-[#445e8d]',
+    }));
     setSentMessages((prev) => [...newSent, ...prev]);
+  };
+
+  /** Abre WhatsApp con un mensaje para un solo jugador y lo registra. */
+  const avisarJugador = (p: Player, plantilla: string, tema: string) => {
+    if (!normalizarCelular(p.phone)) {
+      showToast(`${p.firstName} no tiene celular cargado. Cargalo en Planilla → Editar.`, 'phone_disabled', 'warning');
+      return;
+    }
+    abrirWhatsApp(p.phone, rellenarPlantilla(plantilla, variablesMensaje(textos, p)));
+    void handleRegistrarEnvio([p], tema);
+  };
+
+  const puedeEditarTextos = !perfil || perfil.rol === 'admin';
+
+  const convocados = players.filter((p) => p.matchStatus.lineupRole !== 'BAJA');
+  const abrirConvocatoria = () =>
+    setEnvio({
+      titulo: 'Convocatoria',
+      tema: `Convocatoria ${textos.fecha}`,
+      plantilla: textos.plantilla_convocatoria,
+      destinatarios: convocados,
+      permitirGrupo: true,
+    });
+
+  const audiencias: Record<Audiencia, Player[]> = {
+    por_vencer: players.filter((p) => diasProximoVencimiento(p) <= (Number(textos.dias_aviso_preventivo) || 30)),
+    deudores: players.filter((p) => p.dues.debtAmount > 0 || p.dues.status === 'overdue'),
+    citados: convocados,
+    plantel: players,
+  };
+
+  // Convocatoria: roles de la planilla de varios jugadores a la vez (DT y admin)
+  const handleGuardarConvocatoria = async (
+    cambios: Record<string, Player['matchStatus']['lineupRole']>
+  ): Promise<boolean> => {
+    if (useDb) {
+      try {
+        await db.actualizarRolesPlanilla(cambios);
+      } catch (err) {
+        reportDbError('guardar la convocatoria', err);
+        return false;
+      }
+    }
+    setPlayers((prev) =>
+      prev.map((p) => (cambios[p.id] ? { ...p, matchStatus: { ...p.matchStatus, lineupRole: cambios[p.id] } } : p))
+    );
+    showToast(`Convocatoria guardada (${Object.keys(cambios).length} cambios)`, 'assignment_turned_in', 'success');
+    return true;
+  };
+
+  // Cuotas del mes actual para todo el plantel (admin y tesorería)
+  const handleGenerarCuotas = async () => {
+    const monto = Number(textos.cuota_monto) || 1400;
+    if (!useDb) {
+      const periodo = periodoActual();
+      setPlayers((prev) =>
+        prev.map((p) =>
+          p.dues.period === periodo
+            ? p
+            : { ...p, dues: { ...p.dues, period: periodo, status: 'pending', debtAmount: p.dues.debtAmount + monto } }
+        )
+      );
+      showToast('Cuotas del mes generadas (modo demo)', 'payments', 'success');
+      return;
+    }
+    try {
+      const nuevas = await db.generarCuotasDelMes(monto);
+      const datos = await db.cargarDatos();
+      setPlayers(datos.players);
+      showToast(
+        nuevas ? `Se generaron ${nuevas} cuotas de $${monto.toLocaleString('es-UY')}` : 'Las cuotas de este mes ya estaban generadas',
+        'payments',
+        'success'
+      );
+    } catch (err) {
+      reportDbError('generar las cuotas', err);
+    }
   };
 
   // Payment confirmation
@@ -416,7 +501,7 @@ export default function App({ perfil, onLogout }: AppProps) {
 
   // Add new player from wizard. Se agrega al final para que "Mi ficha"
   // (el primer jugador) sea el mismo con y sin base de datos.
-  const handleSaveNewPlayer = async (newPlayer: Player): Promise<boolean> => {
+  const handleSaveNewPlayer = async (newPlayer: Player, archivoFicha?: File): Promise<boolean> => {
     let saved = newPlayer;
     if (useDb) {
       try {
@@ -424,6 +509,16 @@ export default function App({ perfil, onLogout }: AppProps) {
       } catch (err) {
         reportDbError('dar de alta al jugador', err);
         return false;
+      }
+      if (archivoFicha) {
+        try {
+          const ruta = await db.subirDocumento(saved.id, 'ficha-medica', archivoFicha);
+          await db.adjuntarArchivoFicha(saved.id, ruta);
+          saved = await db.cargarJugador(saved.id);
+        } catch (err) {
+          // El jugador ya quedó creado: se avisa y se puede subir después desde Documentos.
+          reportDbError('subir la foto de la ficha (cargala desde Planilla → Documentos)', err);
+        }
       }
     }
     setPlayers((prev) => [...prev, saved]);
@@ -464,6 +559,76 @@ export default function App({ perfil, onLogout }: AppProps) {
     return true;
   };
 
+  // --- Notificaciones del encabezado ------------------------------------
+  const esStaff = !perfil || perfil.rol === 'admin' || perfil.rol === 'dt' || perfil.rol === 'tesorero';
+  const opcionesHabilitacion = { bloquearPorDeuda: bloquearPorDeuda(textos.bloquear_por_deuda) };
+  const textoVencimiento = (p: Player) => {
+    const d = diasProximoVencimiento(p);
+    const lud = p.ludRegistration.cardExpiry && diasHasta(p.ludRegistration.cardExpiry) === d;
+    const que = lud ? 'carné LUD' : 'ficha médica';
+    return d <= 0 ? `${que} vencido` : `${que} vence en ${d} días`;
+  };
+  const notificaciones: Notificacion[] = [];
+  const diasUrgente = Number(textos.dias_alerta_urgente) || 5;
+  if (esStaff) {
+    players
+      .filter((p) => diasProximoVencimiento(p) <= diasUrgente)
+      .forEach((p) =>
+        notificaciones.push({
+          id: `venc-${p.id}`,
+          icono: 'medical_services',
+          urgente: diasProximoVencimiento(p) <= 0,
+          texto: `${p.firstName} ${p.lastName}: ${textoVencimiento(p)}`,
+          onClick: vistas.includes('alertas') ? () => goTo('alertas') : undefined,
+        })
+      );
+    players
+      .filter((p) => p.matchStatus.lineupRole !== 'BAJA' && !p.matchStatus.attendanceConfirmed && p.matchStatus.declineReason)
+      .forEach((p) =>
+        notificaciones.push({
+          id: `aus-${p.id}`,
+          icono: 'event_busy',
+          texto: `${p.firstName} ${p.lastName} avisó que falta: ${p.matchStatus.declineReason}`,
+          onClick: vistas.includes('planilla') ? () => goTo('planilla') : undefined,
+        })
+      );
+    const vencidas = players.filter((p) => p.dues.status === 'overdue').length;
+    if (vencidas && vistas.includes('tesoreria'))
+      notificaciones.push({
+        id: 'cuotas-vencidas',
+        icono: 'payments',
+        texto: `${vencidas} jugadores con cuotas vencidas`,
+        onClick: () => goTo('tesoreria'),
+      });
+  } else if (myPlayer) {
+    const estado = estadoHabilitacion(myPlayer, opcionesHabilitacion);
+    if (!estado.habilitado)
+      notificaciones.push({ id: 'hab', icono: 'block', urgente: true, texto: `No estás habilitado: ${estado.motivo}` });
+    if (diasProximoVencimiento(myPlayer) <= (Number(textos.dias_aviso_preventivo) || 30))
+      notificaciones.push({
+        id: 'venc',
+        icono: 'medical_services',
+        urgente: diasProximoVencimiento(myPlayer) <= diasUrgente,
+        texto: `${diasProximoVencimiento(myPlayer) <= 0 ? 'Tenés vencido' : 'Se te vence'} el ${
+          myPlayer.ludRegistration.cardExpiry && diasHasta(myPlayer.ludRegistration.cardExpiry) === diasProximoVencimiento(myPlayer)
+            ? 'carné LUD'
+            : 'la ficha médica'
+        }${diasProximoVencimiento(myPlayer) > 0 ? ` en ${diasProximoVencimiento(myPlayer)} días` : ''}. Renovalo y mandale la foto al delegado.`,
+      });
+    if (myPlayer.dues.debtAmount > 0)
+      notificaciones.push({
+        id: 'deuda',
+        icono: 'payments',
+        texto: `Tenés $${myPlayer.dues.debtAmount.toLocaleString('es-UY')} de cuota pendiente.`,
+      });
+    if (myPlayer.matchStatus.attendanceConfirmed == null && !myPlayer.matchStatus.declineReason)
+      notificaciones.push({
+        id: 'asistencia',
+        icono: 'sports_soccer',
+        texto: `Confirmá si vas a ${textos.fecha} vs ${textos.rival} (${textos.partido_dia}).`,
+      });
+  }
+
   const pendingAlertsCount = players.filter((p) => diasProximoVencimiento(p) <= 5).length;
   // Quienes deben plata (sin cuotas generadas todavía no cuentan como deudores).
   const pendingDuesCount = players.filter((p) => p.dues.debtAmount > 0 || p.dues.status === 'overdue').length;
@@ -488,8 +653,9 @@ export default function App({ perfil, onLogout }: AppProps) {
         subtitle={screenMeta[currentTab].subtitle}
         showBack={currentTab === 'nuevo-jugador'}
         onBackClick={() => goTo('alertas')}
-        onSearchClick={() => showToast('Buscador rápido activado')}
-        onNotificationsClick={() => showToast('Tienes 3 avisos prioritarios de Liga')}
+        onSearchClick={esStaff ? () => setVerBuscador(true) : undefined}
+        onNotificationsClick={() => setVerNotificaciones(true)}
+        notificaciones={notificaciones.length}
         usuario={
           perfil
             ? `${perfil.email || (myPlayer ? `${myPlayer.firstName} ${myPlayer.lastName}` : 'Este celular')} · ${
@@ -578,9 +744,9 @@ export default function App({ perfil, onLogout }: AppProps) {
             rules={rules}
             sentMessages={sentMessages}
             onToggleRule={handleToggleRule}
-            onSendBroadcast={handleSendBroadcast}
+            onAbrirEnvio={setEnvio}
             onOpenNewBroadcastModal={() => setIsBroadcastModalOpen(true)}
-            onOpenEditTemplateModal={() => setIsEditTemplateModalOpen(true)}
+            onEditarPlantilla={puedeEditarTextos ? setPlantillaEditando : undefined}
             showToast={showToast}
           />
         )}
@@ -592,16 +758,16 @@ export default function App({ perfil, onLogout }: AppProps) {
               setSelectedPlayerForPayment(p);
               setIsPaymentModalOpen(true);
             }}
-            onSendWhatsAppReminder={(p) => {
-              showToast(`WhatsApp de cobro enviado a ${p.firstName} (${p.phone})`, 'send', 'success');
-            }}
-            onSendMassReminder={() => {
-              const deudores = players
-                .filter((p) => p.dues.debtAmount > 0 || p.dues.status === 'overdue')
-                .map((p) => p.id);
-              handleSendBroadcast(deudores, 'Recordatorio de Cuota Social');
-              showToast(`Recordatorio enviado por WhatsApp a ${deudores.length} jugadores`, 'campaign', 'success');
-            }}
+            onSendWhatsAppReminder={(p) => avisarJugador(p, textos.plantilla_cuota, 'Recordatorio de cuota')}
+            onGenerarCuotas={!perfil || perfil.rol === 'admin' || perfil.rol === 'tesorero' ? handleGenerarCuotas : undefined}
+            onSendMassReminder={() =>
+              setEnvio({
+                titulo: 'Recordatorio de cuota',
+                tema: 'Recordatorio de cuota',
+                plantilla: textos.plantilla_cuota,
+                destinatarios: audiencias.deudores,
+              })
+            }
             showToast={showToast}
           />
         )}
@@ -610,9 +776,16 @@ export default function App({ perfil, onLogout }: AppProps) {
           <PlanillaOpsScreen
             players={players}
             onOpenPdfModal={() => setIsPdfModalOpen(true)}
-            onSendWhatsappCitation={() => {
-              showToast(`Citación oficial de ${textos.fecha} enviada al grupo del plantel por WhatsApp`, 'chat', 'success');
-            }}
+            onSendWhatsappCitation={abrirConvocatoria}
+            onGuardarConvocatoria={puedeEditarJugadores ? handleGuardarConvocatoria : undefined}
+            onRecordarAsistencia={(pendientes) =>
+              setEnvio({
+                titulo: 'Confirmar asistencia',
+                tema: `Asistencia ${textos.fecha}`,
+                plantilla: textos.plantilla_convocatoria,
+                destinatarios: pendientes,
+              })
+            }
             onOpenLineupModal={() => goTo('nuevo-jugador')}
             onEditPlayer={puedeEditarJugadores ? setJugadorEditando : undefined}
             onOpenDocuments={puedeEditarJugadores ? (p) => setDocumentosId(p.id) : undefined}
@@ -637,6 +810,7 @@ export default function App({ perfil, onLogout }: AppProps) {
 
         {currentTab === 'club' && (
           <ClubProfileScreen
+            players={players}
             roles={roles}
             textos={textos}
             onSaveTextos={handleSaveTextos}
@@ -676,23 +850,68 @@ export default function App({ perfil, onLogout }: AppProps) {
       <NewBroadcastModal
         isOpen={isBroadcastModalOpen}
         onClose={() => setIsBroadcastModalOpen(false)}
-        onSend={(audience, msg) => {
-          showToast(`Campaña masiva enviada a la audiencia: ${audience}`, 'campaign', 'success');
+        conteos={{
+          por_vencer: audiencias.por_vencer.length,
+          deudores: audiencias.deudores.length,
+          citados: audiencias.citados.length,
+          plantel: audiencias.plantel.length,
         }}
+        onSend={(audience, msg) =>
+          setEnvio({
+            titulo: 'Mensaje al plantel',
+            tema: 'Mensaje del club',
+            plantilla: msg,
+            destinatarios: audiencias[audience],
+            permitirGrupo: audience === 'plantel' || audience === 'citados',
+          })
+        }
       />
 
       <EditTemplateModal
-        isOpen={isEditTemplateModalOpen}
-        onClose={() => setIsEditTemplateModalOpen(false)}
-        onSave={(newText) => {
-          showToast('Plantilla HSM actualizada y sincronizada con Meta', 'check_circle', 'success');
+        plantilla={
+          plantillaEditando
+            ? {
+                titulo: PLANTILLAS.find((x) => x.clave === plantillaEditando)?.titulo ?? 'Plantilla',
+                valor: textos[plantillaEditando],
+              }
+            : null
+        }
+        onClose={() => setPlantillaEditando(null)}
+        onSave={(valor) => (plantillaEditando ? handleSaveTextos({ ...textos, [plantillaEditando]: valor }) : Promise.resolve(false))}
+      />
+
+      <EnvioWhatsAppModal envio={envio} onClose={() => setEnvio(null)} onRegistrar={handleRegistrarEnvio} />
+
+      <BuscadorJugadores
+        abierto={verBuscador}
+        players={players}
+        onClose={() => setVerBuscador(false)}
+        onElegir={
+          puedeEditarJugadores
+            ? (p) => {
+                setVerBuscador(false);
+                setJugadorEditando(p);
+              }
+            : undefined
+        }
+        describir={(p) => {
+          const e = estadoHabilitacion(p, opcionesHabilitacion);
+          return [
+            e.habilitado ? 'Habilitado' : `No habilitado (${e.motivo})`,
+            p.dues.debtAmount > 0 ? `debe $${p.dues.debtAmount.toLocaleString('es-UY')}` : null,
+          ]
+            .filter(Boolean)
+            .join(' · ');
         }}
       />
+
+      <PanelNotificaciones abierto={verNotificaciones} items={notificaciones} onClose={() => setVerNotificaciones(false)} />
 
       <PaymentModal
         isOpen={isPaymentModalOpen}
         onClose={() => setIsPaymentModalOpen(false)}
         player={selectedPlayerForPayment}
+        players={players}
         onConfirmPayment={handleConfirmPayment}
       />
 

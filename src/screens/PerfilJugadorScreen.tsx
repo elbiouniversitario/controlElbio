@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { Player } from '../types';
 import { CLUB_CREST_URL, CLUB_CREST_WATERMARK } from '../data/initialData';
 import { diasHasta, fechaCorta, nombrePeriodo, sumarMeses } from '../lib/fechas';
-import { estadoHabilitacion } from '../lib/habilitacion';
+import { bloquearPorDeuda, estadoHabilitacion } from '../lib/habilitacion';
+import { abrirWhatsApp, normalizarCelular } from '../lib/whatsapp';
 import { useTextos } from '../lib/textos';
 
 interface PerfilJugadorScreenProps {
@@ -21,7 +22,7 @@ export const PerfilJugadorScreen: React.FC<PerfilJugadorScreenProps> = ({
   showToast,
 }) => {
   const t = useTextos();
-  const estado = estadoHabilitacion(player);
+  const estado = estadoHabilitacion(player, { bloquearPorDeuda: bloquearPorDeuda(t.bloquear_por_deuda) });
   const motivoInhabilitado = estado.habilitado ? null : (estado.motivo ?? 'Inhabilitado').toUpperCase();
   const [attendance, setAttendance] = useState<'pending' | 'confirmed' | 'declined'>(
     player.matchStatus.attendanceConfirmed
@@ -30,8 +31,28 @@ export const PerfilJugadorScreen: React.FC<PerfilJugadorScreenProps> = ({
       ? 'declined'
       : 'pending'
   );
-  const [likedNotice, setLikedNotice] = useState(false);
-  const [likesCount, setLikesCount] = useState(16);
+  // "Enterado" del aviso del tablón: se recuerda en este celular para ese texto de aviso.
+  const claveEnterado = `enterado:${player.id}:${t.aviso_dt}`;
+  const [likedNotice, setLikedNotice] = useState(() => {
+    try {
+      return localStorage.getItem(claveEnterado) === '1';
+    } catch {
+      return false;
+    }
+  });
+  const [verRecibo, setVerRecibo] = useState(false);
+  const [verComoPagar, setVerComoPagar] = useState(false);
+  const monto = Number(t.cuota_monto) || 1400;
+  const debe = player.dues.debtAmount > 0 || player.dues.status !== 'paid';
+
+  /** Abre WhatsApp con el delegado (o avisa si el club no cargó su celular). */
+  const escribirA = (celular: string, texto: string, quien: string) => {
+    if (!normalizarCelular(celular)) {
+      showToast(`El club todavía no cargó el celular ${quien}`, 'phone_disabled', 'warning');
+      return;
+    }
+    abrirWhatsApp(celular, texto);
+  };
 
   const handleConfirmAttendance = async () => {
     if (!(await onUpdateAttendance(true))) return;
@@ -44,19 +65,20 @@ export const PerfilJugadorScreen: React.FC<PerfilJugadorScreenProps> = ({
     if (reason !== null) {
       if (!(await onUpdateAttendance(false, reason || 'Motivo no especificado'))) return;
       setAttendance('declined');
-      showToast('Aviso de ausencia enviado al DT y Delegado', 'event_busy', 'warning');
+      showToast('Ausencia registrada: el cuerpo técnico la ve en la app', 'event_busy', 'warning');
     }
   };
 
   const handleToggleLikeNotice = () => {
-    if (!likedNotice) {
-      setLikedNotice(true);
-      setLikesCount((c) => c + 1);
-      showToast('Marcaste como enterado al cuerpo técnico', 'thumb_up', 'success');
-    } else {
-      setLikedNotice(false);
-      setLikesCount((c) => c - 1);
+    const nuevo = !likedNotice;
+    setLikedNotice(nuevo);
+    try {
+      if (nuevo) localStorage.setItem(claveEnterado, '1');
+      else localStorage.removeItem(claveEnterado);
+    } catch {
+      /* sin almacenamiento: queda solo en esta pantalla */
     }
+    if (nuevo) showToast('Marcado como leído', 'thumb_up', 'success');
   };
 
   return (
@@ -326,7 +348,11 @@ export const PerfilJugadorScreen: React.FC<PerfilJugadorScreenProps> = ({
                 </button>
                 <button
                   onClick={() =>
-                    showToast('Para renovar tu ficha, mandale la foto al delegado: él la carga en la app', 'upload_file', 'info')
+                    escribirA(
+                      t.delegado_celular,
+                      `Hola ${t.delegado_nombre}, soy ${player.firstName} ${player.lastName}. Te mando mi ficha médica renovada (va la foto).`,
+                      'el delegado'
+                    )
                   }
                   className="bg-[#00183a] hover:bg-[#0d2d59] text-white font-heading text-[11px] font-bold px-3 py-1.5 rounded-lg flex items-center gap-1 shadow-xs active:scale-95 transition-all"
                 >
@@ -394,38 +420,62 @@ export const PerfilJugadorScreen: React.FC<PerfilJugadorScreenProps> = ({
           <h4 className="font-heading text-[12px] font-bold text-[#00183a] tracking-wider uppercase">
             Mis Cuotas del Club
           </h4>
-          <span className="font-heading text-[10px] text-emerald-700 font-bold uppercase">
-            Al corriente
+          <span className={`font-heading text-[10px] font-bold uppercase ${debe ? 'text-[#b51a1b]' : 'text-emerald-700'}`}>
+            {debe ? 'Pendiente' : 'Al día'}
           </span>
         </div>
 
         <div className="bg-white rounded-xl p-4 shadow-sm space-y-2.5 border border-[#e0e3e6]/60">
-          <div className="flex items-center justify-between p-3 rounded-lg bg-emerald-50/80 border border-emerald-200/70">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold shadow-xs">
-                <span className="material-symbols-outlined text-[20px]">check</span>
-              </div>
+          {debe ? (
+            <div className="flex items-center justify-between p-3 rounded-lg bg-[#fff8e1] border border-[#ffe082]">
               <div>
-                <div className="flex items-center gap-2">
-                  <span className="font-heading font-bold text-[14px] text-[#00183a]">
-                    {nombrePeriodo(player.dues.period)}
-                  </span>
-                  <span className="bg-emerald-200 text-emerald-900 font-heading text-[10px] font-bold px-2 py-0.5 rounded-full">
-                    PAGADO
-                  </span>
-                </div>
+                <span className="font-heading font-bold text-[14px] text-[#00183a] block">
+                  {player.dues.debtAmount > 0 ? `Debés $${player.dues.debtAmount.toLocaleString('es-UY')}` : 'Cuota pendiente'}
+                </span>
                 <p className="font-sans text-[11px] text-[#44474f]">
-                  $1.400 abonado vía BROU • Recibo {player.dues.receiptNumber || '#4819'}
+                  {nombrePeriodo(player.dues.period)} · vence el día {t.cuota_dia_vencimiento}
+                  {player.dues.status === 'overdue' ? ' · vencida' : ''}
                 </p>
               </div>
+              <button
+                onClick={() => setVerComoPagar(true)}
+                className="bg-[#00183a] hover:bg-[#0d2d59] text-white font-heading text-[11px] font-bold px-3 py-2 rounded-lg flex items-center gap-1.5 shadow-xs active:scale-95 transition-all"
+              >
+                <span className="material-symbols-outlined text-[14px]">credit_card</span>
+                <span>Cómo pagar</span>
+              </button>
             </div>
-            <button
-              onClick={() => showToast('Descargando comprobante oficial de recibo #4819')}
-              className="text-[#00183a] hover:text-[#b51a1b] p-1.5 rounded-lg active:bg-white/60"
-            >
-              <span className="material-symbols-outlined text-[20px]">receipt_long</span>
-            </button>
-          </div>
+          ) : (
+            <div className="flex items-center justify-between p-3 rounded-lg bg-emerald-50/80 border border-emerald-200/70">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold shadow-xs">
+                  <span className="material-symbols-outlined text-[20px]">check</span>
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-heading font-bold text-[14px] text-[#00183a]">{nombrePeriodo(player.dues.period)}</span>
+                    <span className="bg-emerald-200 text-emerald-900 font-heading text-[10px] font-bold px-2 py-0.5 rounded-full">
+                      PAGADO
+                    </span>
+                  </div>
+                  <p className="font-sans text-[11px] text-[#44474f]">
+                    {[player.dues.paymentMethod, player.dues.receiptNumber && `Recibo ${player.dues.receiptNumber}`]
+                      .filter(Boolean)
+                      .join(' • ') || 'Cuota al día'}
+                  </p>
+                </div>
+              </div>
+              {player.dues.receiptNumber && (
+                <button
+                  onClick={() => setVerRecibo(true)}
+                  aria-label="Ver recibo"
+                  className="text-[#00183a] hover:text-[#b51a1b] p-1.5 rounded-lg active:bg-white/60"
+                >
+                  <span className="material-symbols-outlined text-[20px]">receipt_long</span>
+                </button>
+              )}
+            </div>
+          )}
 
           <div className="p-3 rounded-lg bg-[#f2f4f7] flex items-center justify-between border border-[#e0e3e6]">
             <div>
@@ -433,54 +483,39 @@ export const PerfilJugadorScreen: React.FC<PerfilJugadorScreenProps> = ({
                 Próxima cuota: {nombrePeriodo(sumarMeses(player.dues.period, 1))}
               </span>
               <p className="font-sans text-[11px] text-[#44474f]">
-                Vencimiento: {t.cuota_dia_vencimiento} de{' '}
-                {nombrePeriodo(sumarMeses(player.dues.period, 1)).split(' ')[0]} • $1.400
+                Vence el {t.cuota_dia_vencimiento} • ${monto.toLocaleString('es-UY')}
               </p>
             </div>
-            <button
-              onClick={() =>
-                showToast('Datos bancarios BROU y Santander enviados a tu WhatsApp', 'payments')
-              }
-              className="bg-[#00183a] hover:bg-[#0d2d59] text-white font-heading text-[11px] font-bold px-3 py-2 rounded-lg flex items-center gap-1.5 shadow-xs active:scale-95 transition-all"
-            >
-              <span className="material-symbols-outlined text-[14px]">credit_card</span>
-              <span>Transferir / Avisar</span>
-            </button>
+            {!debe && (
+              <button
+                onClick={() => setVerComoPagar(true)}
+                className="bg-white hover:bg-[#eceef1] text-[#00183a] font-heading text-[11px] font-bold px-3 py-2 rounded-lg border border-[#e0e3e6]"
+              >
+                Cómo pagar
+              </button>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Club Notifications & DT Board */}
+      {/* Tablón del equipo: aviso del cuerpo técnico (se edita en Club → Textos de la app) */}
       <div className="space-y-2">
         <div className="flex items-center justify-between px-1">
           <h4 className="font-heading text-[12px] font-bold text-[#00183a] tracking-wider uppercase">
             Tablón del Equipo
           </h4>
-          <span className="font-heading text-[10px] text-[#b51a1b] font-bold uppercase">
-            1 Nuevo
-          </span>
+          {!likedNotice && <span className="font-heading text-[10px] text-[#b51a1b] font-bold uppercase">Nuevo</span>}
         </div>
 
         <div className="bg-white rounded-xl p-4 shadow-sm border border-[#e0e3e6]/60">
           <div className="flex items-start gap-3 p-3 rounded-lg bg-[#f2f4f7] border border-[#e0e3e6]">
             <div className="w-9 h-9 rounded-full bg-[#b51a1b] text-white flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
-              <span className="material-symbols-outlined text-[18px]">
-                drive_file_rename
-              </span>
+              <span className="material-symbols-outlined text-[18px]">campaign</span>
             </div>
             <div className="min-w-0 flex-1">
-              <div className="flex items-center justify-between">
-                <span className="font-heading text-[12px] font-bold text-[#00183a]">
-                  Cuerpo Técnico (DT Nacho)
-                </span>
-                <span className="font-sans text-[11px] text-[#44474f]">Hoy 11:20</span>
-              </div>
-              <p className="font-sans text-[13px] text-[#191c1e] mt-1 leading-relaxed">
-                "Entrenamiento táctico adelantado para{' '}
-                <strong className="font-bold text-[#00183a]">jueves 20:30 hs</strong> en cancha
-                central. Repaso de pelota quieta obligatorio."
-              </p>
-              <div className="mt-2.5 flex items-center gap-3">
+              <span className="font-heading text-[12px] font-bold text-[#00183a]">{t.aviso_dt_autor}</span>
+              <p className="font-sans text-[13px] text-[#191c1e] mt-1 leading-relaxed whitespace-pre-line">{t.aviso_dt}</p>
+              <div className="mt-2.5">
                 <button
                   onClick={handleToggleLikeNotice}
                   className={`flex items-center gap-1 font-heading text-[11px] font-bold transition-colors ${
@@ -493,14 +528,7 @@ export const PerfilJugadorScreen: React.FC<PerfilJugadorScreenProps> = ({
                   >
                     thumb_up
                   </span>
-                  <span>Enterado ({likesCount})</span>
-                </button>
-                <span className="text-[#e0e3e6]">•</span>
-                <button
-                  onClick={() => showToast('Lista de 18 convocados confirmados para el jueves')}
-                  className="text-[#44474f] font-heading text-[11px] hover:underline"
-                >
-                  Ver citados
+                  <span>{likedNotice ? 'Leído' : 'Marcar como leído'}</span>
                 </button>
               </div>
             </div>
@@ -508,23 +536,109 @@ export const PerfilJugadorScreen: React.FC<PerfilJugadorScreenProps> = ({
         </div>
       </div>
 
-      {/* Player Micro Quick-Action Footbar */}
+      {/* Contacto con el delegado */}
       <div className="bg-[#e6e8eb]/70 p-3 rounded-xl flex items-center justify-between text-[#44474f] border border-[#e0e3e6]">
         <div className="flex items-center gap-2">
-          <span className="material-symbols-outlined text-[#00183a] text-[20px]">
-            contact_support
-          </span>
+          <span className="material-symbols-outlined text-[#00183a] text-[20px]">contact_support</span>
           <span className="font-sans text-[12px]">¿Dudas con fichaje o seguro?</span>
         </div>
         <button
           onClick={() =>
-            showToast('Abriendo chat directo de WhatsApp con el Delegado Matías Romero', 'chat')
+            escribirA(t.delegado_celular, `Hola ${t.delegado_nombre}, soy ${player.firstName} ${player.lastName}. `, 'del delegado')
           }
           className="bg-white hover:bg-[#eceef1] text-[#00183a] font-heading text-[11px] font-bold px-3 py-1.5 rounded-lg shadow-xs active:scale-95 transition-all border border-[#e0e3e6]"
         >
-          Contactar Delegado
+          Escribir al delegado
         </button>
       </div>
+
+      {verComoPagar && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-[#00183a]/70 p-4">
+          <div className="w-full max-w-md bg-white rounded-2xl p-5 shadow-2xl flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <h3 className="font-heading font-bold text-[16px] text-[#00183a]">Cómo pagar la cuota</h3>
+              <button
+                onClick={() => setVerComoPagar(false)}
+                aria-label="Cerrar"
+                className="w-8 h-8 rounded-full flex items-center justify-center text-[#747780] hover:bg-[#eceef1]"
+              >
+                <span className="material-symbols-outlined text-[20px]">close</span>
+              </button>
+            </div>
+            <p className="font-sans text-[14px] text-[#191c1e] whitespace-pre-line leading-relaxed">{t.datos_pago}</p>
+            <p className="font-sans text-[12px] text-[#44474f]">
+              Cuota: ${monto.toLocaleString('es-UY')} · vence el día {t.cuota_dia_vencimiento} de cada mes
+              {player.dues.debtAmount > 0 ? ` · hoy debés $${player.dues.debtAmount.toLocaleString('es-UY')}` : ''}.
+            </p>
+            <button
+              onClick={() =>
+                escribirA(
+                  t.tesorero_celular || t.delegado_celular,
+                  `Hola, soy ${player.firstName} ${player.lastName}. Te aviso que pagué la cuota ($${(player.dues.debtAmount || monto).toLocaleString('es-UY')}). Te mando el comprobante.`,
+                  'de tesorería'
+                )
+              }
+              className="h-11 rounded-lg bg-[#25d366] text-white font-heading text-[12px] font-bold flex items-center justify-center gap-1.5"
+            >
+              <span className="material-symbols-outlined text-[18px]">send</span>
+              Avisar que pagué (WhatsApp)
+            </button>
+          </div>
+        </div>
+      )}
+
+      {verRecibo && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-[#00183a]/70 p-4">
+          <div className="area-impresion w-full max-w-md bg-white rounded-2xl p-5 shadow-2xl flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <img src={CLUB_CREST_URL} alt="" className="w-8 h-9 object-contain" />
+                <h3 className="font-heading font-bold text-[16px] text-[#00183a]">Recibo {player.dues.receiptNumber}</h3>
+              </div>
+              <button
+                onClick={() => setVerRecibo(false)}
+                aria-label="Cerrar"
+                className="no-imprimir w-8 h-8 rounded-full flex items-center justify-center text-[#747780] hover:bg-[#eceef1]"
+              >
+                <span className="material-symbols-outlined text-[20px]">close</span>
+              </button>
+            </div>
+            <dl className="grid grid-cols-2 gap-x-3 gap-y-1.5 font-sans text-[13px]">
+              <dt className="text-[#747780]">Club</dt>
+              <dd className="font-bold text-[#00183a]">Club Elbio Fernández</dd>
+              <dt className="text-[#747780]">Jugador</dt>
+              <dd className="font-bold text-[#00183a]">
+                {player.firstName} {player.lastName}
+              </dd>
+              {player.documento && (
+                <>
+                  <dt className="text-[#747780]">Cédula</dt>
+                  <dd className="text-[#00183a]">{player.documento}</dd>
+                </>
+              )}
+              <dt className="text-[#747780]">Concepto</dt>
+              <dd className="text-[#00183a]">Cuota social · {nombrePeriodo(player.dues.period)}</dd>
+              {player.dues.paidAmount !== undefined && (
+                <>
+                  <dt className="text-[#747780]">Monto</dt>
+                  <dd className="font-bold text-[#00183a]">${player.dues.paidAmount.toLocaleString('es-UY')}</dd>
+                </>
+              )}
+              <dt className="text-[#747780]">Fecha</dt>
+              <dd className="text-[#00183a]">{player.dues.paidDate ?? '—'}</dd>
+              <dt className="text-[#747780]">Medio de pago</dt>
+              <dd className="text-[#00183a]">{player.dues.paymentMethod ?? '—'}</dd>
+            </dl>
+            <button
+              onClick={() => window.print()}
+              className="no-imprimir h-11 rounded-lg bg-[#00183a] text-white font-heading text-[12px] font-bold flex items-center justify-center gap-1.5"
+            >
+              <span className="material-symbols-outlined text-[18px]">print</span>
+              Imprimir / guardar PDF
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
