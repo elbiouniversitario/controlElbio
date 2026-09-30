@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Player } from '../types';
 import { initialsAvatar } from '../lib/avatar';
 import { hoyISO, periodoActual } from '../lib/fechas';
+import { POSICIONES, PRESTADORES } from '../lib/opciones';
 import { useTextos } from '../lib/textos';
 
 interface NuevoJugadorWizardProps {
@@ -346,14 +347,11 @@ export const NuevoJugadorWizard: React.FC<NuevoJugadorWizardProps> = ({
                   onChange={(e) => setPosition(e.target.value)}
                   className="h-12 px-3 rounded-lg bg-[#f2f4f7] font-sans text-[14px] text-[#00183a] outline-none focus:bg-white focus:ring-2 focus:ring-[#00183a] border border-[#e0e3e6]"
                 >
-                  <option value="Arquero / Golero">Arquero / Golero</option>
-                  <option value="Defensa Central">Defensa Central</option>
-                  <option value="Lateral Derecho">Lateral Derecho</option>
-                  <option value="Lateral Izquierdo">Lateral Izquierdo</option>
-                  <option value="Volante Central">Volante Central</option>
-                  <option value="Volante Ofensivo">Volante Ofensivo</option>
-                  <option value="Extremo">Extremo</option>
-                  <option value="Delantero Centro">Delantero Centro</option>
+                  {POSICIONES.map((p) => (
+                    <option key={p} value={p}>
+                      {p}
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>
@@ -599,15 +597,11 @@ export const NuevoJugadorWizard: React.FC<NuevoJugadorWizardProps> = ({
                   onChange={(e) => setHealthProvider(e.target.value)}
                   className="w-full h-full bg-transparent font-sans text-[14px] text-[#00183a] appearance-none focus:outline-none pr-8 cursor-pointer"
                 >
-                  <option value="medica_uruguaya">Médica Uruguaya</option>
-                  <option value="casmu">CASMU</option>
-                  <option value="smi">SMI (Servicio Médico Integral)</option>
-                  <option value="espanola">Asociación Española</option>
-                  <option value="britanico">Hospital Británico</option>
-                  <option value="evangelico">Hospital Evangélico</option>
-                  <option value="cosem">COSEM</option>
-                  <option value="asse">ASSE</option>
-                  <option value="bluecross">BlueCross & BlueShield</option>
+                  {PRESTADORES.map((p) => (
+                    <option key={p.valor} value={p.valor}>
+                      {p.nombre}
+                    </option>
+                  ))}
                 </select>
                 <span className="material-symbols-outlined text-[#747780] absolute right-3 pointer-events-none">
                   expand_more

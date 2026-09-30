@@ -10,6 +10,8 @@ interface PlanillaOpsScreenProps {
   onOpenPdfModal: () => void;
   onSendWhatsappCitation: () => void;
   onOpenLineupModal: () => void;
+  /** Sin definir = no se muestra el botón de editar (sin permiso). */
+  onEditPlayer?: (player: Player) => void;
   showToast: (msg: string, icon?: string, type?: 'success' | 'warning' | 'info' | 'error') => void;
 }
 
@@ -18,6 +20,7 @@ export const PlanillaOpsScreen: React.FC<PlanillaOpsScreenProps> = ({
   onOpenPdfModal,
   onSendWhatsappCitation,
   onOpenLineupModal,
+  onEditPlayer,
   showToast,
 }) => {
   const t = useTextos();
@@ -363,9 +366,19 @@ export const PlanillaOpsScreen: React.FC<PlanillaOpsScreenProps> = ({
                       >
                         {player.matchStatus.lineupRole}
                       </span>
+                      {onEditPlayer && (
+                        <button
+                          type="button"
+                          onClick={() => onEditPlayer(player)}
+                          aria-label={`Editar a ${player.firstName} ${player.lastName}`}
+                          className="w-7 h-7 -my-1 rounded-full flex items-center justify-center text-[#747780] hover:bg-[#eceef1] hover:text-[#00183a] shrink-0"
+                        >
+                          <span className="material-symbols-outlined text-[18px]">edit</span>
+                        </button>
+                      )}
                     </div>
                     <span className="font-sans text-[11px] text-[#44474f] truncate">
-                      {player.position} • Cat. {player.birthYear}
+                      {player.position || 'Sin posición'} • Cat. {player.birthYear || '–'}
                     </span>
                   </div>
                 </div>

@@ -102,6 +102,10 @@ Con Supabase configurado, la app pide **email y contraseña**. No se usa "magic 
 
 El servicio de email que trae Supabase de fábrica manda pocos mails por hora (confirmaciones y recuperación de contraseña). Si se registra mucha gente el mismo día y algún mail no llega, esperar un rato o configurar un SMTP propio en *Authentication → Emails*.
 
+### Editar jugadores
+
+En **Planilla**, el lápiz al lado del nombre de cada jugador abre su ficha para editar: nombre, número, posición, capitán, rol en el partido (titular, suplente, reserva, baja), carné LUD en mano, celular, email, dirección, contacto de emergencia y cobertura médica. Lo pueden hacer el DT y el admin.
+
 ### Cargar el padrón de jugadores
 
 El padrón de la liga (Excel con carné, cédula, nombre, nacimiento y vencimientos) se carga con un SQL generado a partir del Excel. **Ese SQL no se sube al repo** porque tiene datos personales y el repo es público. Identifica a cada jugador por cédula, así que se puede volver a correr con un padrón actualizado sin duplicar a nadie. Los jugadores marcados como inactivos no aparecen en la app. El carné LUD vencido inhabilita al jugador en la planilla, igual que la ficha médica vencida.
@@ -120,7 +124,6 @@ Archivos: `public/manifest.webmanifest` (nombre, colores e íconos), `public/sw.
 
 ## Próximos pasos
 
-- Pantalla para editar jugadores (número, posición, contacto de emergencia): hoy el padrón no los trae
 - Ver y quitar desde la app los celulares vinculados a cada jugador (hoy: tabla `vinculos_jugador`)
 - Fotos de jugadores y escaneos de carné en Supabase Storage (hoy se muestran las iniciales)
 - Escudo del club: hoy apunta a una URL temporal de AI Studio; conviene subirlo a `public/`
