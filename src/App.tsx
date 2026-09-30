@@ -367,7 +367,13 @@ export default function App({ perfil, onLogout }: AppProps) {
         onBackClick={() => goTo('alertas')}
         onSearchClick={() => showToast('Buscador rápido activado')}
         onNotificationsClick={() => showToast('Tienes 3 avisos prioritarios de Liga')}
-        usuario={perfil ? `${perfil.email} · ${perfil.rol ? NOMBRE_ROL[perfil.rol] : ''}` : undefined}
+        usuario={
+          perfil
+            ? `${perfil.email || (myPlayer ? `${myPlayer.firstName} ${myPlayer.lastName}` : 'Este celular')} · ${
+                perfil.rol ? NOMBRE_ROL[perfil.rol] : ''
+              }`
+            : undefined
+        }
         onLogout={perfil ? onLogout : undefined}
       />
 

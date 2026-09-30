@@ -1,7 +1,7 @@
 import React, { ReactNode, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { cargarPerfil, cerrarSesion, Perfil } from '../lib/auth';
-import { LoginScreen, NuevaContrasenaScreen, PendienteScreen } from '../screens/AccesoScreens';
+import { cargarPerfil, Perfil, salir as cerrar } from '../lib/auth';
+import { LoginScreen, NuevaContrasenaScreen, PendienteScreen, VincularJugadorScreen } from '../screens/AccesoScreens';
 
 interface AuthGateProps {
   /** perfil = null solo en modo demo (sin Supabase configurado). */
@@ -19,7 +19,10 @@ const Pantalla: React.FC<{ children: ReactNode }> = ({ children }) => (
  * pasar directo, sin perfil.
  */
 export const AuthGate: React.FC<AuthGateProps> = ({ children }) => {
-  const [usuario, setUsuario] = useState<{ id: string } | null | undefined>(supabase ? undefined : null);
+  // anonimo = jugador que entró con su celular (sin email ni contraseña).
+  const [usuario, setUsuario] = useState<{ id: string; anonimo: boolean } | null | undefined>(
+    supabase ? undefined : null
+  );
   const [recuperando, setRecuperando] = useState(false);
   const [perfil, setPerfil] = useState<Perfil | null>(null);
   const [errorPerfil, setErrorPerfil] = useState<string | null>(null);
@@ -34,7 +37,7 @@ export const AuthGate: React.FC<AuthGateProps> = ({ children }) => {
       setUsuario((prev) => {
         const id = session?.user.id;
         if (!id) return null;
-        return prev?.id === id ? prev : { id };
+        return prev?.id === id ? prev : { id, anonimo: session.user.is_anonymous === true };
       });
     });
     return () => data.subscription.unsubscribe();
@@ -63,7 +66,7 @@ export const AuthGate: React.FC<AuthGateProps> = ({ children }) => {
 
   const salir = () => {
     setRecuperando(false);
-    void cerrarSesion();
+    void cerrar(usuario?.anonimo ?? false);
   };
 
   if (!supabase) return <>{children(null, () => {})}</>;
@@ -107,6 +110,10 @@ export const AuthGate: React.FC<AuthGateProps> = ({ children }) => {
         <p className="font-heading text-[12px] font-bold">Verificando acceso…</p>
       </Pantalla>
     );
+  }
+
+  if (!perfil.rol && usuario.anonimo) {
+    return <VincularJugadorScreen onListo={() => setIntento((n) => n + 1)} onSalir={salir} />;
   }
 
   if (!perfil.rol) {

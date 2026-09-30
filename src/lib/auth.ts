@@ -43,6 +43,8 @@ export function mensajeErrorAuth(err: unknown): string {
   if (code === 'over_email_send_rate_limit' || e?.status === 429 || /rate limit/i.test(msg))
     return 'Se enviaron demasiados emails en poco tiempo. Esperá unos minutos y volvé a intentar.';
   if (/failed to fetch|network/i.test(msg)) return 'No hay conexión. Revisá internet y volvé a intentar.';
+  if (code === 'anonymous_provider_disabled' || /anonymous sign-ins are disabled/i.test(msg))
+    return 'El ingreso con celular todavía no está activado. Avisale al administrador del club.';
   return msg;
 }
 
@@ -76,4 +78,47 @@ export async function cambiarContrasena(password: string): Promise<void> {
 
 export async function cerrarSesion(): Promise<void> {
   await cliente().auth.signOut();
+}
+
+// ---------------------------------------------------------------------------
+// Jugadores: ingreso con celular (sesión anónima + vínculo verificado con cédula)
+// ---------------------------------------------------------------------------
+export async function entrarComoJugador(): Promise<void> {
+  const { error } = await cliente().auth.signInAnonymously();
+  if (error) throw error;
+}
+
+export interface JugadorLista {
+  id: string;
+  nombre: string;
+  apellido: string;
+}
+
+export async function cargarPlantelParaVincular(): Promise<JugadorLista[]> {
+  const { data, error } = await cliente().rpc('plantel_para_vincular');
+  if (error) throw error;
+  return data as JugadorLista[];
+}
+
+export type ResultadoVinculo = 'ok' | 'cedula_incorrecta' | 'bloqueado';
+
+export async function vincularJugador(jugadorId: string, cedula: string, celular: string): Promise<ResultadoVinculo> {
+  const { data, error } = await cliente().rpc('vincular_jugador', {
+    p_jugador_id: jugadorId,
+    p_documento: cedula,
+    p_telefono: celular,
+  });
+  if (error) throw error;
+  return data as ResultadoVinculo;
+}
+
+/** Cierra sesión; si era un jugador con celular, primero borra el vínculo de ese celular. */
+export async function salir(anonimo: boolean): Promise<void> {
+  if (anonimo) {
+    await cliente().rpc('desvincularme').then(
+      () => undefined,
+      () => undefined
+    );
+  }
+  await cerrarSesion();
 }
