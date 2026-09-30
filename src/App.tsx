@@ -5,6 +5,8 @@ import { isSupabaseConfigured } from './lib/supabase';
 import * as db from './lib/db';
 import { initialsAvatar } from './lib/avatar';
 import { combinarTextos, Textos, TextosProvider, TEXTOS_DEFAULT } from './lib/textos';
+import { NOMBRE_ROL, Perfil } from './lib/auth';
+import { diasProximoVencimiento } from './lib/habilitacion';
 import { Header } from './components/Header';
 import { BottomNav } from './components/BottomNav';
 import { Toast } from './components/Toast';
@@ -31,8 +33,38 @@ type DataMode = 'cargando' | 'supabase' | 'demo' | 'error';
 
 const LOAD_TIMEOUT_MS = 15000;
 
-export default function App() {
-  const [currentTab, setCurrentTab] = useState<TabType>('alertas');
+const TODAS_LAS_VISTAS: TabType[] = ['alertas', 'tesoreria', 'planilla', 'jugador', 'club', 'nuevo-jugador'];
+
+/** Vistas que puede abrir cada perfil. Sin perfil (modo demo) se ven todas. */
+function vistasPermitidas(perfil: Perfil | null): TabType[] {
+  if (!perfil) return TODAS_LAS_VISTAS;
+  const miFicha: TabType[] = perfil.jugadorId ? ['jugador'] : [];
+  switch (perfil.rol) {
+    case 'admin':
+      return TODAS_LAS_VISTAS.filter((v) => v !== 'jugador' || perfil.jugadorId);
+    case 'dt':
+      return ['alertas', 'planilla', 'nuevo-jugador', ...miFicha];
+    case 'tesorero':
+      return ['tesoreria', 'alertas', ...miFicha];
+    default:
+      return miFicha;
+  }
+}
+
+interface AppProps {
+  /** Quién ingresó. null = modo demo, sin login. */
+  perfil: Perfil | null;
+  onLogout: () => void;
+}
+
+export default function App({ perfil, onLogout }: AppProps) {
+  const vistas = vistasPermitidas(perfil);
+  const [currentTab, setCurrentTab] = useState<TabType>(vistas[0] ?? 'jugador');
+  /** Cambia de vista solo si el perfil puede verla. */
+  const goTo = (tab: TabType) => setCurrentTab(vistas.includes(tab) ? tab : vistas[0] ?? 'jugador');
+  // Vistas de la barra de navegación (el alta de jugador se abre desde Planilla).
+  const vistasMenu = vistas.filter((v) => v !== 'nuevo-jugador');
+  const mostrarMenu = vistasMenu.length > 1;
   const [players, setPlayers] = useState<Player[]>(isSupabaseConfigured ? [] : INITIAL_PLAYERS);
   const [rules, setRules] = useState<AutomationRule[]>(isSupabaseConfigured ? [] : INITIAL_RULES);
   const [sentMessages, setSentMessages] = useState<SentMessage[]>(
@@ -42,6 +74,7 @@ export default function App() {
   const [dataMode, setDataMode] = useState<DataMode>(isSupabaseConfigured ? 'cargando' : 'demo');
   const [loadError, setLoadError] = useState<string | null>(null);
   const [textos, setTextos] = useState<Textos>(TEXTOS_DEFAULT);
+  const [miembros, setMiembros] = useState<db.Miembro[]>([]);
 
   // Toast feedback state
   const [toast, setToast] = useState<{
@@ -109,6 +142,12 @@ export default function App() {
 
   const reportDbError = (accion: string, err: unknown) => {
     console.error(`Error al ${accion}`, err);
+    // 42501 = sin permiso (RLS o chequeo de rol en la base)
+    const code = (err as { code?: string } | null)?.code;
+    if (code === '42501' || /row-level security/i.test((err as { message?: string } | null)?.message ?? '')) {
+      showToast(`No tenés permiso para ${accion}.`, 'lock', 'error');
+      return;
+    }
     // 23505 = unique_violation (p. ej. número de ficha LUD repetido)
     if ((err as { code?: string } | null)?.code === '23505') {
       showToast(`No se pudo ${accion}: ya existe un registro con esos datos (¿ID de federado repetido?).`, 'error', 'error');
@@ -119,6 +158,46 @@ export default function App() {
 
   const replacePlayer = (updated: Player) => {
     setPlayers((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+  };
+
+  // Accesos del staff (solo el admin ve la lista completa)
+  useEffect(() => {
+    if (!useDb || perfil?.rol !== 'admin') return;
+    db.listarMiembros()
+      .then(setMiembros)
+      .catch((err) => console.error('Error cargando accesos', err));
+  }, [useDb, perfil?.rol]);
+
+  const handleAsignarAcceso = async (
+    nombre: string,
+    email: string,
+    rol: db.RolStaff
+  ): Promise<boolean> => {
+    const miembro: db.Miembro = { email, rol, nombre: nombre || null };
+    if (useDb) {
+      try {
+        await db.guardarMiembro(miembro);
+      } catch (err) {
+        reportDbError('dar el acceso', err);
+        return false;
+      }
+    }
+    setMiembros((prev) => [...prev.filter((m) => m.email !== email), miembro]);
+    showToast(`Acceso habilitado para ${email}`, 'verified_user', 'success');
+    return true;
+  };
+
+  const handleQuitarAcceso = async (email: string) => {
+    if (useDb) {
+      try {
+        await db.quitarMiembro(email);
+      } catch (err) {
+        reportDbError('quitar el acceso', err);
+        return;
+      }
+    }
+    setMiembros((prev) => prev.filter((m) => m.email !== email));
+    showToast(`Acceso quitado a ${email}`, 'person_remove', 'warning');
   };
 
   // Textos editados por el admin en Club Admin
@@ -225,19 +304,21 @@ export default function App() {
       }
     }
     setPlayers((prev) => [...prev, saved]);
-    setCurrentTab('planilla');
+    goTo('planilla');
     return true;
   };
 
-  // Sin login todavía: "Mi ficha" muestra al primer jugador cargado.
-  const myPlayer: Player | undefined = players[0];
+  // "Mi ficha": la ficha vinculada al email de quien ingresó (en modo demo, el primer jugador).
+  const myPlayer: Player | undefined = perfil
+    ? players.find((p) => p.id === perfil.jugadorId)
+    : players[0];
 
   // Update attendance of the player shown in "Mi ficha"
   const handleUpdateAttendance = async (confirmed: boolean, reason?: string): Promise<boolean> => {
     if (!myPlayer) return false;
     if (useDb) {
       try {
-        await db.actualizarAsistencia(myPlayer.id, confirmed, reason);
+        await db.confirmarAsistencia(confirmed, reason);
       } catch (err) {
         reportDbError('guardar la asistencia', err);
         return false;
@@ -260,8 +341,9 @@ export default function App() {
     return true;
   };
 
-  const pendingAlertsCount = players.filter((p) => p.medicalCertificate.daysRemaining <= 5).length;
-  const pendingDuesCount = players.filter((p) => p.dues.status !== 'paid').length;
+  const pendingAlertsCount = players.filter((p) => diasProximoVencimiento(p) <= 5).length;
+  // Quienes deben plata (sin cuotas generadas todavía no cuentan como deudores).
+  const pendingDuesCount = players.filter((p) => p.dues.debtAmount > 0 || p.dues.status === 'overdue').length;
 
   // Screen titles
   const screenMeta: Record<TabType, { title: string; subtitle: string }> = {
@@ -282,12 +364,15 @@ export default function App() {
         title={screenMeta[currentTab].title}
         subtitle={screenMeta[currentTab].subtitle}
         showBack={currentTab === 'nuevo-jugador'}
-        onBackClick={() => setCurrentTab('alertas')}
+        onBackClick={() => goTo('alertas')}
         onSearchClick={() => showToast('Buscador rápido activado')}
         onNotificationsClick={() => showToast('Tienes 3 avisos prioritarios de Liga')}
+        usuario={perfil ? `${perfil.email} · ${perfil.rol ? NOMBRE_ROL[perfil.rol] : ''}` : undefined}
+        onLogout={perfil ? onLogout : undefined}
       />
 
       {/* Quick Screen Carousel Shortcut Ribbon for Easy Exploration of ALL Screens */}
+      {mostrarMenu && (
       <div className="fixed top-16 inset-x-0 z-30 bg-white/90 backdrop-blur-md border-b border-[#e0e3e6]/80 px-3 py-1.5 flex items-center gap-1.5 overflow-x-auto no-scrollbar shadow-xs">
         <span className="font-heading font-extrabold text-[9px] uppercase tracking-wider text-[#747780] mr-1 shrink-0">
           Vistas:
@@ -299,10 +384,10 @@ export default function App() {
           { id: 'jugador' as TabType, label: '⚽ Mi Ficha', count: undefined },
           { id: 'club' as TabType, label: '⚙️ Club Admin', count: undefined },
           { id: 'nuevo-jugador' as TabType, label: '➕ Nuevo Jugador', count: undefined },
-        ].map((btn) => (
+        ].filter((btn) => vistas.includes(btn.id)).map((btn) => (
           <button
             key={btn.id}
-            onClick={() => setCurrentTab(btn.id)}
+            onClick={() => goTo(btn.id)}
             className={`px-2.5 py-1 rounded-full font-heading text-[10px] font-bold whitespace-nowrap transition-all flex items-center gap-1 ${
               currentTab === btn.id
                 ? 'bg-[#00183a] text-white shadow-xs'
@@ -318,9 +403,10 @@ export default function App() {
           </button>
         ))}
       </div>
+      )}
 
       {/* Main Content Area */}
-      <main className="flex-1 w-full max-w-lg mx-auto px-4 pt-28 pb-8 flex flex-col">
+      <main className={`flex-1 w-full max-w-lg mx-auto px-4 ${mostrarMenu ? 'pt-28' : 'pt-20'} pb-8 flex flex-col`}>
         {dataMode === 'demo' && (
           <div
             role="status"
@@ -382,7 +468,7 @@ export default function App() {
             }}
             onSendMassReminder={() => {
               const deudores = players
-                .filter((p) => p.dues.status !== 'paid')
+                .filter((p) => p.dues.debtAmount > 0 || p.dues.status === 'overdue')
                 .map((p) => p.id);
               handleSendBroadcast(deudores, 'Recordatorio de Cuota Social');
               showToast(`Recordatorio enviado por WhatsApp a ${deudores.length} jugadores`, 'campaign', 'success');
@@ -398,7 +484,7 @@ export default function App() {
             onSendWhatsappCitation={() => {
               showToast(`Citación oficial de ${textos.fecha} enviada al grupo del plantel por WhatsApp`, 'chat', 'success');
             }}
-            onOpenLineupModal={() => setCurrentTab('nuevo-jugador')}
+            onOpenLineupModal={() => goTo('nuevo-jugador')}
             showToast={showToast}
           />
         )}
@@ -423,6 +509,9 @@ export default function App() {
             textos={textos}
             onSaveTextos={handleSaveTextos}
             persistent={useDb}
+            miembros={miembros}
+            miEmail={perfil?.email}
+            onQuitarMiembro={handleQuitarAcceso}
             onOpenAssignRoleModal={() => setIsAssignRoleModalOpen(true)}
             showToast={showToast}
           />
@@ -430,9 +519,10 @@ export default function App() {
 
         {currentTab === 'nuevo-jugador' && (
           <NuevoJugadorWizard
-            onCancel={() => setCurrentTab('alertas')}
+            onCancel={() => goTo('alertas')}
             onSavePlayer={handleSaveNewPlayer}
             showToast={showToast}
+            ejemplo={!useDb}
           />
         )}
           </>
@@ -440,10 +530,11 @@ export default function App() {
       </main>
 
       {/* Bottom Navigation */}
-      {currentTab !== 'nuevo-jugador' && (
+      {currentTab !== 'nuevo-jugador' && mostrarMenu && (
         <BottomNav
+          allowedTabs={vistasMenu}
           currentTab={currentTab}
-          onTabChange={setCurrentTab}
+          onTabChange={goTo}
           pendingAlertsCount={pendingAlertsCount}
           pendingDuesCount={pendingDuesCount}
         />
@@ -476,9 +567,7 @@ export default function App() {
       <AssignRoleModal
         isOpen={isAssignRoleModalOpen}
         onClose={() => setIsAssignRoleModalOpen(false)}
-        onConfirm={(name, ci, role) => {
-          showToast(`Rol de ${role} asignado a ${name} (${ci})`, 'verified_user', 'success');
-        }}
+        onConfirm={handleAsignarAcceso}
       />
 
       <PlanillaPdfModal

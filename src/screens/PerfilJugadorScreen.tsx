@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Player } from '../types';
 import { CLUB_CREST_URL, CLUB_CREST_WATERMARK } from '../data/initialData';
-import { fechaCorta, nombrePeriodo, sumarMeses } from '../lib/fechas';
+import { diasHasta, fechaCorta, nombrePeriodo, sumarMeses } from '../lib/fechas';
+import { carneLudVencido } from '../lib/habilitacion';
 import { useTextos } from '../lib/textos';
 
 interface PerfilJugadorScreenProps {
@@ -17,6 +18,14 @@ export const PerfilJugadorScreen: React.FC<PerfilJugadorScreenProps> = ({
   showToast,
 }) => {
   const t = useTextos();
+  const motivoInhabilitado =
+    player.medicalCertificate.daysRemaining <= 0
+      ? 'FICHA MÉDICA VENCIDA'
+      : carneLudVencido(player)
+      ? 'CARNÉ LUD VENCIDO'
+      : player.matchStatus.lineupRole === 'BAJA'
+      ? 'DADO DE BAJA'
+      : null;
   const [attendance, setAttendance] = useState<'pending' | 'confirmed' | 'declined'>(
     player.matchStatus.attendanceConfirmed
       ? 'confirmed'
@@ -73,7 +82,7 @@ export const PerfilJugadorScreen: React.FC<PerfilJugadorScreenProps> = ({
                 className="w-16 h-16 rounded-xl object-cover shadow-sm border border-[#e0e3e6]"
               />
               <span className="absolute -bottom-1 -right-1 bg-[#00183a] text-white font-heading text-[11px] font-bold w-6 h-6 rounded-full flex items-center justify-center shadow">
-                {player.number}
+                {player.number ?? '–'}
               </span>
             </div>
             <div className="min-w-0">
@@ -103,21 +112,29 @@ export const PerfilJugadorScreen: React.FC<PerfilJugadorScreenProps> = ({
         </div>
 
         {/* Habilitado Status Pill */}
-        <div className="mt-4 pt-2.5 border-t border-[#f2f4f7] flex items-center justify-between bg-[#f2f4f7] rounded-lg p-2.5">
+        <div
+          className={`mt-4 pt-2.5 border-t border-[#f2f4f7] flex items-center justify-between rounded-lg p-2.5 ${
+            motivoInhabilitado ? 'bg-[#ffdad6]/60' : 'bg-[#f2f4f7]'
+          }`}
+        >
           <div className="flex items-center gap-2">
             <span className="relative flex h-3 w-3">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-600"></span>
+              {!motivoInhabilitado && (
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              )}
+              <span
+                className={`relative inline-flex rounded-full h-3 w-3 ${motivoInhabilitado ? 'bg-[#b51a1b]' : 'bg-emerald-600'}`}
+              ></span>
             </span>
             <span className="font-heading text-[12px] font-bold text-[#00183a] tracking-wide">
-              ESTÁS HABILITADO PARA JUGAR
+              {motivoInhabilitado ? `NO HABILITADO: ${motivoInhabilitado}` : 'ESTÁS HABILITADO PARA JUGAR'}
             </span>
           </div>
           <span
-            className="material-symbols-outlined text-emerald-600 text-[20px]"
+            className={`material-symbols-outlined text-[20px] ${motivoInhabilitado ? 'text-[#b51a1b]' : 'text-emerald-600'}`}
             style={{ fontVariationSettings: "'FILL' 1" }}
           >
-            verified
+            {motivoInhabilitado ? 'block' : 'verified'}
           </span>
         </div>
       </div>
@@ -267,10 +284,17 @@ export const PerfilJugadorScreen: React.FC<PerfilJugadorScreenProps> = ({
                   </p>
                 </div>
               </div>
-              <span className="bg-emerald-100 text-emerald-800 font-heading text-[10px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
-                Al día
-              </span>
+              {player.medicalCertificate.daysRemaining > 0 ? (
+                <span className="bg-emerald-100 text-emerald-800 font-heading text-[10px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+                  Al día
+                </span>
+              ) : (
+                <span className="bg-[#ffdad6] text-[#410002] font-heading text-[10px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#b51a1b]"></span>
+                  Vencido
+                </span>
+              )}
             </div>
 
             <div className="bg-[#f2f4f7] rounded-lg p-3 flex items-center justify-between">
@@ -328,6 +352,17 @@ export const PerfilJugadorScreen: React.FC<PerfilJugadorScreenProps> = ({
                   {player.ludRegistration.cardInHand}
                 </strong>
               </p>
+              {player.ludRegistration.cardExpiry && (
+                <p
+                  className={`font-sans text-[12px] flex items-center gap-1.5 ${
+                    diasHasta(player.ludRegistration.cardExpiry) <= 0 ? 'text-[#ba1a1a] font-bold' : 'text-[#44474f]'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-[16px] text-[#00183a]">event</span>
+                  Carné LUD {diasHasta(player.ludRegistration.cardExpiry) <= 0 ? 'vencido el' : 'vence el'}{' '}
+                  {fechaCorta(player.ludRegistration.cardExpiry)}
+                </p>
+              )}
             </div>
             <span
               className="material-symbols-outlined text-[#00183a] text-[20px]"

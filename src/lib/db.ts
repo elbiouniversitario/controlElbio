@@ -33,6 +33,7 @@ interface FichaLudRow {
   id_federado: number | null;
   categoria: string;
   consentimiento_firmado: boolean;
+  vencimiento_carne: string | null;
 }
 
 interface EstadoPlanillaRow {
@@ -43,7 +44,9 @@ interface EstadoPlanillaRow {
 
 interface JugadorRow {
   id: string;
-  numero: number;
+  numero: number | null;
+  documento: string | null;
+  fecha_nacimiento: string | null;
   nombre: string;
   apellido: string;
   posicion: string;
@@ -134,7 +137,9 @@ function mapJugador(r: JugadorRow): Player {
     lastName: r.apellido,
     position: r.posicion,
     category: r.categoria,
-    birthYear: r.anio_nacimiento ?? 0,
+    birthYear: r.anio_nacimiento ?? (r.fecha_nacimiento ? Number(r.fecha_nacimiento.slice(0, 4)) : 0),
+    birthDate: r.fecha_nacimiento ?? undefined,
+    documento: r.documento ?? undefined,
     avatarUrl: r.avatar_url || initialsAvatar(r.nombre, r.apellido),
     phone: r.telefono,
     email: r.email,
@@ -162,6 +167,7 @@ function mapJugador(r: JugadorRow): Player {
       federatedId: ficha?.id_federado ?? 0,
       category: ficha?.categoria ?? '',
       signedConsent: ficha?.consentimiento_firmado ?? false,
+      cardExpiry: ficha?.vencimiento_carne ?? undefined,
     },
     matchStatus: {
       lineupRole: planilla?.rol ?? 'SUPLENTE',
@@ -259,7 +265,8 @@ export interface DatosClub {
 export async function cargarDatos(): Promise<DatosClub> {
   const db = cliente();
   const [jugadores, reglas, mensajes, roles, textos] = await Promise.all([
-    db.from('jugadores').select(JUGADOR_SELECT).order('created_at'),
+    // Los jugadores marcados como inactivos en el padrón no se muestran.
+    db.from('jugadores').select(JUGADOR_SELECT).eq('activo', true).order('apellido').order('nombre'),
     db.from('reglas_automatizacion').select('*').order('orden'),
     db.from('mensajes_enviados').select('*').order('enviado_en', { ascending: false }).limit(50),
     db.from('roles_club').select('*').order('orden'),
@@ -294,7 +301,9 @@ export async function crearJugador(p: Player): Promise<Player> {
     apellido: p.lastName,
     posicion: p.position,
     categoria: p.category,
-    anio_nacimiento: p.birthYear,
+    anio_nacimiento: p.birthYear || null,
+    documento: p.documento || null,
+    fecha_nacimiento: p.birthDate || null,
     // Solo se guardan URLs reales; los avatares generados (data:) no.
     avatar_url: p.avatarUrl.startsWith('http') ? p.avatarUrl : null,
     telefono: p.phone,
@@ -314,9 +323,10 @@ export async function crearJugador(p: Player): Promise<Player> {
     carne_verificado: p.medicalCertificate.verified,
     carne_notas: p.medicalCertificate.notes,
     lud_carne_en_mano: p.ludRegistration.cardInHand,
-    lud_id_federado: p.ludRegistration.federatedId,
+    lud_id_federado: p.ludRegistration.federatedId || null,
     lud_categoria: p.ludRegistration.category,
     lud_consentimiento: p.ludRegistration.signedConsent,
+    lud_vencimiento_carne: p.ludRegistration.cardExpiry || null,
     planilla_rol: p.matchStatus.lineupRole,
     cuota_estado: p.dues.status === 'paid' ? 'pagada' : p.dues.status === 'overdue' ? 'vencida' : 'pendiente',
     pago_metodo: p.dues.paymentMethod,
@@ -333,23 +343,29 @@ export async function registrarPago(jugadorId: string, metodo: string): Promise<
   return cargarJugador(jugadorId);
 }
 
-export async function actualizarAsistencia(
-  jugadorId: string,
-  confirmada: boolean,
-  motivo?: string
-): Promise<void> {
-  const { error } = await cliente()
-    .from('estado_planilla')
-    .upsert(
-      { jugador_id: jugadorId, asistencia_confirmada: confirmada, motivo_baja: motivo ?? null },
-      { onConflict: 'jugador_id' }
-    );
+/** El jugador logueado confirma asistencia o avisa ausencia (solo en su propia fila). */
+export async function confirmarAsistencia(confirmada: boolean, motivo?: string): Promise<void> {
+  const { error } = await cliente().rpc('confirmar_asistencia', {
+    p_confirmada: confirmada,
+    p_motivo: motivo ?? null,
+  });
   if (error) throw error;
 }
 
+/** Error con el mismo código que usa Postgres cuando falta permiso. */
+function sinPermiso(): Error {
+  return Object.assign(new Error('Sin permiso'), { code: '42501' });
+}
+
 export async function actualizarRegla(id: string, activa: boolean): Promise<void> {
-  const { error } = await cliente().from('reglas_automatizacion').update({ activa }).eq('id', id);
+  const { data, error } = await cliente()
+    .from('reglas_automatizacion')
+    .update({ activa })
+    .eq('id', id)
+    .select('id');
   if (error) throw error;
+  // RLS no da error al actualizar sin permiso: simplemente no toca ninguna fila.
+  if (!data?.length) throw sinPermiso();
 }
 
 /** Guarda un aviso enviado a varios jugadores. Devuelve los mensajes guardados (más nuevo primero). */
@@ -381,4 +397,34 @@ export async function guardarTextos(textos: Record<string, string>): Promise<voi
   if (filas.length === 0) return;
   const { error } = await cliente().from('textos_app').upsert(filas, { onConflict: 'clave' });
   if (error) throw error;
+}
+
+// ---------------------------------------------------------------------------
+// Accesos del staff (solo admin)
+// ---------------------------------------------------------------------------
+export type RolStaff = 'admin' | 'dt' | 'tesorero';
+
+export interface Miembro {
+  email: string;
+  rol: RolStaff;
+  nombre: string | null;
+}
+
+export async function listarMiembros(): Promise<Miembro[]> {
+  const { data, error } = await cliente().from('miembros_club').select('email, rol, nombre').order('rol').order('email');
+  if (error) throw error;
+  return data as Miembro[];
+}
+
+export async function guardarMiembro(m: Miembro): Promise<void> {
+  const { error } = await cliente()
+    .from('miembros_club')
+    .upsert({ email: m.email.trim().toLowerCase(), rol: m.rol, nombre: m.nombre?.trim() || null }, { onConflict: 'email' });
+  if (error) throw error;
+}
+
+export async function quitarMiembro(email: string): Promise<void> {
+  const { data, error } = await cliente().from('miembros_club').delete().eq('email', email).select('email');
+  if (error) throw error;
+  if (!data?.length) throw sinPermiso();
 }

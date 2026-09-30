@@ -3,6 +3,7 @@ import { Player } from '../types';
 import { CLUB_CREST_URL, CLUB_CREST_WATERMARK } from '../data/initialData';
 import { useTextos } from '../lib/textos';
 import { mesAnioCorto } from '../lib/fechas';
+import { carneLudVencido, diasCarneLud } from '../lib/habilitacion';
 
 interface PlanillaOpsScreenProps {
   players: Player[];
@@ -34,12 +35,14 @@ export const PlanillaOpsScreen: React.FC<PlanillaOpsScreenProps> = ({
     if (filter === 'warning')
       return (
         p.medicalCertificate.daysRemaining <= 15 ||
+        (diasCarneLud(p) ?? 99) <= 15 ||
         p.ludRegistration.cardInHand !== 'En mano del delegado'
       );
     if (filter === 'blocked')
       return (
         p.matchStatus.lineupRole === 'BAJA' ||
         p.medicalCertificate.daysRemaining <= 0 ||
+        carneLudVencido(p) ||
         p.dues.status === 'overdue'
       );
     return true;
@@ -304,10 +307,12 @@ export const PlanillaOpsScreen: React.FC<PlanillaOpsScreenProps> = ({
           {filteredPlayers.map((player) => {
             const isHabilitado =
               player.medicalCertificate.daysRemaining > 0 &&
+              !carneLudVencido(player) &&
               player.matchStatus.lineupRole !== 'BAJA';
+            const diasLud = diasCarneLud(player);
             const isWarning =
-              player.medicalCertificate.daysRemaining <= 15 &&
-              player.medicalCertificate.daysRemaining > 0;
+              (player.medicalCertificate.daysRemaining <= 15 && player.medicalCertificate.daysRemaining > 0) ||
+              (diasLud !== null && diasLud <= 15 && diasLud > 0);
             const isBlocked = !isHabilitado;
 
             return (
@@ -335,7 +340,7 @@ export const PlanillaOpsScreen: React.FC<PlanillaOpsScreenProps> = ({
                           : 'bg-[#00183a] text-white'
                       }`}
                     >
-                      {player.number}
+                      {player.number ?? '–'}
                     </span>
                   </div>
                   <div className="flex flex-col min-w-0">
@@ -375,7 +380,11 @@ export const PlanillaOpsScreen: React.FC<PlanillaOpsScreenProps> = ({
                         <span>INHABILITADO</span>
                       </span>
                       <span className="font-sans text-[10px] text-[#ba1a1a] font-bold mt-1">
-                        Ficha Médica Vencida
+                        {player.medicalCertificate.daysRemaining <= 0
+                          ? 'Ficha Médica Vencida'
+                          : carneLudVencido(player)
+                          ? 'Carné LUD Vencido'
+                          : 'Dado de baja'}
                       </span>
                     </>
                   ) : isWarning ? (
@@ -384,12 +393,17 @@ export const PlanillaOpsScreen: React.FC<PlanillaOpsScreenProps> = ({
                         <span className="material-symbols-outlined text-[14px]">
                           warning
                         </span>
-                        <span>Vence en {player.medicalCertificate.daysRemaining}d</span>
+                        <span>
+                          Vence en{' '}
+                          {Math.min(player.medicalCertificate.daysRemaining, diasLud ?? Infinity)}d
+                        </span>
                       </span>
                       <span className="font-sans text-[10px] text-[#b51a1b] font-medium mt-1">
-                        {player.ludRegistration.cardInHand !== 'En mano del delegado'
+                        {diasLud !== null && diasLud <= 15 && diasLud < player.medicalCertificate.daysRemaining
+                          ? 'Carné LUD por vencer'
+                          : player.ludRegistration.cardInHand !== 'En mano del delegado'
                           ? 'Falta carné físico'
-                          : 'Próximo a vencer'}
+                          : 'Ficha médica por vencer'}
                       </span>
                     </>
                   ) : (

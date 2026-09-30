@@ -2,6 +2,8 @@ import React from 'react';
 import { TabType } from '../types';
 
 interface BottomNavProps {
+  /** Vistas que puede ver quien ingresó; sin definir = todas. */
+  allowedTabs?: TabType[];
   currentTab: TabType;
   onTabChange: (tab: TabType) => void;
   pendingAlertsCount?: number;
@@ -9,6 +11,7 @@ interface BottomNavProps {
 }
 
 export const BottomNav: React.FC<BottomNavProps> = ({
+  allowedTabs,
   currentTab,
   onTabChange,
   pendingAlertsCount = 3,
@@ -45,7 +48,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
       icon: 'shield',
       badge: undefined,
     },
-  ];
+  ].filter((tab) => !allowedTabs || allowedTabs.includes(tab.id));
 
   return (
     <nav className="fixed bottom-0 inset-x-0 z-40 pb-[env(safe-area-inset-bottom,0px)] bg-[#ffffff]/92 backdrop-blur-xl shadow-[0_-2px_14px_rgba(13,45,89,0.08)] border-t border-[#e0e3e6]/60">

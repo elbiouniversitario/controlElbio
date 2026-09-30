@@ -35,7 +35,7 @@ Archivos:
 
 - `supabase/migrations/20260929000000_esquema_inicial.sql`: tablas, índices, funciones y permisos (RLS)
 - `supabase/seed.sql`: los datos de ejemplo (9 jugadores, reglas, mensajes y roles)
-- `supabase/ENDURECER_CON_LOGIN.md`: permisos a aplicar cuando haya login (no ejecutar todavía)
+- `supabase/migrations/20260930000000_login_y_roles.sql`: login, roles y permisos por rol; columnas del padrón LUD
 - `src/lib/supabase.ts`: cliente; `src/lib/db.ts`: lecturas y escrituras
 
 ### Puesta en marcha (una sola vez)
@@ -71,9 +71,34 @@ npm run dev
 - **Cuotas del mes nuevo:** a principio de mes, en el SQL Editor: `select public.generar_cuotas_mes();` (crea la cuota de $1.400 del mes para cada jugador que no la tenga). Otro monto: `select public.generar_cuotas_mes(current_date, 1500);`
 - **Cuotas vencidas:** pasar a vencidas las impagas de meses anteriores: `update public.cuotas set estado = 'vencida' where estado = 'pendiente' and periodo < date_trunc('month', current_date);`
 
-### Seguridad: pendiente para cuando haya login
+### Login y permisos por rol
 
-Por ahora la app **no tiene login**: cualquiera con el link puede leer y modificar los datos (la anon key viaja en el JavaScript de la página). Eso incluye teléfonos, direcciones y datos de salud de los jugadores, así que **no conviene cargar datos reales hasta agregar el login**. La migración ya deja escrito (comentado al final) cómo endurecer los permisos por rol: DT/delegados, tesorero y jugadores viendo solo lo suyo. Desde la app no se puede borrar nada.
+Con Supabase configurado, la app pide **email y contraseña**. No se usa "magic link" porque en el iPhone la app instalada no comparte la sesión con Safari.
+
+| Rol | Quién | Qué ve y qué puede hacer |
+| --- | --- | --- |
+| `admin` | directiva | todo: textos de la app, reglas, accesos del staff |
+| `dt` | cuerpo técnico / delegados | alertas, planilla, alta de jugadores; ve quién está al día (no ve pagos) |
+| `tesorero` | tesorería | cuotas y cobros, alertas |
+| jugador | cada jugador | solo su ficha, sus cuotas; confirma asistencia |
+
+- **Staff:** el admin los habilita en **Club Admin → Dar acceso al staff** con su email. Después cada uno toca "Crear cuenta" en la app **con ese mismo email**.
+- **Jugadores:** no hace falta habilitarlos. Si crean su cuenta con el email cargado en su ficha, entran y ven solo lo suyo.
+- Cualquier otra cuenta queda "pendiente de habilitación" y no ve nada.
+- Sin sesión, la anon key no puede leer ni escribir nada. Nadie puede borrar jugadores desde la app.
+
+**Activarlo (una sola vez):**
+1. SQL Editor → pegar y correr `supabase/migrations/20260930000000_login_y_roles.sql` (dice "Listo: login y permisos por rol activados"). Desde ese momento la versión vieja de la app (sin login) deja de ver datos, así que conviene hacer los pasos 1 a 4 seguidos.
+2. Habilitar al primer admin: `insert into public.miembros_club (email, rol) values ('tu-email@ejemplo.com', 'admin');`
+3. Supabase → *Authentication* → *URL Configuration*: en **Site URL** poner la URL de producción de Vercel (la usan los links de confirmación y de "Olvidé mi contraseña").
+4. Deployar la versión con login (mergear el PR).
+5. Abrir la app → "Crear cuenta" con el email del paso 2 → confirmar el email → ingresar.
+
+El servicio de email que trae Supabase de fábrica manda pocos mails por hora (confirmaciones y recuperación de contraseña). Si se registra mucha gente el mismo día y algún mail no llega, esperar un rato o configurar un SMTP propio en *Authentication → Emails*.
+
+### Cargar el padrón de jugadores
+
+El padrón de la liga (Excel con carné, cédula, nombre, nacimiento y vencimientos) se carga con un SQL generado a partir del Excel. **Ese SQL no se sube al repo** porque tiene datos personales y el repo es público. Identifica a cada jugador por cédula, así que se puede volver a correr con un padrón actualizado sin duplicar a nadie. Los jugadores marcados como inactivos no aparecen en la app. El carné LUD vencido inhabilita al jugador en la planilla, igual que la ficha médica vencida.
 
 ## Instalar en el celular (PWA)
 
@@ -89,7 +114,7 @@ Archivos: `public/manifest.webmanifest` (nombre, colores e íconos), `public/sw.
 
 ## Próximos pasos
 
-- Login con Supabase Auth y permisos por rol (ver final de la migración)
+- Pantalla para editar jugadores (email, teléfono, número, posición): hoy el padrón no los trae
 - Fotos de jugadores y escaneos de carné en Supabase Storage (hoy se muestran las iniciales)
 - Escudo del club: hoy apunta a una URL temporal de AI Studio; conviene subirlo a `public/`
 - Envío real por WhatsApp (hoy los avisos solo quedan registrados en el historial)
