@@ -18,7 +18,6 @@ export const TEXTOS = {
   partido_hora: { grupo: 'Próximo partido', label: 'Hora del partido', valor: '10:00 hs' },
   citacion_hora: { grupo: 'Próximo partido', label: 'Hora de citación', valor: '08:45 hs' },
   cancha: { grupo: 'Próximo partido', label: 'Cancha', valor: 'Complejo Deportivo Elbio • Cancha 1 (Carrasco)' },
-  cancha_corta: { grupo: 'Próximo partido', label: 'Cancha (corto)', valor: 'Cancha 1 Carrasco' },
 
   cuota_monto: { grupo: 'Tesorería', label: 'Valor de la cuota mensual ($)', valor: '1400' },
   cuota_dia_vencimiento: { grupo: 'Tesorería', label: 'Día del mes en que vence la cuota', valor: '10' },

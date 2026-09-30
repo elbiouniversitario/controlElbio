@@ -271,7 +271,7 @@ export const AlertasVencimientosScreen: React.FC<AlertasVencimientosScreenProps>
               icono="sports_soccer"
               colorIcono="bg-[#d7e3ff] text-[#00183a]"
               titulo={`Convocatoria: ${t.fecha} vs ${t.rival}`}
-              subtitulo={`${t.partido_dia} ${t.partido_hora} • ${t.cancha_corta} • ${convocados.length} convocados`}
+              subtitulo={`${t.partido_dia} ${t.partido_hora} • ${t.cancha} • ${convocados.length} convocados`}
             >
               <BotonWhatsApp
                 onClick={() =>
