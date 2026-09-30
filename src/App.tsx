@@ -8,6 +8,7 @@ import { combinarTextos, Textos, TextosProvider, TEXTOS_DEFAULT } from './lib/te
 import { NOMBRE_ROL, Perfil } from './lib/auth';
 import { diasProximoVencimiento } from './lib/habilitacion';
 import { Header } from './components/Header';
+import { EditarJugadorModal } from './components/EditarJugadorModal';
 import { BottomNav } from './components/BottomNav';
 import { Toast } from './components/Toast';
 import {
@@ -90,6 +91,9 @@ export default function App({ perfil, onLogout }: AppProps) {
   const [selectedPlayerForPayment, setSelectedPlayerForPayment] = useState<Player | undefined>();
   const [isAssignRoleModalOpen, setIsAssignRoleModalOpen] = useState(false);
   const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
+  const [jugadorEditando, setJugadorEditando] = useState<Player | null>(null);
+  // Editar fichas: DT y admin (en modo demo, todos).
+  const puedeEditarJugadores = !perfil || perfil.rol === 'admin' || perfil.rol === 'dt';
 
   const showToast = (
     message: string,
@@ -289,6 +293,21 @@ export default function App({ perfil, onLogout }: AppProps) {
       })
     );
     showToast(`Cobro de $${amount} registrado exitosamente (${method})`, 'verified', 'success');
+  };
+
+  const handleGuardarJugador = async (editado: Player): Promise<boolean> => {
+    let guardado = editado;
+    if (useDb) {
+      try {
+        guardado = await db.actualizarJugador(editado);
+      } catch (err) {
+        reportDbError('guardar los datos del jugador', err);
+        return false;
+      }
+    }
+    replacePlayer(guardado);
+    showToast(`Datos de ${guardado.firstName} ${guardado.lastName} guardados`, 'check_circle', 'success');
+    return true;
   };
 
   // Add new player from wizard. Se agrega al final para que "Mi ficha"
@@ -491,6 +510,7 @@ export default function App({ perfil, onLogout }: AppProps) {
               showToast(`Citación oficial de ${textos.fecha} enviada al grupo del plantel por WhatsApp`, 'chat', 'success');
             }}
             onOpenLineupModal={() => goTo('nuevo-jugador')}
+            onEditPlayer={puedeEditarJugadores ? setJugadorEditando : undefined}
             showToast={showToast}
           />
         )}
@@ -574,6 +594,12 @@ export default function App({ perfil, onLogout }: AppProps) {
         isOpen={isAssignRoleModalOpen}
         onClose={() => setIsAssignRoleModalOpen(false)}
         onConfirm={handleAsignarAcceso}
+      />
+
+      <EditarJugadorModal
+        player={jugadorEditando}
+        onClose={() => setJugadorEditando(null)}
+        onSave={handleGuardarJugador}
       />
 
       <PlanillaPdfModal

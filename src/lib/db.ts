@@ -336,6 +336,49 @@ export async function crearJugador(p: Player): Promise<Player> {
   return cargarJugador(data as string);
 }
 
+/**
+ * Guarda los datos editables de un jugador (ficha, contacto, emergencia,
+ * cobertura, planilla y carné en mano). Devuelve el jugador actualizado.
+ */
+export async function actualizarJugador(p: Player): Promise<Player> {
+  const db = cliente();
+  const jugador = await db
+    .from('jugadores')
+    .update({
+      nombre: p.firstName.trim(),
+      apellido: p.lastName.trim(),
+      numero: p.number,
+      posicion: p.position,
+      es_capitan: p.isCaptain ?? false,
+      telefono: p.phone.trim(),
+      email: p.email.trim().toLowerCase(),
+      direccion: p.address.trim(),
+      emergencia_nombre: p.emergencyContact.name.trim(),
+      emergencia_telefono: p.emergencyContact.phone.trim(),
+      emergencia_relacion: p.emergencyContact.relation,
+      prestador_salud: p.healthProvider,
+      emergencia_movil: p.mobileEmergency,
+      numero_socio: p.memberNumber?.trim() || null,
+    })
+    .eq('id', p.id)
+    .select('id');
+  if (jugador.error) throw jugador.error;
+  // RLS no da error al actualizar sin permiso: simplemente no toca ninguna fila.
+  if (!jugador.data?.length) throw sinPermiso();
+
+  const planilla = await db
+    .from('estado_planilla')
+    .upsert({ jugador_id: p.id, rol: p.matchStatus.lineupRole }, { onConflict: 'jugador_id' });
+  if (planilla.error) throw planilla.error;
+
+  const ficha = await db
+    .from('fichas_lud')
+    .upsert({ jugador_id: p.id, carne_en_mano: p.ludRegistration.cardInHand }, { onConflict: 'jugador_id' });
+  if (ficha.error) throw ficha.error;
+
+  return cargarJugador(p.id);
+}
+
 /** Registra el cobro de todas las cuotas impagas del jugador. Devuelve el jugador actualizado. */
 export async function registrarPago(jugadorId: string, metodo: string): Promise<Player> {
   const { error } = await cliente().rpc('registrar_pago', { p_jugador_id: jugadorId, p_metodo: metodo });
