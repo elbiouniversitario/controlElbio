@@ -8,7 +8,6 @@ export interface FichaMedicaForm {
   vencimiento: string;
   fechaExamen: string;
   clinica: string;
-  archivo: File | null;
 }
 
 export interface CarneLudForm {
@@ -90,7 +89,7 @@ export const DocumentosModal: React.FC<DocumentosModalProps> = ({
   const t = useTextos();
   const [modo, setModo] = useState<'auto' | 'habilitado' | 'inhabilitado'>('auto');
   const [motivo, setMotivo] = useState('');
-  const [ficha, setFicha] = useState<FichaMedicaForm>({ vencimiento: '', fechaExamen: '', clinica: '', archivo: null });
+  const [ficha, setFicha] = useState<FichaMedicaForm>({ vencimiento: '', fechaExamen: '', clinica: '' });
   const [carne, setCarne] = useState<CarneLudForm>({ idFederado: null, vencimiento: null, archivo: null });
   const [guardando, setGuardando] = useState<'hab' | 'ficha' | 'carne' | null>(null);
   const [error, setError] = useState<{ seccion: 'hab' | 'ficha' | 'carne'; texto: string } | null>(null);
@@ -99,7 +98,7 @@ export const DocumentosModal: React.FC<DocumentosModalProps> = ({
     if (!player) return;
     setModo(player.eligibilityOverride?.status ?? 'auto');
     setMotivo(player.eligibilityOverride?.reason ?? '');
-    setFicha({ vencimiento: '', fechaExamen: '', clinica: player.medicalCertificate.clinic, archivo: null });
+    setFicha({ vencimiento: '', fechaExamen: '', clinica: player.medicalCertificate.clinic });
     setCarne({
       idFederado: player.ludRegistration.federatedId || null,
       vencimiento: player.ludRegistration.cardExpiry ?? null,
@@ -132,11 +131,9 @@ export const DocumentosModal: React.FC<DocumentosModalProps> = ({
     if (!ficha.vencimiento) return setError({ seccion: 'ficha', texto: 'Poné la fecha de vencimiento de la ficha.' });
     if (ficha.fechaExamen && ficha.fechaExamen > ficha.vencimiento)
       return setError({ seccion: 'ficha', texto: 'La fecha del examen no puede ser posterior al vencimiento.' });
-    const e = errorArchivo(ficha.archivo);
-    if (e) return setError({ seccion: 'ficha', texto: e });
     return guardar('ficha', async () => {
       const ok = await onCargarFichaMedica(ficha);
-      if (ok) setFicha((f) => ({ ...f, vencimiento: '', fechaExamen: '', archivo: null }));
+      if (ok) setFicha((f) => ({ ...f, vencimiento: '', fechaExamen: '' }));
       return ok;
     });
   };
@@ -180,7 +177,7 @@ export const DocumentosModal: React.FC<DocumentosModalProps> = ({
         <div className="overflow-y-auto px-5 py-4 flex flex-col gap-4">
           {!persistent && (
             <p className="rounded-lg bg-amber-50 border border-amber-300 px-3 py-2 font-sans text-[12px] text-amber-900">
-              Modo demo: los cambios no se guardan y no se pueden subir archivos.
+              Modo demo: los cambios no se guardan y no se puede subir la foto del carné.
             </p>
           )}
 
@@ -244,15 +241,6 @@ export const DocumentosModal: React.FC<DocumentosModalProps> = ({
                   'Sin ficha médica cargada'
                 )}
               </div>
-              {mc.filePath && (
-                <button
-                  type="button"
-                  onClick={() => onVerArchivo(mc.filePath!)}
-                  className="font-heading text-[11px] font-bold text-[#445e8d] underline shrink-0"
-                >
-                  Ver archivo
-                </button>
-              )}
             </div>
             <p className="font-heading text-[11px] font-bold text-[#44474f]">Cargar ficha nueva</p>
             <div className="grid grid-cols-2 gap-3">
@@ -283,11 +271,6 @@ export const DocumentosModal: React.FC<DocumentosModalProps> = ({
                 onChange={(e) => setFicha({ ...ficha, clinica: e.target.value })}
               />
             </label>
-            <SelectorArchivo
-              archivo={ficha.archivo}
-              onChange={(archivo) => setFicha({ ...ficha, archivo })}
-              disabled={!persistent}
-            />
             <Error seccion="ficha" />
             <button type="button" onClick={handleFicha} disabled={guardando !== null} className={btnPrimario}>
               {guardando === 'ficha' ? 'Guardando…' : 'Guardar ficha médica'}

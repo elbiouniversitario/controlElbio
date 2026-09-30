@@ -430,12 +430,10 @@ export default function App({ perfil, onLogout }: AppProps) {
     if (!p) return false;
     try {
       if (useDb) {
-        const archivoPath = f.archivo ? await db.subirDocumento(p.id, 'ficha-medica', f.archivo) : undefined;
         await db.cargarFichaMedica(p.id, {
           vencimiento: f.vencimiento,
           fechaExamen: f.fechaExamen,
           clinica: f.clinica,
-          archivoPath,
         });
         await refrescarJugador(p.id);
       } else if (f.vencimiento >= p.medicalCertificate.expiryDate) {
@@ -501,7 +499,7 @@ export default function App({ perfil, onLogout }: AppProps) {
 
   // Add new player from wizard. Se agrega al final para que "Mi ficha"
   // (el primer jugador) sea el mismo con y sin base de datos.
-  const handleSaveNewPlayer = async (newPlayer: Player, archivoFicha?: File): Promise<boolean> => {
+  const handleSaveNewPlayer = async (newPlayer: Player): Promise<boolean> => {
     let saved = newPlayer;
     if (useDb) {
       try {
@@ -509,16 +507,6 @@ export default function App({ perfil, onLogout }: AppProps) {
       } catch (err) {
         reportDbError('dar de alta al jugador', err);
         return false;
-      }
-      if (archivoFicha) {
-        try {
-          const ruta = await db.subirDocumento(saved.id, 'ficha-medica', archivoFicha);
-          await db.adjuntarArchivoFicha(saved.id, ruta);
-          saved = await db.cargarJugador(saved.id);
-        } catch (err) {
-          // El jugador ya quedó creado: se avisa y se puede subir después desde Documentos.
-          reportDbError('subir la foto de la ficha (cargala desde Planilla → Documentos)', err);
-        }
       }
     }
     setPlayers((prev) => [...prev, saved]);
@@ -613,7 +601,7 @@ export default function App({ perfil, onLogout }: AppProps) {
           myPlayer.ludRegistration.cardExpiry && diasHasta(myPlayer.ludRegistration.cardExpiry) === diasProximoVencimiento(myPlayer)
             ? 'carné LUD'
             : 'la ficha médica'
-        }${diasProximoVencimiento(myPlayer) > 0 ? ` en ${diasProximoVencimiento(myPlayer)} días` : ''}. Renovalo y mandale la foto al delegado.`,
+        }${diasProximoVencimiento(myPlayer) > 0 ? ` en ${diasProximoVencimiento(myPlayer)} días` : ''}. Renovalo y avisale al delegado.`,
       });
     if (myPlayer.dues.debtAmount > 0)
       notificaciones.push({

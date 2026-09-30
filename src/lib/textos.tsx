@@ -49,7 +49,7 @@ export const TEXTOS = {
     grupo: 'Plantillas de WhatsApp',
     label: 'Vencimiento de ficha médica o carné',
     valor:
-      'Hola {nombre}, desde el Club Elbio Fernández te recordamos que tu {documento} vence el {vencimiento}. Para seguir habilitado en la Liga Universitaria, renovalo y mandanos la foto. ¡Arriba Elbio!',
+      'Hola {nombre}, desde el Club Elbio Fernández te recordamos que tu {documento} vence el {vencimiento}. Para seguir habilitado en la Liga Universitaria, renovalo y avisale al delegado. ¡Arriba Elbio!',
     multilinea: true,
   },
   plantilla_cuota: {

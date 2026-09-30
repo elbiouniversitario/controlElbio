@@ -414,16 +414,6 @@ export async function actualizarRolesPlanilla(cambios: Record<string, Player['ma
   if (error) throw error;
 }
 
-/** Asocia un archivo subido a la ficha médica que el jugador tiene sin archivo (p. ej. recién dado de alta). */
-export async function adjuntarArchivoFicha(jugadorId: string, ruta: string): Promise<void> {
-  const { error } = await cliente()
-    .from('carnes_salud')
-    .update({ archivo_path: ruta, archivo_nombre: ruta.split('/').pop() })
-    .eq('jugador_id', jugadorId)
-    .is('archivo_path', null);
-  if (error) throw error;
-}
-
 /** Registra el cobro de todas las cuotas impagas del jugador. Devuelve el jugador actualizado. */
 export async function registrarPago(jugadorId: string, metodo: string): Promise<Player> {
   const { error } = await cliente().rpc('registrar_pago', { p_jugador_id: jugadorId, p_metodo: metodo });
@@ -534,7 +524,7 @@ export async function quitarMiembro(email: string): Promise<void> {
 const BUCKET_DOCUMENTOS = 'documentos';
 
 /** Sube una foto o PDF a la carpeta del jugador. Devuelve la ruta guardada. */
-export async function subirDocumento(jugadorId: string, tipo: 'ficha-medica' | 'carne-lud', archivo: File): Promise<string> {
+export async function subirDocumento(jugadorId: string, tipo: 'carne-lud', archivo: File): Promise<string> {
   const ext = (archivo.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
   const ruta = `${jugadorId}/${tipo}-${Date.now()}.${ext}`;
   const { error } = await cliente()

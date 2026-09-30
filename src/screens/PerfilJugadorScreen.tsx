@@ -334,32 +334,6 @@ export const PerfilJugadorScreen: React.FC<PerfilJugadorScreenProps> = ({
                     : `(${player.medicalCertificate.daysRemaining} días restantes)`}
                 </span>
               </div>
-              <div className="flex flex-col gap-1.5">
-                <button
-                  onClick={() =>
-                    player.medicalCertificate.filePath && onVerArchivo
-                      ? onVerArchivo(player.medicalCertificate.filePath)
-                      : showToast('Todavía no hay un comprobante cargado', 'description', 'info')
-                  }
-                  className="bg-white hover:bg-[#eceef1] text-[#00183a] font-heading text-[11px] font-bold px-3 py-1.5 rounded-lg flex items-center gap-1 shadow-xs transition-colors border border-[#e0e3e6]"
-                >
-                  <span className="material-symbols-outlined text-[14px]">visibility</span>
-                  <span>Ver comprobante</span>
-                </button>
-                <button
-                  onClick={() =>
-                    escribirA(
-                      t.delegado_celular,
-                      `Hola ${t.delegado_nombre}, soy ${player.firstName} ${player.lastName}. Te mando mi ficha médica renovada (va la foto).`,
-                      'el delegado'
-                    )
-                  }
-                  className="bg-[#00183a] hover:bg-[#0d2d59] text-white font-heading text-[11px] font-bold px-3 py-1.5 rounded-lg flex items-center gap-1 shadow-xs active:scale-95 transition-all"
-                >
-                  <span className="material-symbols-outlined text-[14px]">upload_file</span>
-                  <span>Renovar / Subir</span>
-                </button>
-              </div>
             </div>
           </div>
 

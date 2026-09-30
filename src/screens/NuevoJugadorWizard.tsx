@@ -8,7 +8,7 @@ import { useTextos } from '../lib/textos';
 interface NuevoJugadorWizardProps {
   onCancel: () => void;
   /** Devuelve false si no se pudo guardar. */
-  onSavePlayer: (player: Player, archivoFicha?: File) => Promise<boolean>;
+  onSavePlayer: (player: Player) => Promise<boolean>;
   showToast: (msg: string, icon?: string, type?: 'success' | 'warning' | 'info' | 'error') => void;
   /** Modo demo: el formulario arranca con un jugador de ejemplo. Con la base real, vacío. */
   ejemplo?: boolean;
@@ -46,8 +46,6 @@ export const NuevoJugadorWizard: React.FC<NuevoJugadorWizardProps> = ({
   // Step 3 State
   const [expiryDate, setExpiryDate] = useState(() => `${Number(hoyISO().slice(0, 4)) + 1}${hoyISO().slice(4)}`);
   const [clinic, setClinic] = useState(ej('Centro Médico Elbio Fernández - Dpto. Aptitud', ''));
-  const [archivo, setArchivo] = useState<File | null>(null);
-  const fileName = archivo?.name ?? '';
   const [medicalNotes, setMedicalNotes] = useState('');
   const [cardInHand, setCardInHand] = useState<'En mano del delegado' | 'En poder del jugador' | 'En trámite secretaría'>('En mano del delegado');
   const [federatedId, setFederatedId] = useState(ej(48291, 0));
@@ -101,8 +99,6 @@ export const NuevoJugadorWizard: React.FC<NuevoJugadorWizardProps> = ({
         expiryDate,
         daysRemaining: 245,
         clinic,
-        fileName: fileName || undefined,
-        fileSize: archivo ? `${(archivo.size / (1024 * 1024)).toFixed(1)} MB` : undefined,
         verified: true,
         notes: medicalNotes,
       },
@@ -125,7 +121,7 @@ export const NuevoJugadorWizard: React.FC<NuevoJugadorWizardProps> = ({
     };
 
     setSaving(true);
-    const ok = await onSavePlayer(newPlayer, archivo ?? undefined);
+    const ok = await onSavePlayer(newPlayer);
     setSaving(false);
     if (!ok) return;
     showToast(`¡${firstName} ${lastName} dado de alta!`, 'how_to_reg', 'success');
@@ -791,56 +787,6 @@ export const NuevoJugadorWizard: React.FC<NuevoJugadorWizardProps> = ({
                   local_hospital
                 </span>
               </div>
-            </div>
-
-            {/* Archivo / Foto del Carné de Salud */}
-            <div className="flex flex-col gap-1.5">
-              <label className="font-heading text-[12px] font-bold text-[#00183a]">
-                Adjuntar foto o PDF del carné por ambos lados
-              </label>
-              {archivo ? (
-                <div className="bg-[#f2f4f7] rounded-xl p-3 flex items-center justify-between gap-3 border border-[#e0e3e6]">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-11 h-11 rounded-lg bg-[#0d2d59] text-white flex items-center justify-center shrink-0">
-                      <span className="material-symbols-outlined text-[24px]">description</span>
-                    </div>
-                    <div className="min-w-0 flex flex-col">
-                      <span className="font-heading font-bold text-[12px] text-[#00183a] truncate">{archivo.name}</span>
-                      <span className="font-sans text-[11px] text-[#44474f]">
-                        {(archivo.size / (1024 * 1024)).toFixed(1)} MB · se sube al guardar
-                      </span>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setArchivo(null)}
-                    aria-label="Quitar archivo"
-                    className="w-9 h-9 rounded-full bg-white flex items-center justify-center text-[#b51a1b] active:scale-95 transition-transform border border-[#e0e3e6]"
-                  >
-                    <span className="material-symbols-outlined text-[18px]">close</span>
-                  </button>
-                </div>
-              ) : (
-                <p className="font-sans text-[12px] text-[#44474f]">Opcional. También se puede cargar después desde Planilla → Documentos.</p>
-              )}
-
-              <label className="w-full h-11 rounded-lg bg-[#e6e8eb] hover:bg-[#eceef1] text-[#00183a] font-heading text-[12px] font-bold flex items-center justify-center gap-2 cursor-pointer">
-                <span className="material-symbols-outlined text-[20px]">add_a_photo</span>
-                {archivo ? 'Cambiar archivo o sacar otra foto' : 'Sacar foto o elegir archivo'}
-                <input
-                  type="file"
-                  accept="image/*,application/pdf"
-                  className="hidden"
-                  onChange={(e) => {
-                    const f = e.target.files?.[0] ?? null;
-                    if (f && f.size > 10 * 1024 * 1024) {
-                      showToast('El archivo pesa más de 10 MB', 'error', 'error');
-                      return;
-                    }
-                    setArchivo(f);
-                  }}
-                />
-              </label>
             </div>
 
             {/* Observaciones Médicas */}

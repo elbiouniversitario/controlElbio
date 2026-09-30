@@ -37,7 +37,7 @@ Archivos:
 - `supabase/seed.sql`: los datos de ejemplo (9 jugadores, reglas, mensajes y roles)
 - `supabase/migrations/20260930000000_login_y_roles.sql`: login, roles y permisos por rol; columnas del padrón LUD
 - `supabase/migrations/20260930010000_vincular_jugador.sql`: ingreso de jugadores con celular + cédula
-- `supabase/migrations/20260930020000_habilitacion_y_documentos.sql`: habilitación manual y fotos/PDF de ficha médica y carné LUD
+- `supabase/migrations/20260930020000_habilitacion_y_documentos.sql`: habilitación manual y foto del carné LUD
 - `supabase/migrations/20260930030000_cuotas_desde_la_app.sql`: generar las cuotas del mes desde Tesorería; perfil "Tesorería"
 - `src/lib/supabase.ts`: cliente; `src/lib/db.ts`: lecturas y escrituras
 
@@ -112,10 +112,10 @@ En **Planilla**, el lápiz al lado del nombre de cada jugador abre su ficha para
 En **Planilla → Documentos** (DT y admin), para cada jugador:
 
 - **Habilitación:** *Automática* (la app la calcula: ficha médica vigente, carné LUD vigente y no estar de baja), o forzada a **Habilitado** / **Inhabilitado** con un motivo (suspensión, trámite autorizado por la liga, etc.). Lo forzado manda sobre los vencimientos hasta que se vuelva a *Automática*.
-- **Ficha médica:** cargar una nueva con fecha de examen, vencimiento, clínica y foto o PDF. Queda como vigente la de vencimiento más lejano.
+- **Ficha médica:** cargar una nueva con fecha de examen, vencimiento y clínica (sin foto). Queda como vigente la de vencimiento más lejano.
 - **Carné LUD:** número, vencimiento y foto.
 
-Las fotos y PDF (hasta 10 MB) van al bucket **privado** `documentos` de Supabase Storage, en una carpeta por jugador. Los ve el staff y cada jugador los suyos (en Mi ficha → *Ver comprobante*), mediante links que duran 1 hora. Los suben solo el DT y el admin. La migración crea el bucket; no hay que configurar nada más en Supabase.
+La foto del carné LUD (imagen o PDF, hasta 10 MB) va al bucket **privado** `documentos` de Supabase Storage, en una carpeta por jugador. La ve el staff y cada jugador la suya (en Mi ficha → *Ver foto del carné*), mediante links que duran 1 hora. Los suben solo el DT y el admin. La migración crea el bucket; no hay que configurar nada más en Supabase.
 
 ### Cargar el padrón de jugadores
 
