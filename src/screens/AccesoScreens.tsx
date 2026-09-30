@@ -1,10 +1,14 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   cambiarContrasena,
+  cargarPlantelParaVincular,
   crearCuenta,
+  entrarComoJugador,
   enviarRecuperacion,
   iniciarSesion,
+  JugadorLista,
   mensajeErrorAuth,
+  vincularJugador,
 } from '../lib/auth';
 
 const inputClass =
@@ -106,17 +110,48 @@ export const LoginScreen: React.FC = () => {
     }
   };
 
+  const [entrandoJugador, setEntrandoJugador] = useState(false);
+  const handleSoyJugador = async () => {
+    setError(null);
+    setEntrandoJugador(true);
+    try {
+      await entrarComoJugador();
+      // AuthGate detecta la sesión y muestra la pantalla para elegirse.
+    } catch (err) {
+      setError(mensajeErrorAuth(err));
+      setEntrandoJugador(false);
+    }
+  };
+
   const titulos: Record<Modo, [string, string]> = {
-    ingresar: ['Ingresar', 'Con el email y la contraseña de tu cuenta.'],
+    ingresar: ['Ingresar', ''],
     registrarse: [
       'Crear cuenta',
-      'Jugadores: usá el mismo email que tenés en tu ficha del club. Staff: el email que te habilitó el administrador.',
+      'Para el staff del club: usá el email que te habilitó el administrador. Los jugadores entran con el botón "Soy jugador".',
     ],
     recuperar: ['Recuperar contraseña', 'Te mandamos un link por email para elegir una nueva.'],
   };
 
   return (
-    <Marco titulo={titulos[modo][0]} subtitulo={titulos[modo][1]}>
+    <Marco titulo={titulos[modo][0]} subtitulo={titulos[modo][1] || undefined}>
+      {modo === 'ingresar' && (
+        <>
+          <button
+            type="button"
+            onClick={handleSoyJugador}
+            disabled={entrandoJugador}
+            className="h-14 rounded-xl bg-[#b51a1b] text-white font-heading text-[14px] font-bold flex items-center justify-center gap-2 shadow-md disabled:opacity-60 active:scale-[0.98] transition-transform"
+          >
+            <span className="material-symbols-outlined text-[22px]">sports_soccer</span>
+            {entrandoJugador ? 'Un momento…' : 'Soy jugador: entrar con mi celular'}
+          </button>
+          <div className="flex items-center gap-2 text-[#747780]">
+            <span className="h-px flex-1 bg-[#e0e3e6]" />
+            <span className="font-heading text-[10px] font-bold uppercase tracking-wider">Staff del club</span>
+            <span className="h-px flex-1 bg-[#e0e3e6]" />
+          </div>
+        </>
+      )}
       <form onSubmit={handleSubmit} className="flex flex-col gap-3" noValidate>
         <label className="flex flex-col gap-1">
           <span className={labelClass}>Email</span>
@@ -274,3 +309,139 @@ export const PendienteScreen: React.FC<{ email: string; onReintentar: () => void
     </button>
   </Marco>
 );
+
+/** El jugador se elige de la lista del plantel y confirma con su cédula. */
+export const VincularJugadorScreen: React.FC<{ onListo: () => void; onSalir: () => void }> = ({
+  onListo,
+  onSalir,
+}) => {
+  const [plantel, setPlantel] = useState<JugadorLista[] | null>(null);
+  const [errorCarga, setErrorCarga] = useState<string | null>(null);
+  const [celular, setCelular] = useState('');
+  const [busqueda, setBusqueda] = useState('');
+  const [elegido, setElegido] = useState<JugadorLista | null>(null);
+  const [cedula, setCedula] = useState('');
+  const [cargando, setCargando] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    cargarPlantelParaVincular()
+      .then(setPlantel)
+      .catch((err) => setErrorCarga(mensajeErrorAuth(err)));
+  }, []);
+
+  const filtrados = useMemo(() => {
+    const sinTildes = (t: string) => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    const q = sinTildes(busqueda.trim());
+    return (plantel ?? []).filter((j) => !q || sinTildes(`${j.nombre} ${j.apellido} ${j.apellido} ${j.nombre}`).includes(q));
+  }, [plantel, busqueda]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    if (celular.replace(/\D/g, '').length < 8) return setError('Escribí tu número de celular completo (ej. 099 123 456).');
+    if (!elegido) return setError('Elegite de la lista.');
+    if (cedula.replace(/\D/g, '').length < 6) return setError('Escribí tu cédula completa.');
+    setCargando(true);
+    try {
+      const r = await vincularJugador(elegido.id, cedula, celular);
+      if (r === 'ok') return onListo();
+      setError(
+        r === 'bloqueado'
+          ? 'Demasiados intentos con una cédula que no coincide. Probá de nuevo en una hora o pedile ayuda al delegado.'
+          : `La cédula no coincide con la de ${elegido.nombre} ${elegido.apellido}. Revisala (con el dígito verificador) y volvé a intentar.`
+      );
+    } catch (err) {
+      setError(mensajeErrorAuth(err));
+    } finally {
+      setCargando(false);
+    }
+  };
+
+  return (
+    <Marco titulo="¿Quién sos?" subtitulo="Se hace una sola vez: después la app te reconoce en este celular.">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-3" noValidate>
+        <label className="flex flex-col gap-1">
+          <span className={labelClass}>1. Tu celular</span>
+          <input
+            type="tel"
+            inputMode="tel"
+            autoComplete="tel"
+            value={celular}
+            onChange={(e) => setCelular(e.target.value)}
+            className={inputClass}
+            placeholder="099 123 456"
+          />
+        </label>
+
+        <div className="flex flex-col gap-1">
+          <span className={labelClass}>2. Elegite de la lista</span>
+          {elegido ? (
+            <div className="h-12 px-3 rounded-lg bg-emerald-50 border border-emerald-300 flex items-center justify-between">
+              <span className="font-heading text-[14px] font-bold text-[#00183a]">
+                {elegido.nombre} {elegido.apellido}
+              </span>
+              <button type="button" className={linkBtn} onClick={() => setElegido(null)}>
+                Cambiar
+              </button>
+            </div>
+          ) : (
+            <>
+              <input
+                type="search"
+                value={busqueda}
+                onChange={(e) => setBusqueda(e.target.value)}
+                className={inputClass}
+                placeholder="Buscá tu nombre o apellido"
+              />
+              <div className="max-h-56 overflow-y-auto rounded-lg border border-[#e0e3e6] divide-y divide-[#eceef1]">
+                {errorCarga && <p className="p-3 font-sans text-[13px] text-[#ba1a1a]">{errorCarga}</p>}
+                {!plantel && !errorCarga && <p className="p-3 font-sans text-[13px] text-[#44474f]">Cargando plantel…</p>}
+                {plantel && filtrados.length === 0 && (
+                  <p className="p-3 font-sans text-[13px] text-[#44474f]">No aparece nadie con ese nombre.</p>
+                )}
+                {filtrados.map((j) => (
+                  <button
+                    key={j.id}
+                    type="button"
+                    onClick={() => setElegido(j)}
+                    className="w-full text-left px-3 py-2.5 font-sans text-[14px] text-[#191c1e] hover:bg-[#f2f4f7] active:bg-[#e6e8eb]"
+                  >
+                    <strong className="font-heading">{j.apellido}</strong>, {j.nombre}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+
+        {elegido && (
+          <label className="flex flex-col gap-1">
+            <span className={labelClass}>3. Tu cédula (para confirmar que sos vos)</span>
+            <input
+              type="text"
+              inputMode="numeric"
+              autoComplete="off"
+              value={cedula}
+              onChange={(e) => setCedula(e.target.value)}
+              className={inputClass}
+              placeholder="1.234.567-8"
+            />
+          </label>
+        )}
+
+        {error && <Aviso tipo="error">{error}</Aviso>}
+
+        <button type="submit" disabled={cargando || !elegido} className={primaryBtn}>
+          {cargando ? 'Verificando…' : 'Entrar'}
+        </button>
+      </form>
+      <button type="button" onClick={onSalir} className={linkBtn}>
+        Volver
+      </button>
+      <p className="font-sans text-[11px] text-[#747780] text-center leading-snug">
+        ¿No estás en la lista? Pedile al delegado que te agregue al plantel.
+      </p>
+    </Marco>
+  );
+};

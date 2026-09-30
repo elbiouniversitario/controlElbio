@@ -36,6 +36,7 @@ Archivos:
 - `supabase/migrations/20260929000000_esquema_inicial.sql`: tablas, índices, funciones y permisos (RLS)
 - `supabase/seed.sql`: los datos de ejemplo (9 jugadores, reglas, mensajes y roles)
 - `supabase/migrations/20260930000000_login_y_roles.sql`: login, roles y permisos por rol; columnas del padrón LUD
+- `supabase/migrations/20260930010000_vincular_jugador.sql`: ingreso de jugadores con celular + cédula
 - `src/lib/supabase.ts`: cliente; `src/lib/db.ts`: lecturas y escrituras
 
 ### Puesta en marcha (una sola vez)
@@ -83,7 +84,7 @@ Con Supabase configurado, la app pide **email y contraseña**. No se usa "magic 
 | jugador | cada jugador | solo su ficha, sus cuotas; confirma asistencia |
 
 - **Staff:** el admin los habilita en **Club Admin → Dar acceso al staff** con su email. Después cada uno toca "Crear cuenta" en la app **con ese mismo email**.
-- **Jugadores:** no hace falta habilitarlos. Si crean su cuenta con el email cargado en su ficha, entran y ven solo lo suyo.
+- **Jugadores:** entran con el botón **"Soy jugador"**, sin email ni contraseña. Escriben su celular, se eligen de la lista del plantel y confirman con su **cédula**, que tiene que coincidir con la del padrón. Desde ahí la app los reconoce en ese celular, les muestra solo su ficha y guarda su número en la ficha. Hay un máximo de 5 cédulas incorrectas por hora. Si cierran sesión o cambian de celular, repiten el paso. También pueden entrar con una cuenta de email si ese email está cargado en su ficha.
 - Cualquier otra cuenta queda "pendiente de habilitación" y no ve nada.
 - Sin sesión, la anon key no puede leer ni escribir nada. Nadie puede borrar jugadores desde la app.
 
@@ -93,6 +94,11 @@ Con Supabase configurado, la app pide **email y contraseña**. No se usa "magic 
 3. Supabase → *Authentication* → *URL Configuration*: en **Site URL** poner la URL de producción de Vercel (la usan los links de confirmación y de "Olvidé mi contraseña").
 4. Deployar la versión con login (mergear el PR).
 5. Abrir la app → "Crear cuenta" con el email del paso 2 → confirmar el email → ingresar.
+
+**Ingreso de jugadores con celular (una sola vez):**
+1. SQL Editor → correr `supabase/migrations/20260930010000_vincular_jugador.sql` (dice "Listo: ingreso de jugadores con celular activado").
+2. Supabase → *Authentication* → *Sign In / Providers* → activar **Allow anonymous sign-ins**.
+3. Si muchos jugadores van a entrar a la vez desde el mismo WiFi (por ejemplo, en el club), subir el límite de *Anonymous sign-ins* en *Authentication → Rate Limits*: por defecto son 30 por hora por IP.
 
 El servicio de email que trae Supabase de fábrica manda pocos mails por hora (confirmaciones y recuperación de contraseña). Si se registra mucha gente el mismo día y algún mail no llega, esperar un rato o configurar un SMTP propio en *Authentication → Emails*.
 
@@ -114,7 +120,8 @@ Archivos: `public/manifest.webmanifest` (nombre, colores e íconos), `public/sw.
 
 ## Próximos pasos
 
-- Pantalla para editar jugadores (email, teléfono, número, posición): hoy el padrón no los trae
+- Pantalla para editar jugadores (número, posición, contacto de emergencia): hoy el padrón no los trae
+- Ver y quitar desde la app los celulares vinculados a cada jugador (hoy: tabla `vinculos_jugador`)
 - Fotos de jugadores y escaneos de carné en Supabase Storage (hoy se muestran las iniciales)
 - Escudo del club: hoy apunta a una URL temporal de AI Studio; conviene subirlo a `public/`
 - Envío real por WhatsApp (hoy los avisos solo quedan registrados en el historial)
