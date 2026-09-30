@@ -10,3 +10,30 @@ export const carneLudVencido = (p: Player): boolean => (diasCarneLud(p) ?? 1) <=
 /** Días hasta lo primero que vence: la ficha médica o el carné LUD. */
 export const diasProximoVencimiento = (p: Player): number =>
   Math.min(p.medicalCertificate.daysRemaining, diasCarneLud(p) ?? Infinity);
+
+export interface EstadoHabilitacion {
+  habilitado: boolean;
+  /** Por qué no está habilitado (o el motivo cargado si se forzó). */
+  motivo: string | null;
+  /** true si lo decidió el staff a mano (no por vencimientos). */
+  manual: boolean;
+}
+
+/**
+ * Si el staff forzó la habilitación, manda eso. Si no, se calcula: ficha
+ * médica vigente, carné LUD vigente (si está cargado) y no estar de baja.
+ */
+export function estadoHabilitacion(p: Player): EstadoHabilitacion {
+  const o = p.eligibilityOverride;
+  if (o) {
+    return {
+      habilitado: o.status === 'habilitado',
+      motivo: o.reason || (o.status === 'habilitado' ? 'Habilitado por el cuerpo técnico' : 'Inhabilitado por el cuerpo técnico'),
+      manual: true,
+    };
+  }
+  if (p.medicalCertificate.daysRemaining <= 0) return { habilitado: false, motivo: 'Ficha médica vencida', manual: false };
+  if (carneLudVencido(p)) return { habilitado: false, motivo: 'Carné LUD vencido', manual: false };
+  if (p.matchStatus.lineupRole === 'BAJA') return { habilitado: false, motivo: 'Dado de baja', manual: false };
+  return { habilitado: true, motivo: null, manual: false };
+}

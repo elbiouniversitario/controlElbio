@@ -26,6 +26,8 @@ interface CarneRow {
   archivo_tamanio: string | null;
   verificado: boolean;
   notas: string | null;
+  fecha_examen: string | null;
+  archivo_path: string | null;
 }
 
 interface FichaLudRow {
@@ -34,6 +36,7 @@ interface FichaLudRow {
   categoria: string;
   consentimiento_firmado: boolean;
   vencimiento_carne: string | null;
+  archivo_carne_path: string | null;
 }
 
 interface EstadoPlanillaRow {
@@ -47,6 +50,8 @@ interface JugadorRow {
   numero: number | null;
   documento: string | null;
   fecha_nacimiento: string | null;
+  habilitacion_manual: 'habilitado' | 'inhabilitado' | null;
+  motivo_habilitacion: string | null;
   nombre: string;
   apellido: string;
   posicion: string;
@@ -161,6 +166,8 @@ function mapJugador(r: JugadorRow): Player {
       fileSize: carne?.archivo_tamanio ?? undefined,
       verified: carne?.verificado ?? false,
       notes: carne?.notas ?? undefined,
+      examDate: carne?.fecha_examen ?? undefined,
+      filePath: carne?.archivo_path ?? undefined,
     },
     ludRegistration: {
       cardInHand: ficha?.carne_en_mano ?? 'En trámite secretaría',
@@ -168,7 +175,11 @@ function mapJugador(r: JugadorRow): Player {
       category: ficha?.categoria ?? '',
       signedConsent: ficha?.consentimiento_firmado ?? false,
       cardExpiry: ficha?.vencimiento_carne ?? undefined,
+      cardFilePath: ficha?.archivo_carne_path ?? undefined,
     },
+    eligibilityOverride: r.habilitacion_manual
+      ? { status: r.habilitacion_manual, reason: r.motivo_habilitacion ?? undefined }
+      : undefined,
     matchStatus: {
       lineupRole: planilla?.rol ?? 'SUPLENTE',
       attendanceConfirmed: planilla?.asistencia_confirmada ?? undefined,
@@ -471,3 +482,85 @@ export async function quitarMiembro(email: string): Promise<void> {
   if (error) throw error;
   if (!data?.length) throw sinPermiso();
 }
+
+// ---------------------------------------------------------------------------
+// Habilitación y documentos (admin / DT)
+// ---------------------------------------------------------------------------
+const BUCKET_DOCUMENTOS = 'documentos';
+
+/** Sube una foto o PDF a la carpeta del jugador. Devuelve la ruta guardada. */
+export async function subirDocumento(jugadorId: string, tipo: 'ficha-medica' | 'carne-lud', archivo: File): Promise<string> {
+  const ext = (archivo.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
+  const ruta = `${jugadorId}/${tipo}-${Date.now()}.${ext}`;
+  const { error } = await cliente()
+    .storage.from(BUCKET_DOCUMENTOS)
+    .upload(ruta, archivo, { contentType: archivo.type || undefined, upsert: false });
+  if (error) throw error;
+  return ruta;
+}
+
+/** Link temporal (1 hora) para ver un documento privado. */
+export async function urlDocumento(ruta: string): Promise<string> {
+  const { data, error } = await cliente().storage.from(BUCKET_DOCUMENTOS).createSignedUrl(ruta, 3600);
+  if (error) throw error;
+  return data.signedUrl;
+}
+
+export async function guardarHabilitacion(
+  jugadorId: string,
+  override: Player['eligibilityOverride']
+): Promise<void> {
+  const { data, error } = await cliente()
+    .from('jugadores')
+    .update({
+      habilitacion_manual: override?.status ?? null,
+      motivo_habilitacion: override?.reason?.trim() || null,
+    })
+    .eq('id', jugadorId)
+    .select('id');
+  if (error) throw error;
+  if (!data?.length) throw sinPermiso();
+}
+
+export interface NuevaFichaMedica {
+  vencimiento: string;
+  fechaExamen?: string;
+  clinica?: string;
+  archivoPath?: string;
+}
+
+/** Agrega una ficha médica (queda como la vigente si vence después que la anterior). */
+export async function cargarFichaMedica(jugadorId: string, f: NuevaFichaMedica): Promise<void> {
+  const { error } = await cliente()
+    .from('carnes_salud')
+    .insert({
+      jugador_id: jugadorId,
+      vencimiento: f.vencimiento,
+      fecha_examen: f.fechaExamen || null,
+      clinica: f.clinica?.trim() ?? '',
+      verificado: true,
+      archivo_path: f.archivoPath ?? null,
+      archivo_nombre: f.archivoPath ? f.archivoPath.split('/').pop() : null,
+    });
+  if (error) throw error;
+}
+
+export interface DatosCarneLud {
+  idFederado: number | null;
+  vencimiento: string | null;
+  archivoPath?: string;
+}
+
+export async function guardarCarneLud(jugadorId: string, c: DatosCarneLud): Promise<void> {
+  const cambios: Record<string, unknown> = {
+    jugador_id: jugadorId,
+    id_federado: c.idFederado,
+    vencimiento_carne: c.vencimiento,
+  };
+  if (c.archivoPath) cambios.archivo_carne_path = c.archivoPath;
+  const { error } = await cliente().from('fichas_lud').upsert(cambios, { onConflict: 'jugador_id' });
+  if (error) throw error;
+}
+
+/** Vuelve a leer un jugador (después de cargar documentos). */
+export { cargarJugador };

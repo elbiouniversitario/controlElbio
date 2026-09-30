@@ -48,6 +48,10 @@ export interface Player {
     fileSize?: string;
     verified: boolean;
     notes?: string;
+    /** Fecha del examen (YYYY-MM-DD), si se conoce. */
+    examDate?: string;
+    /** Foto o PDF en Supabase Storage (bucket "documentos"). */
+    filePath?: string;
   };
 
   // LUD Registration
@@ -58,6 +62,14 @@ export interface Player {
     signedConsent: boolean;
     /** Vencimiento del carné de la liga (YYYY-MM-DD), si se conoce. */
     cardExpiry?: string;
+    /** Foto del carné en Supabase Storage (bucket "documentos"). */
+    cardFilePath?: string;
+  };
+
+  /** Habilitación forzada por el staff; sin definir = automática según vencimientos. */
+  eligibilityOverride?: {
+    status: 'habilitado' | 'inhabilitado';
+    reason?: string;
   };
 
   // Match Lineup Status

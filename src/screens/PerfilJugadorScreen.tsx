@@ -2,30 +2,27 @@ import React, { useState } from 'react';
 import { Player } from '../types';
 import { CLUB_CREST_URL, CLUB_CREST_WATERMARK } from '../data/initialData';
 import { diasHasta, fechaCorta, nombrePeriodo, sumarMeses } from '../lib/fechas';
-import { carneLudVencido } from '../lib/habilitacion';
+import { estadoHabilitacion } from '../lib/habilitacion';
 import { useTextos } from '../lib/textos';
 
 interface PerfilJugadorScreenProps {
   player: Player;
   /** Devuelve false si no se pudo guardar. */
   onUpdateAttendance: (confirmed: boolean, reason?: string) => Promise<boolean>;
+  /** Abre un documento guardado (foto o PDF de ficha médica / carné). */
+  onVerArchivo?: (ruta: string) => void;
   showToast: (msg: string, icon?: string, type?: 'success' | 'warning' | 'info' | 'error') => void;
 }
 
 export const PerfilJugadorScreen: React.FC<PerfilJugadorScreenProps> = ({
   player,
   onUpdateAttendance,
+  onVerArchivo,
   showToast,
 }) => {
   const t = useTextos();
-  const motivoInhabilitado =
-    player.medicalCertificate.daysRemaining <= 0
-      ? 'FICHA MÉDICA VENCIDA'
-      : carneLudVencido(player)
-      ? 'CARNÉ LUD VENCIDO'
-      : player.matchStatus.lineupRole === 'BAJA'
-      ? 'DADO DE BAJA'
-      : null;
+  const estado = estadoHabilitacion(player);
+  const motivoInhabilitado = estado.habilitado ? null : (estado.motivo ?? 'Inhabilitado').toUpperCase();
   const [attendance, setAttendance] = useState<'pending' | 'confirmed' | 'declined'>(
     player.matchStatus.attendanceConfirmed
       ? 'confirmed'
@@ -305,14 +302,22 @@ export const PerfilJugadorScreen: React.FC<PerfilJugadorScreenProps> = ({
                 <span className="font-heading font-bold text-[16px] text-[#00183a]">
                   {fechaCorta(player.medicalCertificate.expiryDate) || 'Sin carné'}
                 </span>
-                <span className="font-sans text-[11px] text-emerald-700 block font-medium">
-                  ({player.medicalCertificate.daysRemaining} días restantes)
+                <span
+                  className={`font-sans text-[11px] block font-medium ${
+                    player.medicalCertificate.daysRemaining <= 0 ? 'text-[#ba1a1a]' : 'text-emerald-700'
+                  }`}
+                >
+                  {player.medicalCertificate.daysRemaining <= 0
+                    ? '(vencida)'
+                    : `(${player.medicalCertificate.daysRemaining} días restantes)`}
                 </span>
               </div>
               <div className="flex flex-col gap-1.5">
                 <button
                   onClick={() =>
-                    showToast('Abriendo carnet_salud_frente_dorso.jpg (1.8 MB)', 'description')
+                    player.medicalCertificate.filePath && onVerArchivo
+                      ? onVerArchivo(player.medicalCertificate.filePath)
+                      : showToast('Todavía no hay un comprobante cargado', 'description', 'info')
                   }
                   className="bg-white hover:bg-[#eceef1] text-[#00183a] font-heading text-[11px] font-bold px-3 py-1.5 rounded-lg flex items-center gap-1 shadow-xs transition-colors border border-[#e0e3e6]"
                 >
@@ -321,7 +326,7 @@ export const PerfilJugadorScreen: React.FC<PerfilJugadorScreenProps> = ({
                 </button>
                 <button
                   onClick={() =>
-                    showToast('Selecciona foto o PDF para actualizar tu Carné de Salud', 'upload_file')
+                    showToast('Para renovar tu ficha, mandale la foto al delegado: él la carga en la app', 'upload_file', 'info')
                   }
                   className="bg-[#00183a] hover:bg-[#0d2d59] text-white font-heading text-[11px] font-bold px-3 py-1.5 rounded-lg flex items-center gap-1 shadow-xs active:scale-95 transition-all"
                 >
@@ -362,6 +367,15 @@ export const PerfilJugadorScreen: React.FC<PerfilJugadorScreenProps> = ({
                   Carné LUD {diasHasta(player.ludRegistration.cardExpiry) <= 0 ? 'vencido el' : 'vence el'}{' '}
                   {fechaCorta(player.ludRegistration.cardExpiry)}
                 </p>
+              )}
+              {player.ludRegistration.cardFilePath && onVerArchivo && (
+                <button
+                  type="button"
+                  onClick={() => onVerArchivo(player.ludRegistration.cardFilePath!)}
+                  className="font-heading text-[11px] font-bold text-[#445e8d] underline"
+                >
+                  Ver foto del carné
+                </button>
               )}
             </div>
             <span

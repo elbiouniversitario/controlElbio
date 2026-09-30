@@ -37,6 +37,7 @@ Archivos:
 - `supabase/seed.sql`: los datos de ejemplo (9 jugadores, reglas, mensajes y roles)
 - `supabase/migrations/20260930000000_login_y_roles.sql`: login, roles y permisos por rol; columnas del padrón LUD
 - `supabase/migrations/20260930010000_vincular_jugador.sql`: ingreso de jugadores con celular + cédula
+- `supabase/migrations/20260930020000_habilitacion_y_documentos.sql`: habilitación manual y fotos/PDF de ficha médica y carné LUD
 - `src/lib/supabase.ts`: cliente; `src/lib/db.ts`: lecturas y escrituras
 
 ### Puesta en marcha (una sola vez)
@@ -106,6 +107,16 @@ El servicio de email que trae Supabase de fábrica manda pocos mails por hora (c
 
 En **Planilla**, el lápiz al lado del nombre de cada jugador abre su ficha para editar: nombre, número, posición, capitán, rol en el partido (titular, suplente, reserva, baja), carné LUD en mano, celular, email, dirección, contacto de emergencia y cobertura médica. Lo pueden hacer el DT y el admin.
 
+### Habilitación, ficha médica y carné LUD
+
+En **Planilla → Documentos** (DT y admin), para cada jugador:
+
+- **Habilitación:** *Automática* (la app la calcula: ficha médica vigente, carné LUD vigente y no estar de baja), o forzada a **Habilitado** / **Inhabilitado** con un motivo (suspensión, trámite autorizado por la liga, etc.). Lo forzado manda sobre los vencimientos hasta que se vuelva a *Automática*.
+- **Ficha médica:** cargar una nueva con fecha de examen, vencimiento, clínica y foto o PDF. Queda como vigente la de vencimiento más lejano.
+- **Carné LUD:** número, vencimiento y foto.
+
+Las fotos y PDF (hasta 10 MB) van al bucket **privado** `documentos` de Supabase Storage, en una carpeta por jugador. Los ve el staff y cada jugador los suyos (en Mi ficha → *Ver comprobante*), mediante links que duran 1 hora. Los suben solo el DT y el admin. La migración crea el bucket; no hay que configurar nada más en Supabase.
+
 ### Cargar el padrón de jugadores
 
 El padrón de la liga (Excel con carné, cédula, nombre, nacimiento y vencimientos) se carga con un SQL generado a partir del Excel. **Ese SQL no se sube al repo** porque tiene datos personales y el repo es público. Identifica a cada jugador por cédula, así que se puede volver a correr con un padrón actualizado sin duplicar a nadie. Los jugadores marcados como inactivos no aparecen en la app. El carné LUD vencido inhabilita al jugador en la planilla, igual que la ficha médica vencida.
@@ -125,6 +136,6 @@ Archivos: `public/manifest.webmanifest` (nombre, colores e íconos), `public/sw.
 ## Próximos pasos
 
 - Ver y quitar desde la app los celulares vinculados a cada jugador (hoy: tabla `vinculos_jugador`)
-- Fotos de jugadores y escaneos de carné en Supabase Storage (hoy se muestran las iniciales)
+- Fotos de perfil de los jugadores (hoy se muestran las iniciales)
 - Escudo del club: hoy apunta a una URL temporal de AI Studio; conviene subirlo a `public/`
 - Envío real por WhatsApp (hoy los avisos solo quedan registrados en el historial)
