@@ -54,7 +54,7 @@ export const TesoreriaCuotasScreen: React.FC<TesoreriaCuotasScreenProps> = ({
       !term ||
       p.firstName.toLowerCase().includes(term) ||
       p.lastName.toLowerCase().includes(term) ||
-      p.number.toString().includes(term) ||
+      String(p.number ?? '').includes(term) ||
       p.position.toLowerCase().includes(term);
 
     return matchesFilter && matchesSearch;
@@ -370,7 +370,7 @@ export const TesoreriaCuotasScreen: React.FC<TesoreriaCuotasScreenProps> = ({
                           isOverdue ? 'bg-[#b51a1b] text-white' : 'bg-[#00183a] text-white'
                         }`}
                       >
-                        #{player.number}
+                        #{player.number ?? '–'}
                       </span>
                     </div>
                     <div className="flex flex-col min-w-0">

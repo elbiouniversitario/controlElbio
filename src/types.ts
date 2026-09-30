@@ -10,12 +10,17 @@ export type DuesStatus = 'paid' | 'pending' | 'overdue';
 
 export interface Player {
   id: string;
-  number: number;
+  /** Número de camiseta (null si todavía no tiene). */
+  number: number | null;
   firstName: string;
   lastName: string;
   position: string;
   category: string;
   birthYear: number;
+  /** YYYY-MM-DD, si se conoce. */
+  birthDate?: string;
+  /** Cédula de identidad. */
+  documento?: string;
   avatarUrl: string;
   phone: string;
   email: string;
@@ -51,6 +56,8 @@ export interface Player {
     federatedId: number;
     category: string;
     signedConsent: boolean;
+    /** Vencimiento del carné de la liga (YYYY-MM-DD), si se conoce. */
+    cardExpiry?: string;
   };
 
   // Match Lineup Status

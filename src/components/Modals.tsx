@@ -232,7 +232,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
             />
             <div>
               <h4 className="font-heading font-bold text-[14px] text-[#00183a]">
-                {player.firstName} {player.lastName} (#{player.number})
+                {player.firstName} {player.lastName} (#{player.number ?? '–'})
               </h4>
               <p className="font-sans text-[11px] text-[#44474f]">
                 {player.position} • Período: {nombrePeriodo(player.dues.period)}
@@ -296,11 +296,12 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   );
 };
 
-// Modal 4: Assign Role Modal
+// Modal 4: Assign Role Modal (acceso del staff por email)
 interface AssignRoleModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: (name: string, ci: string, role: string) => void;
+  /** Devuelve false si no se pudo guardar (el modal queda abierto). */
+  onConfirm: (nombre: string, email: string, rol: 'admin' | 'dt' | 'tesorero') => Promise<boolean>;
 }
 
 export const AssignRoleModal: React.FC<AssignRoleModalProps> = ({
@@ -309,10 +310,32 @@ export const AssignRoleModal: React.FC<AssignRoleModalProps> = ({
   onConfirm,
 }) => {
   const [name, setName] = useState('');
-  const [ci, setCi] = useState('');
-  const [role, setRole] = useState('Cuerpo Técnico & Delegado');
+  const [email, setEmail] = useState('');
+  const [role, setRole] = useState<'admin' | 'dt' | 'tesorero'>('dt');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   if (!isOpen) return null;
+
+  const inputClass =
+    'h-12 px-3 rounded-lg bg-[#f2f4f7] font-sans text-[16px] text-[#00183a] outline-none focus:bg-white focus:ring-2 focus:ring-[#00183a] border border-[#e0e3e6] select-text';
+
+  const handleConfirm = async () => {
+    const limpio = email.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(limpio)) {
+      setError('Ingresá un email válido.');
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    const ok = await onConfirm(name.trim(), limpio, role);
+    setSaving(false);
+    if (ok) {
+      setName('');
+      setEmail('');
+      onClose();
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-[#00183a]/70 backdrop-blur-xs p-4 animate-in fade-in duration-200">
@@ -323,41 +346,48 @@ export const AssignRoleModal: React.FC<AssignRoleModalProps> = ({
               <span className="material-symbols-outlined text-[20px]">person_add</span>
             </div>
             <h3 className="font-heading font-bold text-[16px] text-[#00183a]">
-              Asignar Nuevo Rol
+              Dar acceso al staff
             </h3>
           </div>
           <button
             onClick={onClose}
+            aria-label="Cerrar"
             className="w-8 h-8 rounded-full flex items-center justify-center text-[#747780] hover:bg-[#eceef1]"
           >
             <span className="material-symbols-outlined text-[20px]">close</span>
           </button>
         </div>
 
+        <p className="font-sans text-[12px] text-[#44474f] leading-snug">
+          La persona crea su cuenta en la app con <strong>este mismo email</strong> y entra con el rol elegido.
+          Los jugadores no necesitan acceso: entran con el email cargado en su ficha.
+        </p>
+
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-1">
             <label className="font-heading text-[11px] font-bold text-[#00183a] uppercase">
-              Nombre y Apellido
+              Nombre y Apellido (opcional)
             </label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Ej. Gonzalo Delgado"
-              className="h-12 px-3 rounded-lg bg-[#f2f4f7] font-sans text-[14px] text-[#00183a] outline-none focus:bg-white focus:ring-2 focus:ring-[#00183a] border border-[#e0e3e6]"
+              className={inputClass}
             />
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className="font-heading text-[11px] font-bold text-[#00183a] uppercase">
-              Cédula de Identidad (CI)
-            </label>
+            <label className="font-heading text-[11px] font-bold text-[#00183a] uppercase">Email</label>
             <input
-              type="text"
-              value={ci}
-              onChange={(e) => setCi(e.target.value)}
-              placeholder="4.567.890-1"
-              className="h-12 px-3 rounded-lg bg-[#f2f4f7] font-sans text-[14px] text-[#00183a] outline-none focus:bg-white focus:ring-2 focus:ring-[#00183a] border border-[#e0e3e6]"
+              type="email"
+              inputMode="email"
+              autoCapitalize="none"
+              autoCorrect="off"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="nombre@ejemplo.com"
+              className={inputClass}
             />
           </div>
 
@@ -367,17 +397,21 @@ export const AssignRoleModal: React.FC<AssignRoleModalProps> = ({
             </label>
             <select
               value={role}
-              onChange={(e) => setRole(e.target.value)}
-              className="h-12 px-3 rounded-lg bg-[#f2f4f7] font-sans text-[14px] text-[#00183a] outline-none focus:bg-white focus:ring-2 focus:ring-[#00183a] border border-[#e0e3e6]"
+              onChange={(e) => setRole(e.target.value as 'admin' | 'dt' | 'tesorero')}
+              className={inputClass}
             >
-              <option value="Cuerpo Técnico & Delegado">Cuerpo Técnico & Delegado</option>
-              <option value="Administrador General / Tesorería">
-                Administrador General / Tesorería
-              </option>
-              <option value="Jugador Plantel Mayores">Jugador Plantel Mayores</option>
+              <option value="dt">Cuerpo técnico / Delegado</option>
+              <option value="tesorero">Tesorería</option>
+              <option value="admin">Administrador (acceso total)</option>
             </select>
           </div>
         </div>
+
+        {error && (
+          <p role="alert" className="rounded-lg bg-[#ffdad6] text-[#410002] px-3 py-2 font-sans text-[13px]">
+            {error}
+          </p>
+        )}
 
         <div className="flex gap-2 pt-2">
           <button
@@ -387,13 +421,11 @@ export const AssignRoleModal: React.FC<AssignRoleModalProps> = ({
             Cancelar
           </button>
           <button
-            onClick={() => {
-              if (name) onConfirm(name, ci, role);
-              onClose();
-            }}
-            className="flex-1 h-11 rounded-lg bg-[#00183a] text-white font-heading text-[12px] font-bold uppercase shadow-sm active:scale-95"
+            onClick={handleConfirm}
+            disabled={saving}
+            className="flex-1 h-11 rounded-lg bg-[#00183a] text-white font-heading text-[12px] font-bold uppercase shadow-sm active:scale-95 disabled:opacity-60"
           >
-            Confirmar
+            {saving ? 'Guardando…' : 'Dar acceso'}
           </button>
         </div>
       </div>
@@ -465,7 +497,7 @@ export const PlanillaPdfModal: React.FC<PlanillaPdfModalProps> = ({
             <tbody>
               {convocados.slice(0, 11).map((p) => (
                 <tr key={p.id} className="border-b border-[#eceef1]">
-                  <td className="p-1 font-bold">{p.number}</td>
+                  <td className="p-1 font-bold">{p.number ?? '–'}</td>
                   <td className="p-1">{p.ludRegistration.federatedId}</td>
                   <td className="p-1 truncate max-w-[110px]">
                     {p.lastName}, {p.firstName[0]}.

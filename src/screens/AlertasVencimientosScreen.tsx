@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Player, AutomationRule, SentMessage } from '../types';
 import { CLUB_CREST_URL, CLUB_CREST_WATERMARK } from '../data/initialData';
 import { useTextos } from '../lib/textos';
+import { diasProximoVencimiento } from '../lib/habilitacion';
 
 interface AlertasVencimientosScreenProps {
   players: Player[];
@@ -27,10 +28,10 @@ export const AlertasVencimientosScreen: React.FC<AlertasVencimientosScreenProps>
   const t = useTextos();
   const [activeSubTab, setActiveSubTab] = useState<'automaticos' | 'historial' | 'plantillas'>('automaticos');
 
-  // Players needing urgent alert (expired or < 5 days)
-  const urgentPlayers = players.filter(
-    (p) => p.medicalCertificate.daysRemaining <= 5
-  );
+  // Jugadores con la ficha médica o el carné LUD vencido o por vencer (≤ 5 días)
+  const urgentPlayers = players
+    .filter((p) => diasProximoVencimiento(p) <= 5)
+    .sort((a, b) => diasProximoVencimiento(a) - diasProximoVencimiento(b));
 
   const handleTestToMobile = () => {
     showToast('Mensaje HSM de prueba enviado a tu WhatsApp oficial (+598)', 'mark_chat_read', 'success');
@@ -155,8 +156,9 @@ export const AlertasVencimientosScreen: React.FC<AlertasVencimientosScreenProps>
 
           {/* Quick Player Badges */}
           <div className="flex items-center gap-1.5 overflow-x-auto py-1 text-xs no-scrollbar">
-            {urgentPlayers.slice(0, 3).map((p) => {
-              const isExpired = p.medicalCertificate.daysRemaining <= 0;
+            {urgentPlayers.map((p) => {
+              const dias = diasProximoVencimiento(p);
+              const isExpired = dias <= 0;
               return (
                 <div
                   key={p.id}
@@ -173,7 +175,7 @@ export const AlertasVencimientosScreen: React.FC<AlertasVencimientosScreenProps>
                     }`}
                   >
                     {p.firstName[0]}. {p.lastName} (
-                    {isExpired ? 'Vencido' : `${p.medicalCertificate.daysRemaining}d`})
+                    {isExpired ? 'Vencido' : `${dias}d`})
                   </span>
                 </div>
               );

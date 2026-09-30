@@ -3,12 +3,17 @@ import { CLUB_CREST_URL } from '../data/initialData';
 import { ClubRole } from '../types';
 import { Textos } from '../lib/textos';
 import { TextosEditor } from '../components/TextosEditor';
+import { MiembrosList } from '../components/MiembrosList';
+import { Miembro } from '../lib/db';
 
 interface ClubProfileScreenProps {
   roles: ClubRole[];
   textos: Textos;
   onSaveTextos: (textos: Textos) => Promise<boolean>;
   persistent: boolean;
+  miembros: Miembro[];
+  miEmail?: string;
+  onQuitarMiembro: (email: string) => Promise<void>;
   onOpenAssignRoleModal: () => void;
   showToast: (msg: string, icon?: string, type?: 'success' | 'warning' | 'info' | 'error') => void;
 }
@@ -18,6 +23,9 @@ export const ClubProfileScreen: React.FC<ClubProfileScreenProps> = ({
   textos,
   onSaveTextos,
   persistent,
+  miembros,
+  miEmail,
+  onQuitarMiembro,
   onOpenAssignRoleModal,
   showToast,
 }) => {
@@ -135,8 +143,10 @@ export const ClubProfileScreen: React.FC<ClubProfileScreenProps> = ({
             type="button"
           >
             <span className="material-symbols-outlined text-[20px]">person_add</span>
-            + Asignar Nuevo Rol / Acceso
+            + Dar acceso al staff
           </button>
+
+          <MiembrosList miembros={miembros} miEmail={miEmail} onQuitar={onQuitarMiembro} />
 
           {/* Roles Stack */}
           <div className="flex flex-col gap-2.5 mt-1">

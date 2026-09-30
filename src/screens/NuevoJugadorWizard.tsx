@@ -9,42 +9,46 @@ interface NuevoJugadorWizardProps {
   /** Devuelve false si no se pudo guardar. */
   onSavePlayer: (player: Player) => Promise<boolean>;
   showToast: (msg: string, icon?: string, type?: 'success' | 'warning' | 'info' | 'error') => void;
+  /** Modo demo: el formulario arranca con un jugador de ejemplo. Con la base real, vacío. */
+  ejemplo?: boolean;
 }
 
 export const NuevoJugadorWizard: React.FC<NuevoJugadorWizardProps> = ({
   onCancel,
   onSavePlayer,
   showToast,
+  ejemplo = false,
 }) => {
+  const ej = <T,>(valor: T, vacio: T): T => (ejemplo ? valor : vacio);
   const t = useTextos();
   const [step, setStep] = useState<1 | 2 | 3>(2); // Start on Step 2 as in initial screenshots, with full ability to go to 1, 2, or 3!
 
   // Form State
-  const [firstName, setFirstName] = useState('Mateo');
-  const [lastName, setLastName] = useState('Silva');
-  const [number, setNumber] = useState(14);
+  const [firstName, setFirstName] = useState(ej('Mateo', ''));
+  const [lastName, setLastName] = useState(ej('Silva', ''));
+  const [number, setNumber] = useState(ej(14, 0));
   const [position, setPosition] = useState('Volante Central');
-  const [birthYear, setBirthYear] = useState(2001);
-  const [ci, setCi] = useState('4.982.120-5');
+  const [birthYear, setBirthYear] = useState(ej(2001, 0));
+  const [ci, setCi] = useState(ej('4.982.120-5', ''));
 
   // Step 2 State
-  const [phone, setPhone] = useState('098 442 190');
-  const [email, setEmail] = useState('mateo.silva@elbiou.edu.uy');
-  const [address, setAddress] = useState('Pocitos / Canelones 2034');
-  const [emergencyName, setEmergencyName] = useState('Laura Martínez');
-  const [emergencyPhone, setEmergencyPhone] = useState('099 876 543');
+  const [phone, setPhone] = useState(ej('098 442 190', ''));
+  const [email, setEmail] = useState(ej('mateo.silva@elbiou.edu.uy', ''));
+  const [address, setAddress] = useState(ej('Pocitos / Canelones 2034', ''));
+  const [emergencyName, setEmergencyName] = useState(ej('Laura Martínez', ''));
+  const [emergencyPhone, setEmergencyPhone] = useState(ej('099 876 543', ''));
   const [relation, setRelation] = useState<'Padre/Madre' | 'Pareja' | 'Hermano/a' | 'Otro'>('Padre/Madre');
   const [healthProvider, setHealthProvider] = useState('medica_uruguaya');
   const [mobileEmergency, setMobileEmergency] = useState<'SEMM' | 'UCM Falck' | 'SUAT' | 'Otra / Interior'>('SEMM');
-  const [memberNumber, setMemberNumber] = useState('142857-4');
+  const [memberNumber, setMemberNumber] = useState(ej('142857-4', ''));
 
   // Step 3 State
   const [expiryDate, setExpiryDate] = useState(() => `${Number(hoyISO().slice(0, 4)) + 1}${hoyISO().slice(4)}`);
-  const [clinic, setClinic] = useState('Centro Médico Elbio Fernández - Dpto. Aptitud');
-  const [fileName, setFileName] = useState('carnet_salud_frente_dorso.jpg');
+  const [clinic, setClinic] = useState(ej('Centro Médico Elbio Fernández - Dpto. Aptitud', ''));
+  const [fileName, setFileName] = useState(ej('carnet_salud_frente_dorso.jpg', ''));
   const [medicalNotes, setMedicalNotes] = useState('');
   const [cardInHand, setCardInHand] = useState<'En mano del delegado' | 'En poder del jugador' | 'En trámite secretaría'>('En mano del delegado');
-  const [federatedId, setFederatedId] = useState(48291);
+  const [federatedId, setFederatedId] = useState(ej(48291, 0));
   const [signedConsent, setSignedConsent] = useState(true);
 
   const handleNextStep2 = () => {
@@ -60,6 +64,11 @@ export const NuevoJugadorWizard: React.FC<NuevoJugadorWizardProps> = ({
 
   const handleFinish = async () => {
     if (saving) return;
+    if (!firstName.trim() || !lastName.trim() || !number) {
+      showToast('Completá nombre, apellido y número de camiseta (paso 1)', 'error', 'error');
+      setStep(1);
+      return;
+    }
     if (!signedConsent) {
       showToast('Debe aceptar el consentimiento de responsabilidad deportiva', 'error', 'error');
       return;
@@ -67,12 +76,13 @@ export const NuevoJugadorWizard: React.FC<NuevoJugadorWizardProps> = ({
 
     const newPlayer: Player = {
       id: `p-${Date.now()}`,
-      number: Number(number) || 12,
+      number: Number(number),
       firstName,
       lastName,
       position,
       category: 'Mayores (Fútbol Universitario)',
-      birthYear: Number(birthYear) || 2000,
+      birthYear: Number(birthYear) || 0,
+      documento: ci.replace(/[.\s]/g, '') || undefined,
       avatarUrl: initialsAvatar(firstName, lastName),
       phone,
       email,
@@ -96,7 +106,7 @@ export const NuevoJugadorWizard: React.FC<NuevoJugadorWizardProps> = ({
       },
       ludRegistration: {
         cardInHand,
-        federatedId: Number(federatedId) || 48291,
+        federatedId: Number(federatedId) || 0,
         category: 'Mayores (Fútbol Universitario)',
         signedConsent,
       },
@@ -305,7 +315,7 @@ export const NuevoJugadorWizard: React.FC<NuevoJugadorWizardProps> = ({
                 </label>
                 <input
                   type="number"
-                  value={birthYear}
+                  value={birthYear || ''}
                   onChange={(e) => setBirthYear(Number(e.target.value))}
                   placeholder="2001"
                   className="h-12 px-3 rounded-lg bg-[#f2f4f7] font-sans text-[14px] text-[#00183a] outline-none focus:bg-white focus:ring-2 focus:ring-[#00183a] border border-[#e0e3e6]"
@@ -320,7 +330,7 @@ export const NuevoJugadorWizard: React.FC<NuevoJugadorWizardProps> = ({
                 </label>
                 <input
                   type="number"
-                  value={number}
+                  value={number || ''}
                   onChange={(e) => setNumber(Number(e.target.value))}
                   placeholder="14"
                   className="h-12 px-3 rounded-lg bg-[#f2f4f7] font-sans text-[14px] text-[#00183a] outline-none focus:bg-white focus:ring-2 focus:ring-[#00183a] border border-[#e0e3e6]"
@@ -897,7 +907,7 @@ export const NuevoJugadorWizard: React.FC<NuevoJugadorWizardProps> = ({
               <div className="relative">
                 <input
                   type="number"
-                  value={federatedId}
+                  value={federatedId || ''}
                   onChange={(e) => setFederatedId(Number(e.target.value))}
                   placeholder="Ej. 48291"
                   className="w-full h-12 px-3 pl-11 rounded-lg bg-[#f2f4f7] text-[#00183a] font-heading font-bold text-[16px] outline-none focus:bg-white focus:ring-2 focus:ring-[#00183a] border border-[#e0e3e6]"

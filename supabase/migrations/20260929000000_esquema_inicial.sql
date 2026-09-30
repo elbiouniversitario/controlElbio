@@ -4,15 +4,25 @@
 --
 -- Cómo usarla: pegar TODO este archivo en Supabase → SQL Editor → Run.
 -- Después correr supabase/seed.sql si se quieren los datos de ejemplo.
--- Se puede correr más de una vez sin problema (no borra datos).
+-- Se puede correr más de una vez sin problema (no borra datos), hasta activar el login.
 --
 -- IMPORTANTE (seguridad): por ahora la app NO tiene login. Las políticas RLS
 -- de este archivo dejan leer y escribir a cualquiera que tenga la anon key
 -- (que viaja en el JavaScript de la app, o sea, es pública). Eso incluye datos
 -- personales y de salud de los jugadores. Las políticas a aplicar cuando se
--- agregue Supabase Auth están en supabase/ENDURECER_CON_LOGIN.md.
+-- agregue Supabase Auth están en la migración 2 (20260930000000_login_y_roles.sql).
 -- No cargar datos reales sensibles hasta hacerlo.
 -- =============================================================================
+
+-- Freno: si ya se activó el login (migración 2), correr esto de nuevo
+-- reabriría el acceso sin login. En ese caso no se ejecuta nada.
+do $$
+begin
+  if to_regclass('public.miembros_club') is not null then
+    raise exception 'El login ya está activado (migración 2). No hace falta volver a correr esta migración.';
+  end if;
+end;
+$$;
 
 create extension if not exists pgcrypto;
 
@@ -414,7 +424,7 @@ alter table public.textos_app            enable row level security;
 -- ETAPA ACTUAL (sin login): acceso abierto con la anon key.
 -- No se permite DELETE desde la app en ninguna tabla.
 -- Todas las políticas se llaman "abierto_*" para poder borrarlas juntas
--- cuando se agregue el login: ver supabase/ENDURECER_CON_LOGIN.md.
+-- cuando se agregue el login: la migración 2 las borra y pone permisos por rol.
 -- ---------------------------------------------------------------------------
 drop policy if exists abierto_select on public.jugadores; create policy abierto_select on public.jugadores for select to anon, authenticated using (true);
 drop policy if exists abierto_insert on public.jugadores; create policy abierto_insert on public.jugadores for insert to anon, authenticated with check (true);
