@@ -111,7 +111,7 @@ En **Planilla**, el lápiz al lado del nombre de cada jugador abre su ficha para
 
 En **Planilla → Documentos** (DT y admin), para cada jugador:
 
-- **Habilitación:** *Automática* (la app la calcula: ficha médica vigente, carné LUD vigente y no estar de baja), o forzada a **Habilitado** / **Inhabilitado** con un motivo (suspensión, trámite autorizado por la liga, etc.). Lo forzado manda sobre los vencimientos hasta que se vuelva a *Automática*.
+- **Habilitación:** *Automática* (la app la calcula: ficha médica vigente y no estar de baja; el carné LUD vencido solo avisa), o forzada a **Habilitado** / **Inhabilitado** con un motivo (suspensión, trámite autorizado por la liga, etc.). Lo forzado manda sobre los vencimientos hasta que se vuelva a *Automática*.
 - **Ficha médica:** cargar una nueva con fecha de examen, vencimiento y clínica (sin foto). Queda como vigente la de vencimiento más lejano.
 - **Carné LUD:** número, vencimiento y foto.
 
@@ -119,7 +119,7 @@ La foto del carné LUD (imagen o PDF, hasta 10 MB) va al bucket **privado** `doc
 
 ### Cargar el padrón de jugadores
 
-El padrón de la liga (Excel con carné, cédula, nombre, nacimiento y vencimientos) se carga con un SQL generado a partir del Excel. **Ese SQL no se sube al repo** porque tiene datos personales y el repo es público. Identifica a cada jugador por cédula, así que se puede volver a correr con un padrón actualizado sin duplicar a nadie. Los jugadores marcados como inactivos no aparecen en la app. El carné LUD vencido inhabilita al jugador en la planilla, igual que la ficha médica vencida.
+El padrón de la liga (Excel con carné, cédula, nombre, nacimiento y vencimientos) se carga con un SQL generado a partir del Excel. **Ese SQL no se sube al repo** porque tiene datos personales y el repo es público. Identifica a cada jugador por cédula, así que se puede volver a correr con un padrón actualizado sin duplicar a nadie. Los jugadores marcados como inactivos no aparecen en la app. La ficha médica vencida inhabilita al jugador; el carné LUD vencido no inhabilita, pero aparece como alerta (Alertas, notificaciones y planilla).
 
 ### Avisos por WhatsApp
 
