@@ -414,6 +414,17 @@ export async function actualizarRolesPlanilla(cambios: Record<string, Player['ma
   if (error) throw error;
 }
 
+/** Asocia un email a la ficha de un jugador (p. ej. el admin que también juega). */
+export async function asociarEmailJugador(jugadorId: string, email: string): Promise<void> {
+  const { data, error } = await cliente()
+    .from('jugadores')
+    .update({ email: email.trim().toLowerCase() })
+    .eq('id', jugadorId)
+    .select('id');
+  if (error) throw error;
+  if (!data?.length) throw sinPermiso();
+}
+
 /** Registra el cobro de todas las cuotas impagas del jugador. Devuelve el jugador actualizado. */
 export async function registrarPago(jugadorId: string, metodo: string): Promise<Player> {
   const { error } = await cliente().rpc('registrar_pago', { p_jugador_id: jugadorId, p_metodo: metodo });

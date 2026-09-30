@@ -64,16 +64,42 @@ interface AppProps {
   /** Quién ingresó. null = modo demo, sin login. */
   perfil: Perfil | null;
   onLogout: () => void;
+  /** Vuelve a leer el perfil (rol y ficha) después de asociar la ficha propia. */
+  onRecargarPerfil?: () => void;
 }
 
-export default function App({ perfil, onLogout }: AppProps) {
-  const vistas = vistasPermitidas(perfil);
+const CLAVE_MODO_JUGADOR = 'modoJugador';
+const leerModoJugador = () => {
+  try {
+    return localStorage.getItem(CLAVE_MODO_JUGADOR) === '1';
+  } catch {
+    return false;
+  }
+};
+
+export default function App({ perfil, onLogout, onRecargarPerfil }: AppProps) {
+  // Staff que también juega: puede pasar a ver la app como jugador (solo su ficha).
+  const puedeModoJugador = !!perfil?.jugadorId && perfil.rol !== 'jugador';
+  const [modoJugador, setModoJugador] = useState(() => puedeModoJugador && leerModoJugador());
+  const vistas: TabType[] = modoJugador ? ['jugador'] : vistasPermitidas(perfil);
   const [currentTab, setCurrentTab] = useState<TabType>(vistas[0] ?? 'jugador');
   /** Cambia de vista solo si el perfil puede verla. */
   const goTo = (tab: TabType) => setCurrentTab(vistas.includes(tab) ? tab : vistas[0] ?? 'jugador');
   // Vistas de la barra de navegación (el alta de jugador se abre desde Planilla).
   const vistasMenu = vistas.filter((v) => v !== 'nuevo-jugador');
   const mostrarMenu = vistasMenu.length > 1;
+
+  const cambiarModoJugador = (activar: boolean) => {
+    setModoJugador(activar);
+    try {
+      if (activar) localStorage.setItem(CLAVE_MODO_JUGADOR, '1');
+      else localStorage.removeItem(CLAVE_MODO_JUGADOR);
+    } catch {
+      /* sin almacenamiento: vale solo para esta sesión */
+    }
+    setCurrentTab(activar ? 'jugador' : vistasPermitidas(perfil)[0] ?? 'jugador');
+    window.scrollTo({ top: 0 });
+  };
   const [players, setPlayers] = useState<Player[]>(isSupabaseConfigured ? [] : INITIAL_PLAYERS);
   const [rules, setRules] = useState<AutomationRule[]>(isSupabaseConfigured ? [] : INITIAL_RULES);
   const [sentMessages, setSentMessages] = useState<SentMessage[]>(
@@ -303,6 +329,25 @@ export default function App({ perfil, onLogout }: AppProps) {
     deudores: players.filter((p) => p.dues.debtAmount > 0 || p.dues.status === 'overdue'),
     citados: convocados,
     plantel: players,
+  };
+
+  // El admin (u otro del staff) asocia su email a su ficha de jugador.
+  const handleAsociarmeJugador = async (jugadorId: string): Promise<boolean> => {
+    if (!perfil?.email) return false;
+    try {
+      await db.asociarEmailJugador(jugadorId, perfil.email);
+    } catch (err) {
+      reportDbError('asociar tu ficha de jugador', err);
+      return false;
+    }
+    try {
+      localStorage.setItem(CLAVE_MODO_JUGADOR, '1');
+    } catch {
+      /* se entra al panel igual */
+    }
+    showToast('Ficha asociada. Recargando tu perfil…', 'how_to_reg', 'success');
+    onRecargarPerfil?.();
+    return true;
   };
 
   // Convocatoria: roles de la planilla de varios jugadores a la vez (DT y admin)
@@ -548,7 +593,8 @@ export default function App({ perfil, onLogout }: AppProps) {
   };
 
   // --- Notificaciones del encabezado ------------------------------------
-  const esStaff = !perfil || perfil.rol === 'admin' || perfil.rol === 'dt' || perfil.rol === 'tesorero';
+  // En "ver como jugador" se comporta como un jugador (sin buscador, notificaciones propias).
+  const esStaff = !modoJugador && (!perfil || perfil.rol === 'admin' || perfil.rol === 'dt' || perfil.rol === 'tesorero');
   const opcionesHabilitacion = { bloquearPorDeuda: bloquearPorDeuda(textos.bloquear_por_deuda) };
   const textoVencimiento = (p: Player) => {
     const d = diasProximoVencimiento(p);
@@ -652,6 +698,15 @@ export default function App({ perfil, onLogout }: AppProps) {
             : undefined
         }
         onLogout={perfil ? onLogout : undefined}
+        accionesCuenta={
+          puedeModoJugador
+            ? [
+                modoJugador
+                  ? { label: 'Volver al panel', icono: 'admin_panel_settings', onClick: () => cambiarModoJugador(false) }
+                  : { label: 'Ver mi perfil de jugador', icono: 'sports_soccer', onClick: () => cambiarModoJugador(true) },
+              ]
+            : []
+        }
       />
 
       {/* Quick Screen Carousel Shortcut Ribbon for Easy Exploration of ALL Screens */}
@@ -690,6 +745,21 @@ export default function App({ perfil, onLogout }: AppProps) {
 
       {/* Main Content Area */}
       <main className={`flex-1 w-full max-w-lg mx-auto px-4 ${mostrarMenu ? 'pt-28' : 'pt-20'} pb-8 flex flex-col`}>
+        {modoJugador && (
+          <div className="mb-3 flex items-center justify-between gap-2 rounded-lg bg-[#00183a] px-3 py-2 text-white">
+            <span className="flex items-center gap-1.5 font-heading text-[12px] font-bold">
+              <span className="material-symbols-outlined text-[18px] text-[#fabc4d]">sports_soccer</span>
+              Estás viendo tu perfil de jugador
+            </span>
+            <button
+              onClick={() => cambiarModoJugador(false)}
+              className="h-8 px-3 rounded-md bg-white text-[#00183a] font-heading text-[11px] font-bold shrink-0"
+            >
+              Volver al panel
+            </button>
+          </div>
+        )}
+
         {dataMode === 'demo' && (
           <div
             role="status"
@@ -799,6 +869,15 @@ export default function App({ perfil, onLogout }: AppProps) {
         {currentTab === 'club' && (
           <ClubProfileScreen
             players={players}
+            miPerfilJugador={
+              perfil
+                ? {
+                    jugador: players.find((p) => p.id === perfil.jugadorId),
+                    onVer: () => cambiarModoJugador(true),
+                    onAsociar: handleAsociarmeJugador,
+                  }
+                : undefined
+            }
             roles={roles}
             textos={textos}
             onSaveTextos={handleSaveTextos}
