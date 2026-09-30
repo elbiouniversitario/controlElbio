@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { Player } from '../types';
-import { AsistenciaModal, ConvocatoriaModal } from '../components/PlanillaModals';
+import { AsistenciaModal, ConvocatoriaModal, PartidoModal } from '../components/PlanillaModals';
 import { CLUB_CREST_URL, CLUB_CREST_WATERMARK } from '../data/initialData';
-import { useTextos } from '../lib/textos';
+import { Textos, useTextos } from '../lib/textos';
 import { mesAnioCorto } from '../lib/fechas';
 import { bloquearPorDeuda, diasCarneLud, estadoHabilitacion } from '../lib/habilitacion';
 
@@ -20,6 +20,8 @@ interface PlanillaOpsScreenProps {
   onEditPlayer?: (player: Player) => void;
   /** Habilitación y documentos (ficha médica, carné). Sin definir = sin permiso. */
   onOpenDocuments?: (player: Player) => void;
+  /** Guarda los datos del próximo partido. Sin definir = sin permiso. */
+  onGuardarPartido?: (valores: Partial<Textos>) => Promise<boolean>;
   showToast: (msg: string, icon?: string, type?: 'success' | 'warning' | 'info' | 'error') => void;
 }
 
@@ -32,6 +34,7 @@ export const PlanillaOpsScreen: React.FC<PlanillaOpsScreenProps> = ({
   onRecordarAsistencia,
   onEditPlayer,
   onOpenDocuments,
+  onGuardarPartido,
   showToast,
 }) => {
   const t = useTextos();
@@ -46,6 +49,7 @@ export const PlanillaOpsScreen: React.FC<PlanillaOpsScreenProps> = ({
   const cardsInHandCount = totalCardsNeeded - faltanCarne.length;
   const [verAsistencia, setVerAsistencia] = useState(false);
   const [verConvocatoria, setVerConvocatoria] = useState(false);
+  const [verPartido, setVerPartido] = useState(false);
 
   const bloqueaDeuda = bloquearPorDeuda(t.bloquear_por_deuda);
   const enFiltro = (p: Player, f: typeof filter) => {
@@ -173,6 +177,16 @@ export const PlanillaOpsScreen: React.FC<PlanillaOpsScreenProps> = ({
               <span>{t.cancha}</span>
             </div>
           </div>
+          {onGuardarPartido && (
+            <button
+              type="button"
+              onClick={() => setVerPartido(true)}
+              className="mt-3 w-full h-9 rounded-lg bg-white/10 hover:bg-white/20 text-white font-heading text-[11px] font-bold flex items-center justify-center gap-1.5"
+            >
+              <span className="material-symbols-outlined text-[16px]">edit_calendar</span>
+              Editar próximo partido
+            </button>
+          )}
         </div>
 
         {/* Primary Action: Build Roster */}
@@ -559,6 +573,9 @@ export const PlanillaOpsScreen: React.FC<PlanillaOpsScreenProps> = ({
           onClose={() => setVerConvocatoria(false)}
           onGuardar={onGuardarConvocatoria}
         />
+      )}
+      {onGuardarPartido && (
+        <PartidoModal abierto={verPartido} onClose={() => setVerPartido(false)} onGuardar={onGuardarPartido} />
       )}
       <AsistenciaModal
         abierto={verAsistencia}

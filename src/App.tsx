@@ -258,6 +258,21 @@ export default function App({ perfil, onLogout, onRecargarPerfil }: AppProps) {
     return true;
   };
 
+  // Próximo partido: lo cargan el admin y el cuerpo técnico (solo esas claves).
+  const handleGuardarPartido = async (valores: Partial<Textos>): Promise<boolean> => {
+    if (useDb) {
+      try {
+        await db.guardarTextos(valores as Record<string, string>);
+      } catch (err) {
+        reportDbError('guardar el próximo partido', err);
+        return false;
+      }
+    }
+    setTextos((prev) => combinarTextos({ ...prev, ...valores }));
+    showToast('Próximo partido actualizado', 'event_available', 'success');
+    return true;
+  };
+
   // Rule toggle handler
   const handleToggleRule = async (ruleId: string) => {
     const rule = rules.find((r) => r.id === ruleId);
@@ -847,6 +862,7 @@ export default function App({ perfil, onLogout, onRecargarPerfil }: AppProps) {
             onOpenLineupModal={() => goTo('nuevo-jugador')}
             onEditPlayer={puedeEditarJugadores ? setJugadorEditando : undefined}
             onOpenDocuments={puedeEditarJugadores ? (p) => setDocumentosId(p.id) : undefined}
+            onGuardarPartido={puedeEditarJugadores ? handleGuardarPartido : undefined}
             showToast={showToast}
           />
         )}

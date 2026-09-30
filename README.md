@@ -39,6 +39,7 @@ Archivos:
 - `supabase/migrations/20260930010000_vincular_jugador.sql`: ingreso de jugadores con celular + cédula
 - `supabase/migrations/20260930020000_habilitacion_y_documentos.sql`: habilitación manual y foto del carné LUD
 - `supabase/migrations/20260930030000_cuotas_desde_la_app.sql`: generar las cuotas del mes desde Tesorería; perfil "Tesorería"
+- `supabase/migrations/20261001000000_partido_editable_por_dt.sql`: el cuerpo técnico (DT) puede cargar el próximo partido desde Planilla
 - `src/lib/supabase.ts`: cliente; `src/lib/db.ts`: lecturas y escrituras
 
 ### Puesta en marcha (una sola vez)
