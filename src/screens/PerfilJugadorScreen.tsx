@@ -193,7 +193,7 @@ export const PerfilJugadorScreen: React.FC<PerfilJugadorScreenProps> = ({
                 CANCHA
               </span>
               <span className="font-sans text-[13px] text-white font-medium">
-                Complejo Carrasco
+                {t.cancha}
               </span>
             </div>
           </div>
