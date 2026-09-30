@@ -6,7 +6,9 @@ import './index.css';
 createRoot(document.getElementById('root')!).render(
   <AuthGate>
     {/* key: al cambiar de usuario, la app arranca de cero con sus datos. */}
-    {(perfil, salir) => <App key={perfil?.email ?? 'demo'} perfil={perfil} onLogout={salir} />}
+    {(perfil, salir, recargar) => (
+      <App key={perfil?.email ?? 'demo'} perfil={perfil} onLogout={salir} onRecargarPerfil={recargar} />
+    )}
   </AuthGate>
 );
 

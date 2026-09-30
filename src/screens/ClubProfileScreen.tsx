@@ -11,6 +11,13 @@ import { Miembro } from '../lib/db';
 
 interface ClubProfileScreenProps {
   players: Player[];
+  /** Tu ficha de jugador (si también jugás). Sin definir en modo demo. */
+  miPerfilJugador?: {
+    jugador?: Player;
+    onVer: () => void;
+    /** Asocia tu email a una ficha del plantel. */
+    onAsociar: (jugadorId: string) => Promise<boolean>;
+  };
   roles: ClubRole[];
   textos: Textos;
   onSaveTextos: (textos: Textos) => Promise<boolean>;
@@ -24,6 +31,7 @@ interface ClubProfileScreenProps {
 
 export const ClubProfileScreen: React.FC<ClubProfileScreenProps> = ({
   players,
+  miPerfilJugador,
   roles,
   textos,
   onSaveTextos,
@@ -41,6 +49,8 @@ export const ClubProfileScreen: React.FC<ClubProfileScreenProps> = ({
   const [guardandoParametros, setGuardandoParametros] = useState(false);
   const [verActa, setVerActa] = useState(false);
   const [rolAbierto, setRolAbierto] = useState<string | null>(null);
+  const [fichaElegida, setFichaElegida] = useState('');
+  const [asociando, setAsociando] = useState(false);
 
   const parametrosCambiados =
     String(preventivoDays) !== textos.dias_aviso_preventivo ||
@@ -167,6 +177,55 @@ export const ClubProfileScreen: React.FC<ClubProfileScreenProps> = ({
 
       {/* Content Container */}
       <div className="px-4 flex flex-col gap-5 mt-4">
+        {miPerfilJugador && (
+          <section className="bg-white rounded-xl p-4 shadow-sm border border-[#e0e3e6]/60 flex flex-col gap-3">
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-[#b51a1b] text-[22px]">sports_soccer</span>
+              <h3 className="font-heading font-bold text-[16px] text-[#00183a]">Tu perfil de jugador</h3>
+            </div>
+            {miPerfilJugador.jugador ? (
+              <button
+                onClick={miPerfilJugador.onVer}
+                className="h-12 rounded-lg bg-[#00183a] hover:bg-[#0d2d59] text-white font-heading text-[13px] font-bold flex items-center justify-center gap-2"
+              >
+                <span className="material-symbols-outlined text-[20px]">badge</span>
+                Ver como jugador ({miPerfilJugador.jugador.firstName} {miPerfilJugador.jugador.lastName})
+              </button>
+            ) : (
+              <>
+                <p className="font-sans text-[12px] text-[#44474f]">
+                  Si también jugás, elegite del plantel para asociar tu ficha a tu email y poder verla como jugador.
+                </p>
+                <select
+                  value={fichaElegida}
+                  onChange={(e) => setFichaElegida(e.target.value)}
+                  className="h-11 px-3 rounded-lg bg-[#f2f4f7] border border-[#e0e3e6] font-sans text-[16px] sm:text-[14px] text-[#00183a]"
+                >
+                  <option value="">Elegí tu nombre…</option>
+                  {[...players]
+                    .sort((a, b) => a.lastName.localeCompare(b.lastName))
+                    .map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.lastName}, {p.firstName}
+                      </option>
+                    ))}
+                </select>
+                <button
+                  disabled={!fichaElegida || asociando}
+                  onClick={async () => {
+                    setAsociando(true);
+                    await miPerfilJugador.onAsociar(fichaElegida);
+                    setAsociando(false);
+                  }}
+                  className="h-11 rounded-lg bg-[#00183a] text-white font-heading text-[12px] font-bold disabled:opacity-50"
+                >
+                  {asociando ? 'Asociando…' : 'Soy yo: asociar mi ficha'}
+                </button>
+              </>
+            )}
+          </section>
+        )}
+
         <TextosEditor textos={textos} onSave={onSaveTextos} persistent={persistent} showToast={showToast} />
 
         {/* Section 1: Role & Permission Management */}

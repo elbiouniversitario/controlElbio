@@ -5,7 +5,7 @@ import { LoginScreen, NuevaContrasenaScreen, PendienteScreen, VincularJugadorScr
 
 interface AuthGateProps {
   /** perfil = null solo en modo demo (sin Supabase configurado). */
-  children: (perfil: Perfil | null, salir: () => void) => ReactNode;
+  children: (perfil: Perfil | null, salir: () => void, recargarPerfil: () => void) => ReactNode;
 }
 
 const Pantalla: React.FC<{ children: ReactNode }> = ({ children }) => (
@@ -69,7 +69,7 @@ export const AuthGate: React.FC<AuthGateProps> = ({ children }) => {
     void cerrar(usuario?.anonimo ?? false);
   };
 
-  if (!supabase) return <>{children(null, () => {})}</>;
+  if (!supabase) return <>{children(null, () => {}, () => {})}</>;
 
   if (usuario === undefined) {
     return (
@@ -120,5 +120,5 @@ export const AuthGate: React.FC<AuthGateProps> = ({ children }) => {
     return <PendienteScreen email={perfil.email} onReintentar={() => setIntento((n) => n + 1)} onSalir={salir} />;
   }
 
-  return <>{children(perfil, salir)}</>;
+  return <>{children(perfil, salir, () => setIntento((n) => n + 1))}</>;
 };

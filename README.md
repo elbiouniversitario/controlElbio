@@ -84,6 +84,7 @@ Con Supabase configurado, la app pide **email y contraseña**. No se usa "magic 
 | `tesorero` | tesorería | cuotas y cobros, alertas |
 | jugador | cada jugador | solo su ficha, sus cuotas; confirma asistencia |
 
+- **Staff que también juega:** en **Club Admin → Tu perfil de jugador** (o el menú de la cuenta) se pasa a **ver la app como jugador**: solo su ficha, como la ve cualquier jugador, con una franja para *Volver al panel*. Si su email no está en ninguna ficha, ahí mismo se elige del plantel para asociarla.
 - **Staff:** el admin los habilita en **Club Admin → Dar acceso al staff** con su email. Después cada uno toca "Crear cuenta" en la app **con ese mismo email**.
 - **Jugadores:** entran con el botón **"Soy jugador"**, sin email ni contraseña. Escriben su celular, se eligen de la lista del plantel y confirman con su **cédula**, que tiene que coincidir con la del padrón. Desde ahí la app los reconoce en ese celular, les muestra solo su ficha y guarda su número en la ficha. Hay un máximo de 5 cédulas incorrectas por hora. Si cierran sesión o cambian de celular, repiten el paso. También pueden entrar con una cuenta de email si ese email está cargado en su ficha.
 - Cualquier otra cuenta queda "pendiente de habilitación" y no ve nada.

@@ -15,6 +15,8 @@ interface HeaderProps {
   /** Email y rol de quien ingresó (sin definir en modo demo). */
   usuario?: string;
   onLogout?: () => void;
+  /** Acciones extra del menú de cuenta (p. ej. "Ver mi perfil de jugador"). */
+  accionesCuenta?: { label: string; icono: string; onClick: () => void }[];
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -27,6 +29,7 @@ export const Header: React.FC<HeaderProps> = ({
   showBack = false,
   usuario,
   onLogout,
+  accionesCuenta = [],
 }) => {
   const [menuAbierto, setMenuAbierto] = useState(false);
   return (
@@ -101,6 +104,19 @@ export const Header: React.FC<HeaderProps> = ({
                   />
                   <div className="absolute right-0 top-11 z-20 w-64 bg-white rounded-xl shadow-xl border border-[#e0e3e6] p-3 flex flex-col gap-2">
                     <p className="font-sans text-[12px] text-[#44474f] break-all">{usuario}</p>
+                    {accionesCuenta.map((a) => (
+                      <button
+                        key={a.label}
+                        onClick={() => {
+                          setMenuAbierto(false);
+                          a.onClick();
+                        }}
+                        className="h-10 rounded-lg bg-[#00183a] text-white font-heading text-[12px] font-bold flex items-center justify-center gap-1.5"
+                      >
+                        <span className="material-symbols-outlined text-[18px]">{a.icono}</span>
+                        {a.label}
+                      </button>
+                    ))}
                     <button
                       onClick={() => {
                         setMenuAbierto(false);
