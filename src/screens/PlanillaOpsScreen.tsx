@@ -3,7 +3,7 @@ import { Player } from '../types';
 import { CLUB_CREST_URL, CLUB_CREST_WATERMARK } from '../data/initialData';
 import { useTextos } from '../lib/textos';
 import { mesAnioCorto } from '../lib/fechas';
-import { carneLudVencido, diasCarneLud } from '../lib/habilitacion';
+import { diasCarneLud, estadoHabilitacion } from '../lib/habilitacion';
 
 interface PlanillaOpsScreenProps {
   players: Player[];
@@ -12,6 +12,8 @@ interface PlanillaOpsScreenProps {
   onOpenLineupModal: () => void;
   /** Sin definir = no se muestra el botón de editar (sin permiso). */
   onEditPlayer?: (player: Player) => void;
+  /** Habilitación y documentos (ficha médica, carné). Sin definir = sin permiso. */
+  onOpenDocuments?: (player: Player) => void;
   showToast: (msg: string, icon?: string, type?: 'success' | 'warning' | 'info' | 'error') => void;
 }
 
@@ -21,6 +23,7 @@ export const PlanillaOpsScreen: React.FC<PlanillaOpsScreenProps> = ({
   onSendWhatsappCitation,
   onOpenLineupModal,
   onEditPlayer,
+  onOpenDocuments,
   showToast,
 }) => {
   const t = useTextos();
@@ -43,9 +46,7 @@ export const PlanillaOpsScreen: React.FC<PlanillaOpsScreenProps> = ({
       );
     if (filter === 'blocked')
       return (
-        p.matchStatus.lineupRole === 'BAJA' ||
-        p.medicalCertificate.daysRemaining <= 0 ||
-        carneLudVencido(p) ||
+        !estadoHabilitacion(p).habilitado ||
         p.dues.status === 'overdue'
       );
     return true;
@@ -308,10 +309,8 @@ export const PlanillaOpsScreen: React.FC<PlanillaOpsScreenProps> = ({
         {/* Player Cards Stack */}
         <div className="flex flex-col gap-2.5">
           {filteredPlayers.map((player) => {
-            const isHabilitado =
-              player.medicalCertificate.daysRemaining > 0 &&
-              !carneLudVencido(player) &&
-              player.matchStatus.lineupRole !== 'BAJA';
+            const estado = estadoHabilitacion(player);
+            const isHabilitado = estado.habilitado;
             const diasLud = diasCarneLud(player);
             const isWarning =
               (player.medicalCertificate.daysRemaining <= 15 && player.medicalCertificate.daysRemaining > 0) ||
@@ -321,7 +320,7 @@ export const PlanillaOpsScreen: React.FC<PlanillaOpsScreenProps> = ({
             return (
               <div
                 key={player.id}
-                className={`bg-white rounded-xl p-3 shadow-sm flex items-center justify-between gap-3 border border-[#e0e3e6]/60 ${
+                className={`bg-white rounded-xl p-3 shadow-sm flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border border-[#e0e3e6]/60 ${
                   isBlocked ? 'opacity-85' : ''
                 }`}
               >
@@ -366,16 +365,6 @@ export const PlanillaOpsScreen: React.FC<PlanillaOpsScreenProps> = ({
                       >
                         {player.matchStatus.lineupRole}
                       </span>
-                      {onEditPlayer && (
-                        <button
-                          type="button"
-                          onClick={() => onEditPlayer(player)}
-                          aria-label={`Editar a ${player.firstName} ${player.lastName}`}
-                          className="w-7 h-7 -my-1 rounded-full flex items-center justify-center text-[#747780] hover:bg-[#eceef1] hover:text-[#00183a] shrink-0"
-                        >
-                          <span className="material-symbols-outlined text-[18px]">edit</span>
-                        </button>
-                      )}
                     </div>
                     <span className="font-sans text-[11px] text-[#44474f] truncate">
                       {player.position || 'Sin posición'} • Cat. {player.birthYear || '–'}
@@ -393,11 +382,19 @@ export const PlanillaOpsScreen: React.FC<PlanillaOpsScreenProps> = ({
                         <span>INHABILITADO</span>
                       </span>
                       <span className="font-sans text-[10px] text-[#ba1a1a] font-bold mt-1">
-                        {player.medicalCertificate.daysRemaining <= 0
-                          ? 'Ficha Médica Vencida'
-                          : carneLudVencido(player)
-                          ? 'Carné LUD Vencido'
-                          : 'Dado de baja'}
+                        {estado.motivo}
+                      </span>
+                    </>
+                  ) : estado.manual ? (
+                    <>
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full font-heading text-[10px] font-bold shadow-xs bg-[#e8f5e9] text-[#1b5e20]">
+                        <span className="material-symbols-outlined text-[14px]">
+                          verified_user
+                        </span>
+                        <span>Habilitado (manual)</span>
+                      </span>
+                      <span className="font-sans text-[10px] text-[#44474f] mt-1 max-w-[9rem] truncate">
+                        {estado.motivo}
                       </span>
                     </>
                   ) : isWarning ? (
@@ -433,6 +430,32 @@ export const PlanillaOpsScreen: React.FC<PlanillaOpsScreenProps> = ({
                     </>
                   )}
                 </div>
+                  {(onEditPlayer || onOpenDocuments) && (
+                    <div className="basis-full flex gap-1.5 pt-2 border-t border-[#f2f4f7]">
+                      {onEditPlayer && (
+                        <button
+                          type="button"
+                          onClick={() => onEditPlayer(player)}
+                          aria-label={`Editar a ${player.firstName} ${player.lastName}`}
+                          className="h-7 px-2 rounded-md bg-[#f2f4f7] hover:bg-[#e6e8eb] text-[#00183a] font-heading text-[10px] font-bold flex items-center gap-1"
+                        >
+                          <span className="material-symbols-outlined text-[15px]">edit</span>
+                          Editar
+                        </button>
+                      )}
+                      {onOpenDocuments && (
+                        <button
+                          type="button"
+                          onClick={() => onOpenDocuments(player)}
+                          aria-label={`Habilitación y documentos de ${player.firstName} ${player.lastName}`}
+                          className="h-7 px-2 rounded-md bg-[#f2f4f7] hover:bg-[#e6e8eb] text-[#00183a] font-heading text-[10px] font-bold flex items-center gap-1"
+                        >
+                          <span className="material-symbols-outlined text-[15px]">id_card</span>
+                          Documentos
+                        </button>
+                      )}
+                    </div>
+                  )}
               </div>
             );
           })}

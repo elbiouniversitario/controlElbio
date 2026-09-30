@@ -9,6 +9,8 @@ import { NOMBRE_ROL, Perfil } from './lib/auth';
 import { diasProximoVencimiento } from './lib/habilitacion';
 import { Header } from './components/Header';
 import { EditarJugadorModal } from './components/EditarJugadorModal';
+import { CarneLudForm, DocumentosModal, FichaMedicaForm } from './components/DocumentosModal';
+import { diasHasta } from './lib/fechas';
 import { BottomNav } from './components/BottomNav';
 import { Toast } from './components/Toast';
 import {
@@ -92,6 +94,9 @@ export default function App({ perfil, onLogout }: AppProps) {
   const [isAssignRoleModalOpen, setIsAssignRoleModalOpen] = useState(false);
   const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
   const [jugadorEditando, setJugadorEditando] = useState<Player | null>(null);
+  // Por id, así el formulario ve los datos actualizados después de cada guardado.
+  const [documentosId, setDocumentosId] = useState<string | null>(null);
+  const jugadorDocumentos = players.find((p) => p.id === documentosId) ?? null;
   // Editar fichas: DT y admin (en modo demo, todos).
   const puedeEditarJugadores = !perfil || perfil.rol === 'admin' || perfil.rol === 'dt';
 
@@ -310,6 +315,105 @@ export default function App({ perfil, onLogout }: AppProps) {
     return true;
   };
 
+  // --- Habilitación y documentos -----------------------------------------
+  const refrescarJugador = async (id: string) => replacePlayer(await db.cargarJugador(id));
+
+  const handleGuardarHabilitacion = async (override: Player['eligibilityOverride']): Promise<boolean> => {
+    const p = jugadorDocumentos;
+    if (!p) return false;
+    try {
+      if (useDb) {
+        await db.guardarHabilitacion(p.id, override);
+        await refrescarJugador(p.id);
+      } else {
+        replacePlayer({ ...p, eligibilityOverride: override });
+      }
+    } catch (err) {
+      reportDbError('guardar la habilitación', err);
+      return false;
+    }
+    showToast(
+      override ? `${p.firstName} quedó ${override.status} (manual)` : `Habilitación de ${p.firstName} en automático`,
+      'verified_user',
+      'success'
+    );
+    return true;
+  };
+
+  const handleCargarFichaMedica = async (f: FichaMedicaForm): Promise<boolean> => {
+    const p = jugadorDocumentos;
+    if (!p) return false;
+    try {
+      if (useDb) {
+        const archivoPath = f.archivo ? await db.subirDocumento(p.id, 'ficha-medica', f.archivo) : undefined;
+        await db.cargarFichaMedica(p.id, {
+          vencimiento: f.vencimiento,
+          fechaExamen: f.fechaExamen,
+          clinica: f.clinica,
+          archivoPath,
+        });
+        await refrescarJugador(p.id);
+      } else if (f.vencimiento >= p.medicalCertificate.expiryDate) {
+        replacePlayer({
+          ...p,
+          medicalCertificate: {
+            ...p.medicalCertificate,
+            expiryDate: f.vencimiento,
+            daysRemaining: diasHasta(f.vencimiento),
+            examDate: f.fechaExamen || undefined,
+            clinic: f.clinica,
+            verified: true,
+          },
+        });
+      }
+    } catch (err) {
+      reportDbError('cargar la ficha médica', err);
+      return false;
+    }
+    showToast(`Ficha médica de ${p.firstName} cargada`, 'medical_services', 'success');
+    return true;
+  };
+
+  const handleGuardarCarneLud = async (c: CarneLudForm): Promise<boolean> => {
+    const p = jugadorDocumentos;
+    if (!p) return false;
+    try {
+      if (useDb) {
+        const archivoPath = c.archivo ? await db.subirDocumento(p.id, 'carne-lud', c.archivo) : undefined;
+        await db.guardarCarneLud(p.id, { idFederado: c.idFederado, vencimiento: c.vencimiento, archivoPath });
+        await refrescarJugador(p.id);
+      } else {
+        replacePlayer({
+          ...p,
+          ludRegistration: {
+            ...p.ludRegistration,
+            federatedId: c.idFederado ?? 0,
+            cardExpiry: c.vencimiento ?? undefined,
+          },
+        });
+      }
+    } catch (err) {
+      reportDbError('guardar el carné LUD', err);
+      return false;
+    }
+    showToast(`Carné LUD de ${p.firstName} guardado`, 'badge', 'success');
+    return true;
+  };
+
+  const handleVerArchivo = async (ruta: string) => {
+    if (!useDb) return;
+    // La ventana se abre ya (dentro del toque) para que el navegador no la bloquee.
+    const ventana = window.open('', '_blank');
+    try {
+      const url = await db.urlDocumento(ruta);
+      if (ventana) ventana.location.href = url;
+      else window.location.href = url;
+    } catch (err) {
+      ventana?.close();
+      reportDbError('abrir el archivo', err);
+    }
+  };
+
   // Add new player from wizard. Se agrega al final para que "Mi ficha"
   // (el primer jugador) sea el mismo con y sin base de datos.
   const handleSaveNewPlayer = async (newPlayer: Player): Promise<boolean> => {
@@ -511,6 +615,7 @@ export default function App({ perfil, onLogout }: AppProps) {
             }}
             onOpenLineupModal={() => goTo('nuevo-jugador')}
             onEditPlayer={puedeEditarJugadores ? setJugadorEditando : undefined}
+            onOpenDocuments={puedeEditarJugadores ? (p) => setDocumentosId(p.id) : undefined}
             showToast={showToast}
           />
         )}
@@ -521,6 +626,7 @@ export default function App({ perfil, onLogout }: AppProps) {
               key={myPlayer.id}
               player={myPlayer}
               onUpdateAttendance={handleUpdateAttendance}
+              onVerArchivo={useDb ? handleVerArchivo : undefined}
               showToast={showToast}
             />
           ) : (
@@ -600,6 +706,16 @@ export default function App({ perfil, onLogout }: AppProps) {
         player={jugadorEditando}
         onClose={() => setJugadorEditando(null)}
         onSave={handleGuardarJugador}
+      />
+
+      <DocumentosModal
+        player={jugadorDocumentos}
+        persistent={useDb}
+        onClose={() => setDocumentosId(null)}
+        onGuardarHabilitacion={handleGuardarHabilitacion}
+        onCargarFichaMedica={handleCargarFichaMedica}
+        onGuardarCarneLud={handleGuardarCarneLud}
+        onVerArchivo={handleVerArchivo}
       />
 
       <PlanillaPdfModal
