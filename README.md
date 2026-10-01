@@ -40,6 +40,7 @@ Archivos:
 - `supabase/migrations/20260930020000_habilitacion_y_documentos.sql`: habilitación manual y foto del carné LUD
 - `supabase/migrations/20260930030000_cuotas_desde_la_app.sql`: generar las cuotas del mes desde Tesorería; perfil "Tesorería"
 - `supabase/migrations/20261001000000_partido_editable_por_dt.sql`: el cuerpo técnico (DT) puede cargar el próximo partido desde Planilla
+- `supabase/migrations/20261002000000_notificaciones_push.sql`: notificaciones de la app (suscripciones de cada celular y funciones para mandarlas)
 - `src/lib/supabase.ts`: cliente; `src/lib/db.ts`: lecturas y escrituras
 
 ### Puesta en marcha (una sola vez)
@@ -133,6 +134,24 @@ La app no manda mensajes sola (eso requeriría la API paga de WhatsApp Business)
 Cada mensaje abierto queda en **Alertas → Historial**. Las plantillas se ven en **Alertas → Plantillas** y las edita el admin. Ahí o en *Textos de la app → Plantillas de WhatsApp* se pueden usar `{nombre}`, `{vencimiento}`, `{documento}`, `{deuda}`, `{fecha}`, `{rival}`, `{dia}`, `{hora}`, `{citacion}` y `{cancha}`.
 
 En **Textos de la app** conviene completar: celular y nombre del **delegado** (botón "Escribir al delegado" de los jugadores), celular de **tesorería** ("Avisar que pagué"), **cómo pagar** (datos de la cuenta) y el **aviso del tablón**.
+
+## Notificaciones de la app
+
+Gratis y sin WhatsApp: cada jugador las activa una vez (Mi ficha → *Activar notificaciones*, o el aviso de arriba) y el staff manda avisos desde la misma ventana de envío que usa para WhatsApp (*Mandar notificación a N*). A quien no las activó se le sigue mandando por WhatsApp.
+
+- En **iPhone** solo funcionan con la app agregada a la pantalla de inicio (iOS 16.4 o más nuevo). En Android, desde Chrome.
+- **Cartel para el plantel** (Planilla → Operativa de partido): QR a la app con los pasos para instalarla y activar los avisos; se imprime o se manda al grupo de WhatsApp.
+- El envío lo hace la función de Vercel `api/notificar.ts`. Usa el login de quien manda: la base solo le da las suscripciones al staff, así que **no** hace falta la clave de servicio de Supabase.
+
+Configuración (una sola vez):
+
+1. Correr la migración `20261002000000_notificaciones_push.sql` en el SQL Editor de Supabase.
+2. Generar un par de claves VAPID (por ejemplo con `npx web-push generate-vapid-keys` o en un generador de claves VAPID web) y cargarlas en Vercel → Settings → Environment Variables, en Production y Preview:
+   - `VITE_VAPID_PUBLIC_KEY` = la clave **pública** (tipo normal; la usa la app).
+   - `VAPID_PRIVATE_KEY` = la clave **privada** (tipo **Secret**; nunca en el repo ni en el chat).
+   Si se cambia el par de claves, todos tienen que volver a activar las notificaciones.
+3. Opcional: `VAPID_SUBJECT` = `mailto:` + un email de contacto del club.
+4. Redeploy.
 
 ## Instalar en el celular (PWA)
 

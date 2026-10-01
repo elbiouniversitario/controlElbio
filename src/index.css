@@ -89,4 +89,20 @@ h1, h2, h3, h4, h5, h6, .font-heading {
   .no-imprimir {
     display: none !important;
   }
+  /* Ventanas que se imprimen solas (cartel): fuera del resto de la app, una sola hoja. */
+  body:has(> .portal-impresion) > :not(.portal-impresion) {
+    display: none !important;
+  }
+  .portal-impresion {
+    position: static !important;
+    display: block !important;
+    padding: 0 !important;
+    background: none !important;
+    backdrop-filter: none !important;
+  }
+  .portal-impresion .area-impresion {
+    position: static;
+    margin: 0 auto;
+    border-radius: 0;
+  }
 }

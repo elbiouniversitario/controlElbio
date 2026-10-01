@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { VentanaImprimible } from '../components/VentanaImprimible';
 import { CLUB_CREST_URL } from '../data/initialData';
 import { ClubRole, Player } from '../types';
 import { bloquearPorDeuda, estadoHabilitacion } from '../lib/habilitacion';
@@ -600,7 +601,7 @@ export const ClubProfileScreen: React.FC<ClubProfileScreenProps> = ({
       </div>
 
       {verActa && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#00183a]/75 p-3">
+        <VentanaImprimible className="fixed inset-0 z-50 flex items-center justify-center bg-[#00183a]/75 p-3">
           <div className="area-impresion w-full max-w-lg bg-white rounded-2xl p-5 shadow-2xl flex flex-col gap-3 max-h-[92vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-[#e0e3e6] pb-3">
               <div className="flex items-center gap-2.5">
@@ -664,7 +665,7 @@ export const ClubProfileScreen: React.FC<ClubProfileScreenProps> = ({
               Imprimir / guardar PDF
             </button>
           </div>
-        </div>
+        </VentanaImprimible>
       )}
     </div>
   );

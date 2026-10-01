@@ -27,6 +27,7 @@ import {
 // Screens
 import { AlertasVencimientosScreen, ClavePlantilla, PLANTILLAS } from './screens/AlertasVencimientosScreen';
 import { EnvioWhatsApp, EnvioWhatsAppModal } from './components/EnvioWhatsAppModal';
+import { BannerNotificaciones, CartelModal } from './components/Notificaciones';
 import { abrirWhatsApp, normalizarCelular, rellenarPlantilla } from './lib/whatsapp';
 import { variablesMensaje } from './lib/mensajes';
 import { TesoreriaCuotasScreen } from './screens/TesoreriaCuotasScreen';
@@ -109,6 +110,7 @@ export default function App({ perfil, onLogout, onRecargarPerfil }: AppProps) {
   const [dataMode, setDataMode] = useState<DataMode>(isSupabaseConfigured ? 'cargando' : 'demo');
   const [loadError, setLoadError] = useState<string | null>(null);
   const [textos, setTextos] = useState<Textos>(TEXTOS_DEFAULT);
+  const [verCartel, setVerCartel] = useState(false);
   const [miembros, setMiembros] = useState<db.Miembro[]>([]);
 
   // Toast feedback state
@@ -775,6 +777,12 @@ export default function App({ perfil, onLogout, onRecargarPerfil }: AppProps) {
           </div>
         )}
 
+        {dataMode === 'supabase' && perfil?.jugadorId && currentTab !== 'jugador' && (
+          <div className="mb-3">
+            <BannerNotificaciones />
+          </div>
+        )}
+
         {dataMode === 'demo' && (
           <div
             role="status"
@@ -863,6 +871,7 @@ export default function App({ perfil, onLogout, onRecargarPerfil }: AppProps) {
             onEditPlayer={puedeEditarJugadores ? setJugadorEditando : undefined}
             onOpenDocuments={puedeEditarJugadores ? (p) => setDocumentosId(p.id) : undefined}
             onGuardarPartido={puedeEditarJugadores ? handleGuardarPartido : undefined}
+            onAbrirCartel={() => setVerCartel(true)}
             showToast={showToast}
           />
         )}
@@ -964,6 +973,7 @@ export default function App({ perfil, onLogout, onRecargarPerfil }: AppProps) {
       />
 
       <EnvioWhatsAppModal envio={envio} onClose={() => setEnvio(null)} onRegistrar={handleRegistrarEnvio} />
+      <CartelModal abierto={verCartel} onClose={() => setVerCartel(false)} />
 
       <BuscadorJugadores
         abierto={verBuscador}
