@@ -124,7 +124,7 @@ export const AsistenciaModal: React.FC<{
   abierto: boolean;
   players: Player[];
   onClose: () => void;
-  /** Abre el aviso por WhatsApp para los que no respondieron. */
+  /** Abre el aviso por notificación para los que no respondieron. */
   onRecordar?: (pendientes: Player[]) => void;
 }> = ({ abierto, players, onClose, onRecordar }) => {
   if (!abierto) return null;

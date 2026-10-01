@@ -405,10 +405,10 @@ export const NuevoJugadorWizard: React.FC<NuevoJugadorWizardProps> = ({
               </span>
             </div>
 
-            {/* Celular / WhatsApp */}
+            {/* Celular */}
             <div className="flex flex-col gap-1">
               <label className="font-heading text-[12px] font-bold text-[#191c1e]">
-                Teléfono celular / WhatsApp
+                Teléfono celular
               </label>
               <div className="flex items-center bg-white rounded-lg h-12 shadow-xs border border-[#e0e3e6] focus-within:ring-2 focus-within:ring-[#00183a] overflow-hidden">
                 <div className="flex items-center gap-1 px-3 bg-[#eceef1] text-[#191c1e] font-heading font-bold text-[12px] h-full shrink-0 border-r border-[#e0e3e6]">
@@ -430,7 +430,7 @@ export const NuevoJugadorWizard: React.FC<NuevoJugadorWizardProps> = ({
                 </span>
               </div>
               <span className="font-sans text-[11px] text-[#44474f]">
-                Se enviarán recordatorios de citaciones y fixtures por WhatsApp.
+                Con este celular el jugador entra a la app (junto con su cédula).
               </span>
             </div>
 

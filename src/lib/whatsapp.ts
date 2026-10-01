@@ -1,7 +1,6 @@
 /**
- * Envíos por WhatsApp sin integración paga: se abre el WhatsApp de quien usa
- * la app con el mensaje ya escrito (links wa.me), para un número o para
- * elegir el chat / grupo.
+ * Celulares y plantillas de texto. Los avisos van por notificación de la app;
+ * WhatsApp solo se usa para que el jugador le escriba al delegado.
  */
 
 /** Celular uruguayo → formato internacional sin "+" (ej. "099 123 456" → "59899123456"). */

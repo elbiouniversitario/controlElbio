@@ -149,7 +149,7 @@ values
    'Aviso preventivo individual cada lunes a las 11:00 hs con enlace al prestador médico.',
    true, 'calendar_clock', null, 'bg-surface-container-high', 'text-primary', 1),
   ('alerta_urgente', 'Alerta Urgente (5 días y Vencidos)', 'Crítico',
-   'Mensaje directo al deportista con copia inmediata por WhatsApp al delegado de mesa.',
+   'Aviso automático por notificación al jugador cuando le falta poco para vencer, y el día que vence.',
    true, 'warning', 'bg-error-container text-on-error-container font-bold', 'bg-secondary-fixed', 'text-secondary', 2),
   ('cumpleanios', 'Saludo de Cumpleaños', '09:00 hs',
    'Felicitación de directiva y cuerpo técnico con sticker del escudo oficial del Club.',
@@ -179,7 +179,7 @@ on conflict (id) do nothing;
 -- -----------------------------------------------------------------------------
 insert into public.roles_club (clave, titulo, subtitulo, descripcion, etiqueta, icono, clase_icono, cantidad_activos, orden) values
   ('admin', 'Administrador General', 'Acceso Irrestricto',
-   'Control de tesorería, auditoría, configuración de torneos, asignación de permisos y despacho masivo por WhatsApp Cloud.',
+   'Control de tesorería, auditoría, configuración de torneos, asignación de permisos y avisos al plantel.',
    'Privilegios Root', 'security', 'bg-primary-container text-on-primary-container', 2, 1),
   ('dt', 'Cuerpo Técnico & Delegados', 'Gestión de Cancha',
    'Carga de planillas de partido, control de semáforo de fichas médicas, convocatorias de fin de semana y asistencia a entrenamientos.',

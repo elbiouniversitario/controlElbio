@@ -14,7 +14,7 @@ interface PlanillaOpsScreenProps {
   onOpenLineupModal: () => void;
   /** Guarda la convocatoria (roles). Sin definir = sin permiso. */
   onGuardarConvocatoria?: (cambios: Record<string, Player['matchStatus']['lineupRole']>) => Promise<boolean>;
-  /** Recordar por WhatsApp a los que no respondieron la citación. */
+  /** Recordar por notificación a los que no respondieron la citación. */
   onRecordarAsistencia?: (pendientes: Player[]) => void;
   /** Sin definir = no se muestra el botón de editar (sin permiso). */
   onEditPlayer?: (player: Player) => void;
@@ -531,7 +531,7 @@ export const PlanillaOpsScreen: React.FC<PlanillaOpsScreenProps> = ({
           </h3>
         </div>
         <div className="grid grid-cols-1 gap-2.5">
-          {/* WhatsApp Dispatcher */}
+          {/* Citación por notificación */}
           <button
             onClick={onSendWhatsappCitation}
             className="w-full p-3 rounded-lg bg-white flex items-center justify-between text-left shadow-sm active:bg-[#f2f4f7] transition-colors border border-[#e0e3e6]/80"
@@ -545,7 +545,7 @@ export const PlanillaOpsScreen: React.FC<PlanillaOpsScreenProps> = ({
                   Enviar citación
                 </span>
                 <span className="font-sans text-[12px] text-[#44474f]">
-                  Por notificación de la app o por WhatsApp
+                  Por notificación de la app
                 </span>
               </div>
             </div>

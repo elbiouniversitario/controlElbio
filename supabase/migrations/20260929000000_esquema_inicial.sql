@@ -187,7 +187,7 @@ create index if not exists pagos_cuota_idx on public.pagos (cuota_id);
 create index if not exists pagos_recibo_idx on public.pagos (recibo);
 
 -- -----------------------------------------------------------------------------
--- Reglas de automatización (avisos por WhatsApp)
+-- Reglas de automatización (avisos automáticos)
 -- -----------------------------------------------------------------------------
 create table if not exists public.reglas_automatizacion (
   id                uuid primary key default gen_random_uuid(),

@@ -20,7 +20,7 @@ Otros comandos:
 
 ## Pantallas
 
-- **Alertas y vencimientos**: carnés de salud por vencer, reglas de aviso automático y envíos por WhatsApp
+- **Alertas y vencimientos**: carnés de salud por vencer, avisos automáticos y avisos por notificación de la app
 - **Tesorería y cuotas**: estado de pago por jugador, registro de cobros y recordatorios
 - **Planilla (DT)**: titulares, suplentes, bajas y PDF de planilla
 - **Mi ficha**: perfil del jugador y confirmación de asistencia
@@ -41,6 +41,7 @@ Archivos:
 - `supabase/migrations/20260930030000_cuotas_desde_la_app.sql`: generar las cuotas del mes desde Tesorería; perfil "Tesorería"
 - `supabase/migrations/20261001000000_partido_editable_por_dt.sql`: el cuerpo técnico (DT) puede cargar el próximo partido desde Planilla
 - `supabase/migrations/20261002000000_notificaciones_push.sql`: notificaciones de la app (suscripciones de cada celular y funciones para mandarlas)
+- `supabase/migrations/20261003000000_avisos_automaticos.sql`: registro de los avisos automáticos ya mandados
 - `src/lib/supabase.ts`: cliente; `src/lib/db.ts`: lecturas y escrituras
 
 ### Puesta en marcha (una sola vez)
@@ -124,23 +125,18 @@ La foto del carné LUD (imagen o PDF, hasta 10 MB) va al bucket **privado** `doc
 
 El padrón de la liga (Excel con carné, cédula, nombre, nacimiento y vencimientos) se carga con un SQL generado a partir del Excel. **Ese SQL no se sube al repo** porque tiene datos personales y el repo es público. Identifica a cada jugador por cédula, así que se puede volver a correr con un padrón actualizado sin duplicar a nadie. Los jugadores marcados como inactivos no aparecen en la app. La ficha médica vencida inhabilita al jugador; el carné LUD vencido no inhabilita, pero aparece como alerta (Alertas, notificaciones y planilla).
 
-### Avisos por WhatsApp
+### Plantillas de avisos
 
-La app no manda mensajes sola (eso requeriría la API paga de WhatsApp Business). Cada botón de aviso abre **el WhatsApp de quien lo toca** con el mensaje ya escrito:
+Los avisos van **solo por notificación de la app** (ver *Notificaciones de la app*). Cada aviso mandado queda en **Alertas → Historial**. Las plantillas se ven en **Alertas → Plantillas** y las edita el admin. Ahí o en *Textos de la app → Plantillas de avisos* se pueden usar `{nombre}`, `{vencimiento}`, `{documento}`, `{deuda}`, `{fecha}`, `{rival}`, `{dia}`, `{hora}`, `{citacion}` y `{cancha}`.
 
-- **Uno por uno:** la lista de destinatarios con un botón *Enviar* por jugador (personalizado con su nombre, vencimiento o deuda). Usa el celular cargado en la ficha; los que no tienen celular aparecen marcados.
-- **Al grupo:** *Mandar al grupo* abre WhatsApp para elegir el chat o grupo del plantel.
-
-Cada mensaje abierto queda en **Alertas → Historial**. Las plantillas se ven en **Alertas → Plantillas** y las edita el admin. Ahí o en *Textos de la app → Plantillas de WhatsApp* se pueden usar `{nombre}`, `{vencimiento}`, `{documento}`, `{deuda}`, `{fecha}`, `{rival}`, `{dia}`, `{hora}`, `{citacion}` y `{cancha}`.
-
-En **Textos de la app** conviene completar: celular y nombre del **delegado** (botón "Escribir al delegado" de los jugadores), celular de **tesorería** ("Avisar que pagué"), **cómo pagar** (datos de la cuenta) y el **aviso del tablón**.
+En **Textos de la app** conviene completar: celular y nombre del **delegado** (botón "Escribir al delegado" de los jugadores, lo único que abre WhatsApp), **cómo pagar** (datos de la cuenta) y el **aviso del tablón**.
 
 ## Notificaciones de la app
 
-Gratis y sin WhatsApp: cada jugador las activa una vez (Mi ficha → *Activar notificaciones*, o el aviso de arriba) y el staff manda avisos desde la misma ventana de envío que usa para WhatsApp (*Mandar notificación a N*). A quien no las activó se le sigue mandando por WhatsApp.
+Es la única vía de avisos al plantel, y es gratis: cada jugador las activa una vez (Mi ficha → *Activar notificaciones*, o el aviso de arriba). El staff manda avisos desde la ventana de envío (convocatoria, asistencia, cuotas, vencimientos, cumpleaños, mensaje masivo), que muestra quién las activó. A quien no las activó no le llega nada: hay que pasarle el cartel.
 
 - En **iPhone** solo funcionan con la app agregada a la pantalla de inicio (iOS 16.4 o más nuevo). En Android, desde Chrome.
-- **Cartel para el plantel** (Planilla → Operativa de partido): QR a la app con los pasos para instalarla y activar los avisos; se imprime o se manda al grupo de WhatsApp.
+- **Cartel para el plantel** (Planilla → Operativa de partido): QR a la app con los pasos para instalarla y activar los avisos; se imprime o se comparte (menú de compartir del celular).
 - El envío lo hace la función de Vercel `api/notificar.ts`. Usa el login de quien manda: la base solo le da las suscripciones al staff, así que **no** hace falta la clave de servicio de Supabase.
 
 Configuración (una sola vez):
@@ -152,6 +148,29 @@ Configuración (una sola vez):
    Si se cambia el par de claves, todos tienen que volver a activar las notificaciones.
 3. Opcional: `VAPID_SUBJECT` = `mailto:` + un email de contacto del club.
 4. Redeploy.
+
+### Avisos automáticos
+
+Todos los días a las 9:00 (hora de Uruguay; Vercel puede demorarlo hasta una hora) el cron de Vercel llama a `api/avisos-automaticos.ts`, que manda por notificación:
+
+| Aviso | Cuándo | Interruptor (Alertas → Avisos activos) |
+|---|---|---|
+| Ficha médica y carné LUD | cuando faltan los días de *Avisar vencimientos con…* (30) | Vencimientos a N días |
+| Ficha médica y carné LUD | cuando faltan los días de *Alerta urgente* (5) y el día que vence | Urgentes |
+| Cuota del mes sin pagar | 3 días antes y el día de vencimiento (*Textos → Tesorería*) | Cuotas pendientes |
+| Cumpleaños | ese día | Cumpleaños |
+
+- Cada aviso se manda **una sola vez** (tabla `avisos_automaticos`). Si el jugador no tiene las notificaciones activadas, no se marca: le llega cuando las active, si todavía corresponde.
+- Lo vencido hace más de 3 días no se avisa solo (se ve en Alertas).
+- Los avisos quedan en **Alertas → Historial** como "Automático: …".
+
+Configuración (una sola vez, además de lo de arriba):
+
+1. Correr la migración `20261003000000_avisos_automaticos.sql` en el SQL Editor de Supabase.
+2. En Vercel → Settings → Environment Variables (Production):
+   - `SUPABASE_SERVICE_ROLE_KEY` = la **clave secreta** de Supabase (Settings → API Keys → *secret* / `service_role`). Tipo **Secret**. Solo la usa esta función, en el servidor; nunca va en la app.
+   - `CRON_SECRET` = una contraseña larga inventada (tipo **Secret**). Vercel la manda sola al llamar al cron; sin ella nadie más puede disparar los avisos.
+3. Redeploy. En Vercel → Settings → Cron Jobs aparece el de las 9:00; con *Run* se puede probar en el momento.
 
 ## Instalar en el celular (PWA)
 
@@ -180,7 +199,7 @@ Plan para conectarlo:
 
 1. **Aviso de pago** — función de Vercel (`/api/dlocal-webhook`) que dLocal llama en cada cobro (`notification_url` del plan). No confía en el aviso: consulta el pago en la API de dLocal Go, busca al jugador por cédula o email del suscriptor y marca la cuota del mes como pagada (método "dLocal Go", recibo = número de orden). Si el aviso llega repetido, no se registra dos veces.
 2. **Control diario** — cron de Vercel que recorre los suscriptos del plan y sus cobros (`/v1/subscription/plan/:plan_id/subscription/all` y `.../execution/all`), recupera avisos perdidos y genera la cuota del mes.
-3. **Tesorería** — estado por jugador: suscripto / pago rechazado / sin suscripción / paga en efectivo; mandar el link de suscripción por WhatsApp a quien no está suscripto.
+3. **Tesorería** — estado por jugador: suscripto / pago rechazado / sin suscripción / paga en efectivo; mandar el link de suscripción por notificación a quien no está suscripto.
 4. **Mi ficha** — botón "Pagar con tarjeta" con el link del plan.
 5. **Claves** — `DLOCAL_API_KEY`, `DLOCAL_SECRET_KEY` y `SUPABASE_SERVICE_ROLE_KEY` solo en Vercel, tipo *Secret* y **sin** prefijo `VITE_` (nunca llegan al navegador ni al repo).
 

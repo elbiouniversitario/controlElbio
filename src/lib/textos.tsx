@@ -29,8 +29,7 @@ export const TEXTOS = {
   },
 
   delegado_nombre: { grupo: 'Contactos', label: 'Delegado: nombre', valor: 'Delegado' },
-  delegado_celular: { grupo: 'Contactos', label: 'Delegado: celular (para WhatsApp)', valor: '' },
-  tesorero_celular: { grupo: 'Contactos', label: 'Tesorería: celular (para avisar pagos)', valor: '' },
+  delegado_celular: { grupo: 'Contactos', label: 'Delegado: celular (para que los jugadores le escriban)', valor: '' },
 
   aviso_dt: {
     grupo: 'Tablón del equipo',
@@ -45,27 +44,27 @@ export const TEXTOS = {
   bloquear_por_deuda: { grupo: 'Alertas', label: 'Inhabilitar por cuota vencida (si / no)', valor: 'no' },
 
   plantilla_vencimiento: {
-    grupo: 'Plantillas de WhatsApp',
+    grupo: 'Plantillas de avisos',
     label: 'Vencimiento de ficha médica o carné',
     valor:
       'Hola {nombre}, desde el Club Elbio Fernández te recordamos que tu {documento} vence el {vencimiento}. Para seguir habilitado en la Liga Universitaria, renovalo y avisale al delegado. ¡Arriba Elbio!',
     multilinea: true,
   },
   plantilla_cuota: {
-    grupo: 'Plantillas de WhatsApp',
+    grupo: 'Plantillas de avisos',
     label: 'Recordatorio de cuota',
     valor: 'Hola {nombre}, te recordamos que tenés pendiente la cuota del club (${deuda}). Cualquier duda, escribinos. ¡Gracias!',
     multilinea: true,
   },
   plantilla_convocatoria: {
-    grupo: 'Plantillas de WhatsApp',
+    grupo: 'Plantillas de avisos',
     label: 'Convocatoria / citación',
     valor:
       '⚽ Convocatoria {fecha} vs {rival}\n📅 {dia} · {hora}\n⏰ Citación {citacion}\n📍 {cancha}\nConfirmen asistencia en la app. ¡Arriba Elbio!',
     multilinea: true,
   },
   plantilla_cumpleanios: {
-    grupo: 'Plantillas de WhatsApp',
+    grupo: 'Plantillas de avisos',
     label: 'Saludo de cumpleaños',
     valor: '¡Feliz cumpleaños {nombre}! 🎉 Un abrazo grande de todo el Club Elbio Fernández.',
     multilinea: true,

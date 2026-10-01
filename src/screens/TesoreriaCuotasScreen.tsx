@@ -8,7 +8,7 @@ import { bloquearPorDeuda } from '../lib/habilitacion';
 interface TesoreriaCuotasScreenProps {
   players: Player[];
   onOpenPaymentModal: (player?: Player) => void;
-  onSendWhatsAppReminder: (player: Player) => void;
+  onAvisar: (player: Player) => void;
   onSendMassReminder: () => void;
   /** Genera las cuotas del mes actual. Sin definir = sin permiso (solo admin y tesorería). */
   onGenerarCuotas?: () => Promise<void>;
@@ -18,7 +18,7 @@ interface TesoreriaCuotasScreenProps {
 export const TesoreriaCuotasScreen: React.FC<TesoreriaCuotasScreenProps> = ({
   players,
   onOpenPaymentModal,
-  onSendWhatsAppReminder,
+  onAvisar,
   onSendMassReminder,
   onGenerarCuotas,
   showToast,
@@ -490,11 +490,11 @@ export const TesoreriaCuotasScreen: React.FC<TesoreriaCuotasScreenProps> = ({
                         Cobrar
                       </button>
                       <button
-                        onClick={() => onSendWhatsAppReminder(player)}
-                        className="bg-[#25d366]/15 hover:bg-[#25d366]/25 text-[#128c7e] font-heading text-[12px] font-bold py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 active:scale-95 transition-transform"
+                        onClick={() => onAvisar(player)}
+                        className="bg-[#d7e3ff] hover:bg-[#c5d6fb] text-[#00183a] font-heading text-[12px] font-bold py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 active:scale-95 transition-transform"
                       >
-                        <span className="material-symbols-outlined text-[18px]">send</span>
-                        Avisar WhatsApp
+                        <span className="material-symbols-outlined text-[18px]">notifications_active</span>
+                        Avisar
                       </button>
                     </div>
                   </>
@@ -526,7 +526,7 @@ export const TesoreriaCuotasScreen: React.FC<TesoreriaCuotasScreenProps> = ({
                         Cobrar
                       </button>
                       <button
-                        onClick={() => onSendWhatsAppReminder(player)}
+                        onClick={() => onAvisar(player)}
                         className="bg-[#b51a1b] hover:bg-[#d93630] text-white font-heading text-[12px] font-bold py-2.5 px-3 rounded-lg flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all"
                       >
                         <span className="material-symbols-outlined text-[18px]">notifications_active</span>

@@ -480,7 +480,6 @@ export async function registrarMensajes(players: Player[], tema: string): Promis
         jugador_nombre: `${p.firstName} ${p.lastName}`,
         tema,
         tipo,
-        // Todavía no hay integración real con WhatsApp: queda como 'Enviado'.
         estado: 'Enviado',
       }))
     )

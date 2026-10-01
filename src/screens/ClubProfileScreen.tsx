@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { VentanaImprimible } from '../components/VentanaImprimible';
 import { CLUB_CREST_URL } from '../data/initialData';
 import { ClubRole, Player } from '../types';
 import { bloquearPorDeuda, estadoHabilitacion } from '../lib/habilitacion';
 import { fechaCorta } from '../lib/fechas';
-import { linkWhatsApp, normalizarCelular } from '../lib/whatsapp';
+import { jugadoresConPush } from '../lib/push';
+import { isSupabaseConfigured } from '../lib/supabase';
 import { Textos } from '../lib/textos';
 import { TextosEditor } from '../components/TextosEditor';
 import { MiembrosList } from '../components/MiembrosList';
@@ -49,6 +50,14 @@ export const ClubProfileScreen: React.FC<ClubProfileScreenProps> = ({
   const [blockOnDebt, setBlockOnDebt] = useState(bloquearPorDeuda(textos.bloquear_por_deuda));
   const [guardandoParametros, setGuardandoParametros] = useState(false);
   const [verActa, setVerActa] = useState(false);
+  // Cuántos jugadores activaron las notificaciones (null mientras carga).
+  const [conPush, setConPush] = useState<Set<string> | null>(isSupabaseConfigured ? null : new Set());
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+    jugadoresConPush()
+      .then(setConPush)
+      .catch(() => setConPush(new Set()));
+  }, []);
   const [rolAbierto, setRolAbierto] = useState<string | null>(null);
   const [fichaElegida, setFichaElegida] = useState('');
   const [asociando, setAsociando] = useState(false);
@@ -408,32 +417,22 @@ export const ClubProfileScreen: React.FC<ClubProfileScreenProps> = ({
 
             <div className="w-full h-px bg-[#eceef1]"></div>
 
-            {/* Param 3: WhatsApp (sin integración paga: se usa el WhatsApp de cada uno) */}
+            {/* Param 3: avisos por notificación de la app */}
             <div className="flex flex-col gap-2">
               <label className="font-heading text-[12px] font-bold text-[#00183a] flex items-center gap-1">
-                <span className="material-symbols-outlined text-[18px] text-emerald-600">chat</span>
-                Avisos por WhatsApp
+                <span className="material-symbols-outlined text-[18px] text-[#00183a]">notifications_active</span>
+                Avisos por notificación
               </label>
-              <div className="bg-[#f2f4f7] p-3 rounded-lg flex items-center justify-between gap-2 border border-[#e0e3e6]">
-                <div className="flex flex-col min-w-0">
-                  <span className="font-heading font-bold text-[13px] text-[#00183a] truncate">
-                    Delegado: {textos.delegado_nombre}
-                    {normalizarCelular(textos.delegado_celular) ? ` · ${textos.delegado_celular}` : ''}
-                  </span>
-                  <span className="font-sans text-[11px] text-[#44474f]">
-                    {normalizarCelular(textos.delegado_celular)
-                      ? 'Los mensajes se abren en tu WhatsApp, listos para mandar.'
-                      : 'Falta cargar el celular del delegado en Textos de la app → Contactos.'}
-                  </span>
-                </div>
-                <a
-                  href={linkWhatsApp(textos.delegado_celular || null, 'Prueba desde la app del Club Elbio Fernández ✅')}
-                  target="_blank"
-                  rel="noopener"
-                  className="px-3 py-1.5 rounded-lg bg-white border border-[#e0e3e6] text-[#00183a] font-heading text-[11px] font-bold hover:bg-[#eceef1] shrink-0 shadow-xs"
-                >
-                  Probar
-                </a>
+              <div className="bg-[#f2f4f7] p-3 rounded-lg flex flex-col gap-1 border border-[#e0e3e6]">
+                <span className="font-heading font-bold text-[13px] text-[#00183a]">
+                  {conPush === null
+                    ? 'Notificaciones activadas: …'
+                    : `${players.filter((p) => conPush.has(p.id)).length} de ${players.length} jugadores las activaron`}
+                </span>
+                <span className="font-sans text-[11px] text-[#44474f]">
+                  Los vencimientos, cuotas y cumpleaños se avisan solos todos los días a la mañana. Se prenden y
+                  apagan en Alertas → Avisos activos.
+                </span>
               </div>
             </div>
 
