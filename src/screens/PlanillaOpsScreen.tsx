@@ -25,6 +25,14 @@ interface PlanillaOpsScreenProps {
   showToast: (msg: string, icon?: string, type?: 'success' | 'warning' | 'info' | 'error') => void;
 }
 
+const leerBolso = (clave: string): boolean => {
+  try {
+    return localStorage.getItem(clave) === '1';
+  } catch {
+    return false;
+  }
+};
+
 export const PlanillaOpsScreen: React.FC<PlanillaOpsScreenProps> = ({
   players,
   onOpenPdfModal,
@@ -39,7 +47,19 @@ export const PlanillaOpsScreen: React.FC<PlanillaOpsScreenProps> = ({
 }) => {
   const t = useTextos();
   const [filter, setFilter] = useState<'all' | 'warning' | 'blocked'>('all');
-  const [bagConfirmed, setBagConfirmed] = useState(false);
+  // El bolso revisado se recuerda en este celular, por partido.
+  const claveBolso = `bolso:${t.fecha}|${t.rival}|${t.partido_dia}`;
+  const [bolso, setBolso] = useState(() => ({ clave: claveBolso, listo: leerBolso(claveBolso) }));
+  const bagConfirmed = bolso.clave === claveBolso ? bolso.listo : leerBolso(claveBolso);
+  const setBagConfirmed = (listo: boolean) => {
+    setBolso({ clave: claveBolso, listo });
+    try {
+      if (listo) localStorage.setItem(claveBolso, '1');
+      else localStorage.removeItem(claveBolso);
+    } catch {
+      // Sin almacenamiento (modo privado): queda solo mientras la pantalla esté abierta.
+    }
+  };
 
   // Carnés físicos count
   // Bolso: carnés de los convocados (todos menos las bajas).
@@ -110,9 +130,6 @@ export const PlanillaOpsScreen: React.FC<PlanillaOpsScreenProps> = ({
                 Club Elbio Fernández
               </span>
               <div className="flex items-center gap-1.5 mt-1">
-                <span className="inline-flex items-center px-1.5 py-0.5 rounded-full bg-[#b51a1b] text-white font-heading font-extrabold text-[9px] uppercase">
-                  ROL: DELEGADO & DT
-                </span>
                 <span className="font-heading text-[10px] text-[#fabc4d]">
                   {t.divisional} • {t.categoria}
                 </span>
@@ -131,9 +148,6 @@ export const PlanillaOpsScreen: React.FC<PlanillaOpsScreenProps> = ({
               <span className="w-2 h-2 rounded-full bg-[#d93630] animate-pulse"></span>
               Liga Universitaria • {t.torneo} • {t.fecha}
             </span>
-            <span className="font-heading text-[9px] px-2 py-0.5 rounded-full bg-white/20 text-white font-bold">
-              Oficial
-            </span>
           </div>
 
           {/* Rivalry & Teams */}
@@ -142,7 +156,6 @@ export const PlanillaOpsScreen: React.FC<PlanillaOpsScreenProps> = ({
               <span className="font-heading font-extrabold text-[22px] text-white tracking-tight">
                 Elbio U
               </span>
-              <span className="font-sans text-[11px] text-[#7b96c8]">Local</span>
             </div>
             <div className="flex flex-col items-center justify-center px-2">
               <span className="font-heading text-[12px] text-[#ffdead] font-black tracking-widest">
@@ -155,9 +168,6 @@ export const PlanillaOpsScreen: React.FC<PlanillaOpsScreenProps> = ({
             <div className="flex flex-col items-end">
               <span className="font-heading font-extrabold text-[22px] text-white tracking-tight text-right">
                 {t.rival}
-              </span>
-              <span className="font-sans text-[11px] text-[#7b96c8] text-right">
-                Visitante
               </span>
             </div>
           </div>
