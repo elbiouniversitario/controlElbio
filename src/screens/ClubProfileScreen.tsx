@@ -349,31 +349,6 @@ export const ClubProfileScreen: React.FC<ClubProfileScreenProps> = ({
           </div>
 
           <div className="bg-white rounded-xl p-4 shadow-sm flex flex-col gap-4 border border-[#e0e3e6]/60">
-            {/* Param 1: Competition Selector */}
-            <div className="flex flex-col gap-1.5">
-              <label className="font-heading text-[12px] font-bold text-[#00183a] flex items-center gap-1">
-                <span className="material-symbols-outlined text-[18px] text-[#b51a1b]">
-                  emoji_events
-                </span>
-                Liga & Competición Oficial
-              </label>
-              <div className="relative bg-[#f2f4f7] rounded-lg p-3 flex items-center justify-between border border-[#e0e3e6]">
-                <div className="flex flex-col min-w-0 pr-2">
-                  <span className="font-heading font-bold text-[14px] text-[#00183a] truncate">
-                    Liga Universitaria de Deportes
-                  </span>
-                  <span className="font-sans text-[12px] text-[#44474f] truncate">
-                    Categoría {textos.categoria} · {textos.divisional} (Uruguay)
-                  </span>
-                </div>
-                <span className="px-2.5 py-1 rounded bg-[#00183a] text-white font-heading text-[10px] font-bold uppercase shrink-0">
-                  FIJADA
-                </span>
-              </div>
-            </div>
-
-            <div className="w-full h-px bg-[#eceef1]"></div>
-
             {/* Param 2: Medical Clearance Expiration Thresholds */}
             <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between">
@@ -383,9 +358,6 @@ export const ClubProfileScreen: React.FC<ClubProfileScreenProps> = ({
                   </span>
                   Semáforo de fichas médicas y carnés
                 </label>
-                <span className="font-heading text-[10px] text-[#b51a1b] uppercase font-bold">
-                  PROTOCOLO LUD
-                </span>
               </div>
 
               <div className="grid grid-cols-2 gap-2">

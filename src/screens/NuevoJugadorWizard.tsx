@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Player } from '../types';
 import { initialsAvatar } from '../lib/avatar';
-import { hoyISO, periodoActual } from '../lib/fechas';
+import { diasHasta, periodoActual } from '../lib/fechas';
 import { POSICIONES, PRESTADORES } from '../lib/opciones';
 import { useTextos } from '../lib/textos';
 
@@ -22,7 +22,7 @@ export const NuevoJugadorWizard: React.FC<NuevoJugadorWizardProps> = ({
 }) => {
   const ej = <T,>(valor: T, vacio: T): T => (ejemplo ? valor : vacio);
   const t = useTextos();
-  const [step, setStep] = useState<1 | 2 | 3>(2); // Start on Step 2 as in initial screenshots, with full ability to go to 1, 2, or 3!
+  const [step, setStep] = useState<1 | 2 | 3>(1);
 
   // Form State
   const [firstName, setFirstName] = useState(ej('Mateo', ''));
@@ -44,18 +44,15 @@ export const NuevoJugadorWizard: React.FC<NuevoJugadorWizardProps> = ({
   const [memberNumber, setMemberNumber] = useState(ej('142857-4', ''));
 
   // Step 3 State
-  const [expiryDate, setExpiryDate] = useState(() => `${Number(hoyISO().slice(0, 4)) + 1}${hoyISO().slice(4)}`);
+  // Sin fecha no se crea ficha médica: se carga cuando el jugador la presente.
+  const [expiryDate, setExpiryDate] = useState('');
   const [clinic, setClinic] = useState(ej('Centro Médico Elbio Fernández - Dpto. Aptitud', ''));
   const [medicalNotes, setMedicalNotes] = useState('');
-  const [cardInHand, setCardInHand] = useState<'En mano del delegado' | 'En poder del jugador' | 'En trámite secretaría'>('En mano del delegado');
+  const [cardInHand, setCardInHand] = useState<'En mano del delegado' | 'En poder del jugador' | 'En trámite secretaría'>('En trámite secretaría');
   const [federatedId, setFederatedId] = useState(ej(48291, 0));
   const [signedConsent, setSignedConsent] = useState(true);
 
   const handleNextStep2 = () => {
-    if (!phone || !email || !emergencyName || !emergencyPhone) {
-      showToast('Por favor completa los campos obligatorios (*)', 'error', 'error');
-      return;
-    }
     setStep(3);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -67,10 +64,6 @@ export const NuevoJugadorWizard: React.FC<NuevoJugadorWizardProps> = ({
     if (!firstName.trim() || !lastName.trim() || !number) {
       showToast('Completá nombre, apellido y número de camiseta (paso 1)', 'error', 'error');
       setStep(1);
-      return;
-    }
-    if (!signedConsent) {
-      showToast('Debe aceptar el consentimiento de responsabilidad deportiva', 'error', 'error');
       return;
     }
 
@@ -97,7 +90,7 @@ export const NuevoJugadorWizard: React.FC<NuevoJugadorWizardProps> = ({
       memberNumber,
       medicalCertificate: {
         expiryDate,
-        daysRemaining: 245,
+        daysRemaining: expiryDate ? diasHasta(expiryDate) : 0,
         clinic,
         verified: true,
         notes: medicalNotes,
@@ -126,6 +119,19 @@ export const NuevoJugadorWizard: React.FC<NuevoJugadorWizardProps> = ({
     if (!ok) return;
     showToast(`¡${firstName} ${lastName} dado de alta!`, 'how_to_reg', 'success');
   };
+
+  // Atajo: el alta solo necesita nombre, apellido y número; lo demás se carga después.
+  const botonAltaYa = (
+    <button
+      onClick={handleFinish}
+      disabled={saving}
+      className="w-full h-11 rounded-lg border-2 border-[#00183a] text-[#00183a] font-heading text-[12px] font-bold uppercase flex items-center justify-center gap-2 disabled:opacity-60"
+      type="button"
+    >
+      <span className="material-symbols-outlined text-[18px]">how_to_reg</span>
+      {saving ? 'Guardando…' : 'Dar de alta ya (completar después)'}
+    </button>
+  );
 
   return (
     <div className="flex flex-col w-full pb-28">
@@ -296,7 +302,7 @@ export const NuevoJugadorWizard: React.FC<NuevoJugadorWizardProps> = ({
             <div className="grid grid-cols-2 gap-2">
               <div className="flex flex-col gap-1">
                 <label className="font-heading text-[12px] font-bold text-[#00183a]">
-                  Cédula (CI) <span className="text-[#b51a1b]">*</span>
+                  Cédula (CI)
                 </label>
                 <input
                   type="text"
@@ -309,7 +315,7 @@ export const NuevoJugadorWizard: React.FC<NuevoJugadorWizardProps> = ({
 
               <div className="flex flex-col gap-1">
                 <label className="font-heading text-[12px] font-bold text-[#00183a]">
-                  Año Nacimiento <span className="text-[#b51a1b]">*</span>
+                  Año Nacimiento
                 </label>
                 <input
                   type="number"
@@ -324,7 +330,7 @@ export const NuevoJugadorWizard: React.FC<NuevoJugadorWizardProps> = ({
             <div className="grid grid-cols-2 gap-2">
               <div className="flex flex-col gap-1">
                 <label className="font-heading text-[12px] font-bold text-[#00183a]">
-                  Número de Camiseta
+                  Número de Camiseta <span className="text-[#b51a1b]">*</span>
                 </label>
                 <input
                   type="number"
@@ -361,6 +367,7 @@ export const NuevoJugadorWizard: React.FC<NuevoJugadorWizardProps> = ({
             <span>Siguiente: Contacto y Emergencia (Paso 2)</span>
             <span className="material-symbols-outlined text-[20px]">arrow_forward</span>
           </button>
+          {botonAltaYa}
         </div>
       )}
 
@@ -394,14 +401,14 @@ export const NuevoJugadorWizard: React.FC<NuevoJugadorWizardProps> = ({
                 Datos del Jugador
               </h3>
               <span className="font-heading text-[10px] text-[#b51a1b] font-bold">
-                * Campos obligatorios
+                Todo opcional: se completa después desde Editar
               </span>
             </div>
 
             {/* Celular / WhatsApp */}
             <div className="flex flex-col gap-1">
               <label className="font-heading text-[12px] font-bold text-[#191c1e]">
-                Teléfono celular / WhatsApp <span className="text-[#b51a1b]">*</span>
+                Teléfono celular / WhatsApp
               </label>
               <div className="flex items-center bg-white rounded-lg h-12 shadow-xs border border-[#e0e3e6] focus-within:ring-2 focus-within:ring-[#00183a] overflow-hidden">
                 <div className="flex items-center gap-1 px-3 bg-[#eceef1] text-[#191c1e] font-heading font-bold text-[12px] h-full shrink-0 border-r border-[#e0e3e6]">
@@ -430,7 +437,7 @@ export const NuevoJugadorWizard: React.FC<NuevoJugadorWizardProps> = ({
             {/* Email */}
             <div className="flex flex-col gap-1">
               <label className="font-heading text-[12px] font-bold text-[#191c1e]">
-                Correo electrónico <span className="text-[#b51a1b]">*</span>
+                Correo electrónico
               </label>
               <div className="flex items-center bg-white rounded-lg h-12 shadow-xs border border-[#e0e3e6] focus-within:ring-2 focus-within:ring-[#00183a] overflow-hidden px-3">
                 <span className="material-symbols-outlined text-[#747780] text-[20px] mr-2">
@@ -488,7 +495,7 @@ export const NuevoJugadorWizard: React.FC<NuevoJugadorWizardProps> = ({
             {/* Nombre Contacto */}
             <div className="flex flex-col gap-1">
               <label className="font-heading text-[12px] font-bold text-[#191c1e]">
-                Nombre completo del contacto de urgencia <span className="text-[#b51a1b]">*</span>
+                Nombre completo del contacto de urgencia
               </label>
               <div className="flex items-center bg-white rounded-lg h-12 shadow-xs border border-[#e0e3e6] focus-within:ring-2 focus-within:ring-[#00183a] overflow-hidden px-3">
                 <span className="material-symbols-outlined text-[#747780] text-[20px] mr-2">
@@ -507,7 +514,7 @@ export const NuevoJugadorWizard: React.FC<NuevoJugadorWizardProps> = ({
             {/* Teléfono de urgencia */}
             <div className="flex flex-col gap-1">
               <label className="font-heading text-[12px] font-bold text-[#191c1e]">
-                Teléfono directo de urgencia <span className="text-[#b51a1b]">*</span>
+                Teléfono directo de urgencia
               </label>
               <div className="flex items-center bg-white rounded-lg h-12 shadow-xs border border-[#e0e3e6] focus-within:ring-2 focus-within:ring-[#00183a] overflow-hidden px-3">
                 <span
@@ -529,7 +536,7 @@ export const NuevoJugadorWizard: React.FC<NuevoJugadorWizardProps> = ({
             {/* Relación / Vínculo Chips */}
             <div className="flex flex-col gap-1.5">
               <label className="font-heading text-[12px] font-bold text-[#191c1e]">
-                Vínculo / Relación con el deportista <span className="text-[#b51a1b]">*</span>
+                Vínculo / Relación con el deportista
               </label>
               <div className="grid grid-cols-2 gap-2 mt-1">
                 {(['Padre/Madre', 'Pareja', 'Hermano/a', 'Otro'] as const).map((v) => {
@@ -583,7 +590,7 @@ export const NuevoJugadorWizard: React.FC<NuevoJugadorWizardProps> = ({
             {/* Mutualista / Prestador */}
             <div className="flex flex-col gap-1">
               <label className="font-heading text-[12px] font-bold text-[#191c1e]">
-                Mutualista / Prestador de Salud <span className="text-[#b51a1b]">*</span>
+                Mutualista / Prestador de Salud
               </label>
               <div className="relative bg-white rounded-lg h-12 shadow-xs border border-[#e0e3e6] focus-within:ring-2 focus-within:ring-[#00183a] flex items-center px-3">
                 <span className="material-symbols-outlined text-[#747780] text-[20px] mr-2">
@@ -609,7 +616,7 @@ export const NuevoJugadorWizard: React.FC<NuevoJugadorWizardProps> = ({
             {/* Emergencia Móvil Chips */}
             <div className="flex flex-col gap-1.5">
               <label className="font-heading text-[12px] font-bold text-[#191c1e]">
-                Servicio de Emergencia Móvil <span className="text-[#b51a1b]">*</span>
+                Servicio de Emergencia Móvil
               </label>
               <div className="grid grid-cols-2 gap-2 mt-1">
                 {(['SEMM', 'UCM Falck', 'SUAT', 'Otra / Interior'] as const).map((em) => {
@@ -690,6 +697,7 @@ export const NuevoJugadorWizard: React.FC<NuevoJugadorWizardProps> = ({
               <span>Siguiente: Salud y Liga (Paso 3)</span>
               <span className="material-symbols-outlined text-[20px]">arrow_forward</span>
             </button>
+            {botonAltaYa}
 
             <button
               onClick={() => setStep(1)}
@@ -750,12 +758,9 @@ export const NuevoJugadorWizard: React.FC<NuevoJugadorWizardProps> = ({
             <div className="flex flex-col gap-1">
               <label className="font-heading text-[12px] font-bold text-[#00183a] flex items-center justify-between">
                 <span>
-                  Fecha de Vencimiento <span className="text-[#b51a1b]">*</span>
+                  Fecha de Vencimiento
                 </span>
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#e6e8eb] text-[#44474f] text-[10px] font-medium font-sans">
-                  <span className="material-symbols-outlined text-[12px]">schedule</span> Al día
-                  sugerido
-                </span>
+                <span className="font-sans text-[10px] font-medium text-[#44474f]">Opcional</span>
               </label>
               <div className="relative">
                 <input
@@ -773,7 +778,7 @@ export const NuevoJugadorWizard: React.FC<NuevoJugadorWizardProps> = ({
             {/* Centro Emisor */}
             <div className="flex flex-col gap-1">
               <label className="font-heading text-[12px] font-bold text-[#00183a]">
-                Centro de emisión / Médico <span className="text-[#b51a1b]">*</span>
+                Centro de emisión / Médico
               </label>
               <div className="relative">
                 <input
@@ -853,7 +858,7 @@ export const NuevoJugadorWizard: React.FC<NuevoJugadorWizardProps> = ({
             {/* Número de Ficha Federada */}
             <div className="flex flex-col gap-1">
               <label className="font-heading text-[12px] font-bold text-[#00183a]">
-                Número de Ficha Federada Liga <span className="text-[#b51a1b]">*</span>
+                Número de Ficha Federada Liga
               </label>
               <div className="relative">
                 <input
@@ -929,7 +934,7 @@ export const NuevoJugadorWizard: React.FC<NuevoJugadorWizardProps> = ({
                 La habilitación se calcula sola
               </p>
               <span className="font-sans text-[11px] text-[#acc7fc] mt-0.5">
-                Con la ficha médica vigente y el carné LUD cargado queda habilitado
+                Con la ficha médica vigente queda habilitado. Sin fecha de ficha médica, queda inhabilitado hasta cargarla
               </span>
             </div>
           </div>

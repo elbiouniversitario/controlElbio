@@ -151,4 +151,18 @@ Archivos: `public/manifest.webmanifest` (nombre, colores e íconos), `public/sw.
 - Ver y quitar desde la app los celulares vinculados a cada jugador (hoy: tabla `vinculos_jugador`)
 - Fotos de perfil de los jugadores (hoy se muestran las iniciales)
 - Escudo del club: hoy apunta a una URL temporal de AI Studio; conviene subirlo a `public/`
-- Envío real por WhatsApp (hoy los avisos solo quedan registrados en el historial)
+- Monto de la cuota al dar de alta: `alta_jugador` crea la cuota del mes con el monto por defecto de la tabla (1400), no con el de Textos → Tesorería
+
+### Pendiente: cobros con dLocal Go
+
+El club ya cobra la cuota con una suscripción de dLocal Go (**un solo plan mensual**). Los jugadores también pagan de otras maneras (efectivo, transferencia), así que el registro manual de Tesorería se mantiene.
+
+Plan para conectarlo:
+
+1. **Aviso de pago** — función de Vercel (`/api/dlocal-webhook`) que dLocal llama en cada cobro (`notification_url` del plan). No confía en el aviso: consulta el pago en la API de dLocal Go, busca al jugador por cédula o email del suscriptor y marca la cuota del mes como pagada (método "dLocal Go", recibo = número de orden). Si el aviso llega repetido, no se registra dos veces.
+2. **Control diario** — cron de Vercel que recorre los suscriptos del plan y sus cobros (`/v1/subscription/plan/:plan_id/subscription/all` y `.../execution/all`), recupera avisos perdidos y genera la cuota del mes.
+3. **Tesorería** — estado por jugador: suscripto / pago rechazado / sin suscripción / paga en efectivo; mandar el link de suscripción por WhatsApp a quien no está suscripto.
+4. **Mi ficha** — botón "Pagar con tarjeta" con el link del plan.
+5. **Claves** — `DLOCAL_API_KEY`, `DLOCAL_SECRET_KEY` y `SUPABASE_SERVICE_ROLE_KEY` solo en Vercel, tipo *Secret* y **sin** prefijo `VITE_` (nunca llegan al navegador ni al repo).
+
+Falta definir: si el jugador carga su cédula al suscribirse en dLocal (para identificarlo sin errores).

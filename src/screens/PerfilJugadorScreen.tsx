@@ -199,20 +199,16 @@ export const PerfilJugadorScreen: React.FC<PerfilJugadorScreenProps> = ({
           </div>
           <div className="flex items-start gap-2">
             <span className="material-symbols-outlined text-[#ffdead] text-[18px] mt-0.5">
-              checkroom
+              alarm
             </span>
             <div>
               <span className="font-heading text-[9px] block text-[#e0e3e6] uppercase font-bold">
-                EQUIPACIÓN
+                CITACIÓN
               </span>
               <span className="font-sans text-[13px] text-white font-medium">
-                Titular (Rojo/Azul)
+                {t.citacion_hora}
               </span>
             </div>
-          </div>
-          <div className="col-span-2 pt-1 flex items-center gap-1.5 text-[#ffdead] font-sans text-[11px]">
-            <span className="material-symbols-outlined text-[14px]">shield</span>
-            <span>Canilleras y documento de identidad obligatorios en bolso.</span>
           </div>
         </div>
 

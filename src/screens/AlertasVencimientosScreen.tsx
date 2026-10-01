@@ -102,6 +102,13 @@ const DESCRIPCION_REGLA: Record<string, (t: ReturnType<typeof useTextos>) => str
   cuota_mensual: () => 'Mostrar quién debe cuotas para mandarle el recordatorio.',
 };
 
+const TITULO_REGLA: Record<string, (t: ReturnType<typeof useTextos>) => string> = {
+  carne_30_dias: (t) => `Vencimientos a ${t.dias_aviso_preventivo} días`,
+  alerta_urgente: (t) => `Urgentes (${t.dias_alerta_urgente} días o vencidos)`,
+  cumpleanios: () => 'Cumpleaños de la semana',
+  cuota_mensual: () => 'Cuotas pendientes',
+};
+
 export const AlertasVencimientosScreen: React.FC<AlertasVencimientosScreenProps> = ({
   players,
   rules,
@@ -350,7 +357,9 @@ export const AlertasVencimientosScreen: React.FC<AlertasVencimientosScreenProps>
             </div>
 
             <div className="space-y-2">
-              {rules.map((rule) => (
+              {rules.map((rule) => {
+                const titulo = (rule.key && TITULO_REGLA[rule.key]?.(t)) || rule.title;
+                return (
                 <div
                   key={rule.id}
                   className="rounded-xl bg-white p-3.5 shadow-sm flex items-center justify-between gap-3 border border-[#e0e3e6]/40"
@@ -362,7 +371,9 @@ export const AlertasVencimientosScreen: React.FC<AlertasVencimientosScreenProps>
                       <span className="material-symbols-outlined text-[20px]">{rule.icon}</span>
                     </div>
                     <div className="min-w-0">
-                      <h4 className="font-heading text-[14px] font-bold text-[#00183a]">{rule.title}</h4>
+                      <h4 className="font-heading text-[14px] font-bold text-[#00183a]">
+                        {titulo}
+                      </h4>
                       <p className="font-sans text-[12px] text-[#44474f] mt-0.5">
                         {(rule.key && DESCRIPCION_REGLA[rule.key]?.(t)) || rule.description}
                       </p>
@@ -372,11 +383,11 @@ export const AlertasVencimientosScreen: React.FC<AlertasVencimientosScreenProps>
                     <input
                       type="checkbox"
                       checked={rule.active}
-                      aria-label={rule.title}
+                      aria-label={titulo}
                       onChange={() => {
                         onToggleRule(rule.id);
                         showToast(
-                          `${rule.title}: ${!rule.active ? 'activado' : 'pausado'}`,
+                          `${titulo}: ${!rule.active ? 'activado' : 'pausado'}`,
                           rule.active ? 'toggle_off' : 'toggle_on',
                           rule.active ? 'warning' : 'success'
                         );
@@ -386,7 +397,8 @@ export const AlertasVencimientosScreen: React.FC<AlertasVencimientosScreenProps>
                     <div className="w-11 h-6 bg-[#e0e3e6] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#0d2d59]"></div>
                   </label>
                 </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 

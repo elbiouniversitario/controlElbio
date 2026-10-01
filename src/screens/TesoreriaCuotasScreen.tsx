@@ -295,25 +295,6 @@ export const TesoreriaCuotasScreen: React.FC<TesoreriaCuotasScreenProps> = ({
         </div>
       </section>
 
-      {/* Banner Normativo Liga Universitaria */}
-      <section className="bg-[#ffdad6] text-[#410002] rounded-xl p-3 shadow-sm flex items-start gap-2.5 border border-[#ba1a1a]/20">
-        <span
-          className="material-symbols-outlined text-[#b51a1b] shrink-0 text-[20px] mt-0.5"
-          style={{ fontVariationSettings: "'FILL' 1" }}
-        >
-          gavel
-        </span>
-        <div className="flex flex-col">
-          <span className="font-heading font-bold text-[12px] text-[#b51a1b]">
-            Reglamento Liga Universitaria
-          </span>
-          <p className="font-sans text-[12px] mt-0.5 leading-relaxed text-[#410002]">
-            Jugadores con más de 2 cuotas pendientes{' '}
-            <strong>no podrán retirar su carné físico</strong> oficial para la {t.fecha}.
-          </p>
-        </div>
-      </section>
-
       {/* Buscador y Chips de Filtrado */}
       <section className="flex flex-col gap-2">
         <div className="bg-white rounded-lg px-3 py-2 flex items-center gap-2 shadow-sm border border-[#e0e3e6]/80">
