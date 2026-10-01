@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
+import { VentanaImprimible } from '../components/VentanaImprimible';
 import { Player } from '../types';
 import { CLUB_CREST_URL, CLUB_CREST_WATERMARK } from '../data/initialData';
 import { diasHasta, fechaCorta, nombrePeriodo, sumarMeses } from '../lib/fechas';
 import { bloquearPorDeuda, estadoHabilitacion } from '../lib/habilitacion';
 import { abrirWhatsApp, normalizarCelular } from '../lib/whatsapp';
 import { useTextos } from '../lib/textos';
+import { isSupabaseConfigured } from '../lib/supabase';
+import { TarjetaNotificaciones } from '../components/Notificaciones';
 
 interface PerfilJugadorScreenProps {
   player: Player;
@@ -271,6 +274,8 @@ export const PerfilJugadorScreen: React.FC<PerfilJugadorScreenProps> = ({
         </div>
       </div>
 
+      {isSupabaseConfigured && <TarjetaNotificaciones />}
+
       {/* Medical Clearance & Liga Status Hub */}
       <div className="space-y-2">
         <div className="flex items-center justify-between px-1">
@@ -523,7 +528,7 @@ export const PerfilJugadorScreen: React.FC<PerfilJugadorScreenProps> = ({
       </div>
 
       {verComoPagar && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-[#00183a]/70 p-4">
+        <VentanaImprimible className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-[#00183a]/70 p-4">
           <div className="w-full max-w-md bg-white rounded-2xl p-5 shadow-2xl flex flex-col gap-3">
             <div className="flex items-center justify-between">
               <h3 className="font-heading font-bold text-[16px] text-[#00183a]">Cómo pagar la cuota</h3>
@@ -554,7 +559,7 @@ export const PerfilJugadorScreen: React.FC<PerfilJugadorScreenProps> = ({
               Avisar que pagué (WhatsApp)
             </button>
           </div>
-        </div>
+        </VentanaImprimible>
       )}
 
       {verRecibo && (

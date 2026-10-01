@@ -20,6 +20,8 @@ interface PlanillaOpsScreenProps {
   onEditPlayer?: (player: Player) => void;
   /** Habilitación y documentos (ficha médica, carné). Sin definir = sin permiso. */
   onOpenDocuments?: (player: Player) => void;
+  /** Cartel con QR para que el plantel baje la app y active las notificaciones. */
+  onAbrirCartel?: () => void;
   /** Guarda los datos del próximo partido. Sin definir = sin permiso. */
   onGuardarPartido?: (valores: Partial<Textos>) => Promise<boolean>;
   showToast: (msg: string, icon?: string, type?: 'success' | 'warning' | 'info' | 'error') => void;
@@ -43,6 +45,7 @@ export const PlanillaOpsScreen: React.FC<PlanillaOpsScreenProps> = ({
   onEditPlayer,
   onOpenDocuments,
   onGuardarPartido,
+  onAbrirCartel,
   showToast,
 }) => {
   const t = useTextos();
@@ -539,10 +542,10 @@ export const PlanillaOpsScreen: React.FC<PlanillaOpsScreenProps> = ({
               </div>
               <div className="flex flex-col">
                 <span className="font-heading font-bold text-[14px] text-[#00183a]">
-                  Enviar Citación por WhatsApp
+                  Enviar citación
                 </span>
                 <span className="font-sans text-[12px] text-[#44474f]">
-                  Lugar, indumentaria y horario de llegada
+                  Por notificación de la app o por WhatsApp
                 </span>
               </div>
             </div>
@@ -550,6 +553,24 @@ export const PlanillaOpsScreen: React.FC<PlanillaOpsScreenProps> = ({
               chevron_right
             </span>
           </button>
+
+          {onAbrirCartel && (
+            <button
+              onClick={onAbrirCartel}
+              className="w-full p-3 rounded-lg bg-white flex items-center justify-between text-left shadow-sm active:bg-[#f2f4f7] transition-colors border border-[#e0e3e6]/80"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full flex items-center justify-center text-white bg-[#00183a] shadow-sm">
+                  <span className="material-symbols-outlined text-[22px]">qr_code_2</span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="font-heading font-bold text-[14px] text-[#00183a]">Cartel para el plantel</span>
+                  <span className="font-sans text-[12px] text-[#44474f]">QR para bajar la app y activar las notificaciones</span>
+                </div>
+              </div>
+              <span className="material-symbols-outlined text-[#747780]">chevron_right</span>
+            </button>
+          )}
 
           {/* Official PDF Download */}
           <button

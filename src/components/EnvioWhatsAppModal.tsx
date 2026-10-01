@@ -3,6 +3,8 @@ import { Player } from '../types';
 import { linkWhatsApp, normalizarCelular, rellenarPlantilla } from '../lib/whatsapp';
 import { useTextos } from '../lib/textos';
 import { variablesMensaje } from '../lib/mensajes';
+import { isSupabaseConfigured } from '../lib/supabase';
+import { jugadoresConPush, mandarNotificaciones } from '../lib/push';
 
 export interface EnvioWhatsApp {
   titulo: string;
@@ -32,11 +34,29 @@ export const EnvioWhatsAppModal: React.FC<EnvioWhatsAppModalProps> = ({ envio, o
   const [texto, setTexto] = useState('');
   const [enviados, setEnviados] = useState<Set<string>>(new Set());
   const [copiado, setCopiado] = useState(false);
+  // Notificaciones de la app: quiénes las activaron y qué pasó al mandarlas.
+  const [conPush, setConPush] = useState<Set<string>>(new Set());
+  const [notificados, setNotificados] = useState<Set<string>>(new Set());
+  const [enviandoPush, setEnviandoPush] = useState(false);
+  const [avisoPush, setAvisoPush] = useState<string | null>(null);
 
   useEffect(() => {
     setTexto(envio?.plantilla ?? '');
     setEnviados(new Set());
     setCopiado(false);
+    setNotificados(new Set());
+    setAvisoPush(null);
+    if (!envio || !isSupabaseConfigured || envio.destinatarios.length === 0) {
+      setConPush(new Set());
+      return;
+    }
+    let cancelado = false;
+    jugadoresConPush()
+      .then((ids) => !cancelado && setConPush(ids))
+      .catch(() => !cancelado && setConPush(new Set()));
+    return () => {
+      cancelado = true;
+    };
   }, [envio]);
 
   if (!envio) return null;
@@ -49,6 +69,31 @@ export const EnvioWhatsAppModal: React.FC<EnvioWhatsAppModalProps> = ({ envio, o
     if (enviados.has(p.id)) return;
     setEnviados((prev) => new Set(prev).add(p.id));
     onRegistrar([p], envio.tema);
+  };
+
+  const paraNotificar = envio.destinatarios.filter((p) => conPush.has(p.id) && !notificados.has(p.id));
+
+  const notificar = async () => {
+    if (paraNotificar.length === 0 || enviandoPush) return;
+    setEnviandoPush(true);
+    setAvisoPush(null);
+    try {
+      const r = await mandarNotificaciones(
+        envio.tema,
+        paraNotificar.map((p) => ({ jugadorId: p.id, cuerpo: rellenarPlantilla(texto, variablesMensaje(t, p)) }))
+      );
+      const llegaron = paraNotificar.filter((p) => r.enviados.includes(p.id));
+      setNotificados((prev) => new Set([...prev, ...llegaron.map((p) => p.id)]));
+      if (llegaron.length) onRegistrar(llegaron, `Notificación: ${envio.tema}`);
+      const faltan = paraNotificar.length - llegaron.length;
+      setAvisoPush(
+        `Llegó a ${llegaron.length}.` + (faltan ? ` A ${faltan} no les llegó: mandales por WhatsApp.` : '')
+      );
+    } catch (err) {
+      setAvisoPush(`No se pudo mandar: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setEnviandoPush(false);
+    }
   };
 
   const copiar = async () => {
@@ -113,6 +158,37 @@ export const EnvioWhatsAppModal: React.FC<EnvioWhatsAppModalProps> = ({ envio, o
             </div>
           )}
 
+          {envio.destinatarios.length > 0 && isSupabaseConfigured && (
+            <div className="rounded-lg border border-[#d7e3ff] bg-[#f3f7ff] p-3 flex flex-col gap-2">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-[20px] text-[#00183a]">notifications_active</span>
+                <span className="font-heading text-[12px] font-bold text-[#00183a]">
+                  Notificación de la app: {envio.destinatarios.filter((p) => conPush.has(p.id)).length} de{' '}
+                  {envio.destinatarios.length} la activaron
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={notificar}
+                disabled={paraNotificar.length === 0 || enviandoPush}
+                className="h-11 rounded-lg bg-[#00183a] text-white font-heading text-[12px] font-bold flex items-center justify-center gap-1.5 disabled:opacity-40"
+              >
+                <span className="material-symbols-outlined text-[18px]">send</span>
+                {enviandoPush
+                  ? 'Mandando…'
+                  : paraNotificar.length
+                  ? `Mandar notificación a ${paraNotificar.length}`
+                  : notificados.size
+                  ? 'Notificación mandada'
+                  : 'Nadie la activó todavía'}
+              </button>
+              {avisoPush && <p className="font-sans text-[12px] text-[#44474f]">{avisoPush}</p>}
+              <p className="font-sans text-[11px] text-[#747780]">
+                Gratis y llega al instante. A los que no la activaron, mandales por WhatsApp acá abajo.
+              </p>
+            </div>
+          )}
+
           {envio.destinatarios.length > 0 && (
             <div className="flex flex-col gap-1.5">
               <div className="flex items-center justify-between">
@@ -130,7 +206,10 @@ export const EnvioWhatsAppModal: React.FC<EnvioWhatsAppModalProps> = ({ envio, o
                         <p className="font-heading text-[13px] font-bold text-[#00183a] truncate">
                           {p.firstName} {p.lastName}
                         </p>
-                        <p className="font-sans text-[11px] text-[#747780]">{p.phone}</p>
+                        <p className="font-sans text-[11px] text-[#747780]">
+                          {p.phone}
+                          {notificados.has(p.id) ? ' · 🔔 notificado' : conPush.has(p.id) ? ' · 🔔' : ''}
+                        </p>
                       </div>
                       <a
                         href={linkWhatsApp(p.phone, rellenarPlantilla(texto, variablesMensaje(t, p)))}

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { VentanaImprimible } from './VentanaImprimible';
 import { Player } from '../types';
 import { CLUB_CREST_URL } from '../data/initialData';
 import { nombrePeriodo } from '../lib/fechas';
@@ -487,7 +488,7 @@ export const PlanillaPdfModal: React.FC<PlanillaPdfModalProps> = ({
   const convocados = players.filter((p) => p.matchStatus.lineupRole !== 'BAJA');
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#00183a]/75 backdrop-blur-xs p-3 animate-in fade-in duration-200">
+    <VentanaImprimible className="fixed inset-0 z-50 flex items-center justify-center bg-[#00183a]/75 backdrop-blur-xs p-3 animate-in fade-in duration-200">
       <div className="area-impresion w-full max-w-lg bg-white rounded-2xl p-5 shadow-2xl flex flex-col gap-3.5 max-h-[92vh] overflow-y-auto">
         <div className="flex items-center justify-between border-b border-[#e0e3e6] pb-3">
           <div className="flex items-center gap-2.5">
@@ -573,6 +574,6 @@ export const PlanillaPdfModal: React.FC<PlanillaPdfModalProps> = ({
           </button>
         </div>
       </div>
-    </div>
+    </VentanaImprimible>
   );
 };
