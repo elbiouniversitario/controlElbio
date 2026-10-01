@@ -146,7 +146,10 @@ Gratis y sin WhatsApp: cada jugador las activa una vez (Mi ficha → *Activar no
 Configuración (una sola vez):
 
 1. Correr la migración `20261002000000_notificaciones_push.sql` en el SQL Editor de Supabase.
-2. En Vercel → Settings → Environment Variables, agregar `VAPID_PRIVATE_KEY` (tipo **Secret**, en Production y Preview) con la clave privada de las notificaciones. La pública está en `src/lib/push.ts` y en `api/notificar.ts`; si se cambia el par de claves hay que cambiarla en los dos lados y todos tienen que volver a activar las notificaciones.
+2. Generar un par de claves VAPID (por ejemplo con `npx web-push generate-vapid-keys` o en un generador de claves VAPID web) y cargarlas en Vercel → Settings → Environment Variables, en Production y Preview:
+   - `VITE_VAPID_PUBLIC_KEY` = la clave **pública** (tipo normal; la usa la app).
+   - `VAPID_PRIVATE_KEY` = la clave **privada** (tipo **Secret**; nunca en el repo ni en el chat).
+   Si se cambia el par de claves, todos tienen que volver a activar las notificaciones.
 3. Opcional: `VAPID_SUBJECT` = `mailto:` + un email de contacto del club.
 4. Redeploy.
 

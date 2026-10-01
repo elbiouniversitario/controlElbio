@@ -83,7 +83,8 @@ export const PasosInstalar: React.FC<{ compacto?: boolean }> = ({ compacto }) =>
 /** Tarjeta de Mi ficha: activar o desactivar los avisos en este celular. */
 export const TarjetaNotificaciones: React.FC = () => {
   const { estado, ocupado, error, activar, desactivar } = useNotificaciones();
-  if (estado === null) return null;
+  // Sin claves configuradas no se muestra nada (el admin lo ve en el README).
+  if (estado === null || estado === 'sin-configurar') return null;
 
   return (
     <section className="bg-white rounded-xl p-4 shadow-sm border border-[#e0e3e6]/60 flex flex-col gap-3">

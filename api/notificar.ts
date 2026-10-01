@@ -6,13 +6,11 @@
 //
 // Variables en Vercel:
 //   VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY  (las mismas de la app)
-//   VAPID_PRIVATE_KEY  (Secret; la pública está acá abajo y en src/lib/push.ts)
+//   VITE_VAPID_PUBLIC_KEY  (la pública: la usa también la app)
+//   VAPID_PRIVATE_KEY      (Secret: solo acá)
 //   VAPID_SUBJECT      (opcional, ej. mailto:elbiouniversitario@gmail.com)
 import { createClient } from '@supabase/supabase-js';
 import webpush from 'web-push';
-
-// Clave pública de las notificaciones (la misma que src/lib/push.ts). La privada va solo en Vercel.
-const VAPID_PUBLIC_KEY = 'BGUkpKn6Ii10lNN5fiP9vUPkYspOVcGgX3Zor7qb1M3HSAY8-LhjUjZjzs9vV4eWnNwpqAS3-Ai5OkGq5KzFtks';
 
 interface Mensaje {
   jugadorId: string;
@@ -31,9 +29,10 @@ const json = (datos: unknown, status = 200) =>
 export async function POST(request: Request): Promise<Response> {
   const url = process.env.VITE_SUPABASE_URL;
   const anon = process.env.VITE_SUPABASE_ANON_KEY;
+  const publica = process.env.VITE_VAPID_PUBLIC_KEY;
   const privada = process.env.VAPID_PRIVATE_KEY;
-  if (!url || !anon || !privada) {
-    return json({ error: 'Faltan variables en Vercel (VAPID_PRIVATE_KEY o las de Supabase).' }, 500);
+  if (!url || !anon || !publica || !privada) {
+    return json({ error: 'Faltan variables en Vercel (las claves VAPID o las de Supabase).' }, 500);
   }
 
   const token = request.headers.get('authorization')?.replace(/^Bearer\s+/i, '');
@@ -66,7 +65,7 @@ export async function POST(request: Request): Promise<Response> {
     return json({ error: error.message }, status);
   }
 
-  webpush.setVapidDetails(process.env.VAPID_SUBJECT || 'mailto:elbiouniversitario@gmail.com', VAPID_PUBLIC_KEY, privada);
+  webpush.setVapidDetails(process.env.VAPID_SUBJECT || 'mailto:elbiouniversitario@gmail.com', publica, privada);
 
   const cuerpoDe = new Map(mensajes.map((m) => [m.jugadorId, m.cuerpo.slice(0, 500)]));
   const llegaron = new Set<string>();

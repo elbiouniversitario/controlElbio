@@ -1,11 +1,13 @@
 import { supabase } from './supabase';
 
-/** Clave pública de las notificaciones (la privada está solo en Vercel). */
-export const VAPID_PUBLIC_KEY = 'BGUkpKn6Ii10lNN5fiP9vUPkYspOVcGgX3Zor7qb1M3HSAY8-LhjUjZjzs9vV4eWnNwpqAS3-Ai5OkGq5KzFtks';
+/** Clave pública de las notificaciones (variable de Vercel). La privada está solo en el servidor. */
+const VAPID_PUBLIC_KEY = (import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined)?.trim() ?? '';
 
 export type EstadoPush =
   /** El navegador no las soporta (o la app corre sin service worker, como en desarrollo). */
   | 'no-soportado'
+  /** Falta configurar las claves en Vercel. */
+  | 'sin-configurar'
   /** iPhone: solo funcionan con la app agregada a la pantalla de inicio. */
   | 'instalar-primero'
   /** La persona las bloqueó: se reactivan desde los ajustes del celular. */
@@ -23,6 +25,7 @@ export const estaInstalada = () =>
 const soporta = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
 
 export async function estadoPush(): Promise<EstadoPush> {
+  if (!VAPID_PUBLIC_KEY) return 'sin-configurar';
   if (!soporta()) return esIOS() && !estaInstalada() ? 'instalar-primero' : 'no-soportado';
   if (Notification.permission === 'denied') return 'bloqueado';
   const reg = await navigator.serviceWorker.getRegistration();
