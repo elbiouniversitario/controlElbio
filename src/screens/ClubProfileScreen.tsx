@@ -300,7 +300,7 @@ export const ClubProfileScreen: React.FC<ClubProfileScreenProps> = ({
                     </div>
                     <div className="min-w-0">
                       <h4 className="font-heading font-bold text-[14px] text-[#00183a] truncate leading-tight">
-                        {role.title}
+                        {role.key === 'dt' ? 'Cuerpo técnico' : role.title}
                       </h4>
                       <p className="font-heading font-bold text-[10px] text-[#b51a1b]">
                         {role.subtitle}
@@ -340,18 +340,30 @@ export const ClubProfileScreen: React.FC<ClubProfileScreenProps> = ({
                         {players.length} jugadores en el plantel. Entran con "Soy jugador" (celular + cédula) o con el email
                         de su ficha.
                       </li>
-                    ) : miembros.filter((m) => m.rol === role.key).length === 0 ? (
+                    ) : cantidadRol(role.key) === 0 ? (
                       <li className="text-[#44474f]">Nadie tiene este rol todavía.</li>
                     ) : (
-                      miembros
-                        .filter((m) => m.rol === role.key)
-                        .map((m) => (
-                          <li key={m.email} className="flex items-center gap-1.5">
-                            <span className="material-symbols-outlined text-[16px] text-[#747780]">person</span>
-                            {m.nombre ? `${m.nombre} · ` : ''}
-                            {m.email}
-                          </li>
-                        ))
+                      <>
+                        {/* Jugadores con rol (Roles del plantel) */}
+                        {players
+                          .filter((p) => p.rolClub === role.key)
+                          .map((p) => (
+                            <li key={p.id} className="flex items-center gap-1.5">
+                              <span className="material-symbols-outlined text-[16px] text-[#747780]">sports_soccer</span>
+                              {p.firstName} {p.lastName}
+                            </li>
+                          ))}
+                        {/* Staff por email */}
+                        {miembros
+                          .filter((m) => m.rol === role.key)
+                          .map((m) => (
+                            <li key={m.email} className="flex items-center gap-1.5">
+                              <span className="material-symbols-outlined text-[16px] text-[#747780]">person</span>
+                              {m.nombre ? `${m.nombre} · ` : ''}
+                              {m.email}
+                            </li>
+                          ))}
+                      </>
                     )}
                   </ul>
                 )}
