@@ -11,7 +11,7 @@ interface PlanillaOpsScreenProps {
   onOpenPdfModal: () => void;
   onSendWhatsappCitation: () => void;
   /** Alta de jugador. */
-  onOpenLineupModal: () => void;
+  onOpenLineupModal?: () => void;
   /** Guarda la convocatoria (roles). Sin definir = sin permiso. */
   onGuardarConvocatoria?: (cambios: Record<string, Player['matchStatus']['lineupRole']>) => Promise<boolean>;
   /** Recordar por WhatsApp a los que no respondieron la citación. */
@@ -202,9 +202,10 @@ export const PlanillaOpsScreen: React.FC<PlanillaOpsScreenProps> = ({
           )}
         </div>
 
-        {/* Primary Action: Build Roster */}
+        {/* Primary Action: Build Roster (sin permiso de convocatoria no se muestra) */}
+        {onGuardarConvocatoria && (
         <button
-          onClick={() => (onGuardarConvocatoria ? setVerConvocatoria(true) : onOpenLineupModal())}
+          onClick={() => setVerConvocatoria(true)}
           className="w-full h-12 bg-[#b51a1b] hover:bg-[#d93630] text-white rounded-lg font-heading text-[12px] font-bold uppercase tracking-wider flex items-center justify-center gap-2 shadow-md active:scale-[0.98] transition-all"
         >
           <span className="material-symbols-outlined text-[20px]">
@@ -212,6 +213,8 @@ export const PlanillaOpsScreen: React.FC<PlanillaOpsScreenProps> = ({
           </span>
           <span>Armar Convocatoria</span>
         </button>
+        )}
+        {onOpenLineupModal && (
         <button
           onClick={onOpenLineupModal}
           className="w-full mt-2 h-10 rounded-lg bg-white/10 hover:bg-white/20 text-white font-heading text-[11px] font-bold flex items-center justify-center gap-1.5"
@@ -219,6 +222,7 @@ export const PlanillaOpsScreen: React.FC<PlanillaOpsScreenProps> = ({
           <span className="material-symbols-outlined text-[18px]">person_add</span>
           Dar de alta un jugador
         </button>
+        )}
       </section>
 
       {/* Pre-Match Checklist: Physical Registration Card Bag (Bolso de Carnés) */}
