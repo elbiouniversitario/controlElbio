@@ -1,6 +1,6 @@
 import { supabase } from './supabase';
 
-export type Rol = 'admin' | 'dt' | 'tesorero' | 'jugador';
+export type Rol = 'admin' | 'dt' | 'delegado' | 'tesorero' | 'jugador';
 
 /** Quién está usando la app. En modo demo (sin Supabase) no hay perfil. */
 export interface Perfil {
@@ -13,7 +13,8 @@ export interface Perfil {
 
 export const NOMBRE_ROL: Record<Rol, string> = {
   admin: 'Administrador',
-  dt: 'Cuerpo técnico / Delegado',
+  dt: 'Cuerpo técnico',
+  delegado: 'Delegado',
   tesorero: 'Tesorería',
   jugador: 'Jugador',
 };
@@ -110,6 +111,30 @@ export async function vincularJugador(jugadorId: string, cedula: string, celular
   });
   if (error) throw error;
   return data as ResultadoVinculo;
+}
+
+export type ResultadoAnotarme = 'ok' | 'ya_existe' | 'ya_anotado';
+
+export interface DatosAnotarme {
+  nombre: string;
+  apellido: string;
+  cedula: string;
+  /** 'YYYY-MM-DD' */
+  fechaNacimiento: string;
+  celular: string;
+}
+
+/** Jugador que no está en el padrón: se anota y queda vinculado a este celular. */
+export async function anotarme(d: DatosAnotarme): Promise<ResultadoAnotarme> {
+  const { data, error } = await cliente().rpc('anotarme', {
+    p_nombre: d.nombre,
+    p_apellido: d.apellido,
+    p_documento: d.cedula,
+    p_fecha_nacimiento: d.fechaNacimiento,
+    p_telefono: d.celular,
+  });
+  if (error) throw error;
+  return data as ResultadoAnotarme;
 }
 
 /** Cierra sesión; si era un jugador con celular, primero borra el vínculo de ese celular. */

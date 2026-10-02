@@ -437,7 +437,7 @@ export const AssignRoleModal: React.FC<AssignRoleModalProps> = ({
               onChange={(e) => setRole(e.target.value as 'admin' | 'dt' | 'tesorero')}
               className={inputClass}
             >
-              <option value="dt">Cuerpo técnico / Delegado</option>
+              <option value="dt">Cuerpo técnico</option>
               <option value="tesorero">Tesorería</option>
               <option value="admin">Administrador (acceso total)</option>
             </select>

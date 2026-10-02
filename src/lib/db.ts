@@ -52,6 +52,7 @@ interface JugadorRow {
   documento: string | null;
   fecha_nacimiento: string | null;
   habilitacion_manual: 'habilitado' | 'inhabilitado' | null;
+  rol_club?: Player['rolClub'] | null;
   motivo_habilitacion: string | null;
   nombre: string;
   apellido: string;
@@ -180,6 +181,7 @@ function mapJugador(r: JugadorRow): Player {
       cardExpiry: ficha?.vencimiento_carne ?? undefined,
       cardFilePath: ficha?.archivo_carne_path ?? undefined,
     },
+    rolClub: r.rol_club ?? 'jugador',
     eligibilityOverride: r.habilitacion_manual
       ? { status: r.habilitacion_manual, reason: r.motivo_habilitacion ?? undefined }
       : undefined,
@@ -555,16 +557,19 @@ export async function guardarHabilitacion(
   jugadorId: string,
   override: Player['eligibilityOverride']
 ): Promise<void> {
-  const { data, error } = await cliente()
-    .from('jugadores')
-    .update({
-      habilitacion_manual: override?.status ?? null,
-      motivo_habilitacion: override?.reason?.trim() || null,
-    })
-    .eq('id', jugadorId)
-    .select('id');
+  // Por función: el delegado puede cambiar la habilitación sin editar el resto de la ficha.
+  const { error } = await cliente().rpc('guardar_habilitacion', {
+    p_jugador_id: jugadorId,
+    p_estado: override?.status ?? null,
+    p_motivo: override?.reason?.trim() || null,
+  });
   if (error) throw error;
-  if (!data?.length) throw sinPermiso();
+}
+
+/** Admin: rol del jugador en el club (jugador, delegado o cuerpo técnico). */
+export async function asignarRolJugador(jugadorId: string, rol: NonNullable<Player['rolClub']>): Promise<void> {
+  const { error } = await cliente().rpc('asignar_rol_jugador', { p_jugador_id: jugadorId, p_rol: rol });
+  if (error) throw error;
 }
 
 export interface NuevaFichaMedica {

@@ -42,6 +42,7 @@ Archivos:
 - `supabase/migrations/20261001000000_partido_editable_por_dt.sql`: el cuerpo técnico (DT) puede cargar el próximo partido desde Planilla
 - `supabase/migrations/20261002000000_notificaciones_push.sql`: notificaciones de la app (suscripciones de cada celular y funciones para mandarlas)
 - `supabase/migrations/20261003000000_avisos_automaticos.sql`: registro de los avisos automáticos ya mandados
+- `supabase/migrations/20261004000000_anotarse_y_roles.sql`: los jugadores se anotan solos; rol de cada jugador (jugador, delegado, cuerpo técnico)
 - `src/lib/supabase.ts`: cliente; `src/lib/db.ts`: lecturas y escrituras
 
 ### Puesta en marcha (una sola vez)
@@ -131,6 +132,18 @@ Los avisos van **solo por notificación de la app** (ver *Notificaciones de la a
 
 En **Textos de la app** conviene completar: celular y nombre del **delegado** (botón "Escribir al delegado" de los jugadores, lo único que abre WhatsApp), **cómo pagar** (datos de la cuenta) y el **aviso del tablón**.
 
+## Jugadores y roles
+
+- **Anotarse:** en el ingreso, *Soy jugador* → el jugador escribe su celular y se elige de la lista confirmando con la cédula. Si no está en la lista, toca **"No estoy en la lista: anotarme"** (nombre, apellido, cédula, nacimiento y celular) y entra directo al plantel. Si la cédula ya está en el padrón, se le pide que se elija de la lista.
+- **Roles del plantel** (Club → Gestión de roles, solo admin): todos son *Jugador*; el admin busca a uno y lo hace **Delegado** o **Cuerpo técnico**. Funciona aunque el jugador entre con el celular (sin email).
+
+| Rol | Ve | Puede |
+|---|---|---|
+| Jugador | Mi ficha | Confirmar asistencia, ver cuotas y avisos |
+| Cuerpo técnico | Alertas, Planilla, Mi ficha | Editar y dar de alta jugadores, cargar ficha médica, carné LUD y habilitación, convocatoria, próximo partido y avisos |
+| Delegado | Alertas, Planilla, Mi ficha | Lo mismo que el cuerpo técnico, y además le llega por notificación quién debe o está por deber la cuota |
+| Tesorería, admin | (por email, *+ Dar acceso al staff*) | Cuotas / todo |
+
 ## Notificaciones de la app
 
 Es la única vía de avisos al plantel, y es gratis: cada jugador las activa una vez (Mi ficha → *Activar notificaciones*, o el aviso de arriba). El staff manda avisos desde la ventana de envío (convocatoria, asistencia, cuotas, vencimientos, cumpleaños, mensaje masivo), que muestra quién las activó. A quien no las activó no le llega nada: hay que pasarle el cartel.
@@ -190,7 +203,6 @@ Archivos: `public/manifest.webmanifest` (nombre, colores e íconos), `public/sw.
 
 - Ver y quitar desde la app los celulares vinculados a cada jugador (hoy: tabla `vinculos_jugador`)
 - Fotos de perfil de los jugadores (hoy se muestran las iniciales)
-- Escudo del club: hoy apunta a una URL temporal de AI Studio; conviene subirlo a `public/`
 - Monto de la cuota al dar de alta: `alta_jugador` crea la cuota del mes con el monto por defecto de la tabla (1400), no con el de Textos → Tesorería
 
 ### Pendiente: cobros con dLocal Go

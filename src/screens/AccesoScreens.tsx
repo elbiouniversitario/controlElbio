@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
+  anotarme,
   cambiarContrasena,
   cargarPlantelParaVincular,
   crearCuenta,
@@ -25,7 +26,7 @@ const Marco: React.FC<{ titulo: string; subtitulo?: string; children: React.Reac
   children,
 }) => (
   <div className="min-h-screen bg-[#00183a] flex flex-col items-center justify-center px-4 py-10 pt-[max(2.5rem,env(safe-area-inset-top))]">
-    <img src="/icons/icon-192.png" alt="" className="w-20 h-20 rounded-2xl shadow-lg mb-4" />
+    <img src="/escudo.png" alt="Escudo Club Elbio Fernández" className="h-28 w-auto drop-shadow-lg mb-4" />
     <p className="font-heading font-extrabold text-[11px] uppercase tracking-[0.2em] text-[#fabc4d]">
       Club Elbio Fernández
     </p>
@@ -323,6 +324,11 @@ export const VincularJugadorScreen: React.FC<{ onListo: () => void; onSalir: () 
   const [cedula, setCedula] = useState('');
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // "No estoy en la lista": el jugador se anota con sus datos.
+  const [anotandome, setAnotandome] = useState(false);
+  const [nombre, setNombre] = useState('');
+  const [apellido, setApellido] = useState('');
+  const [nacimiento, setNacimiento] = useState('');
 
   useEffect(() => {
     cargarPlantelParaVincular()
@@ -357,6 +363,85 @@ export const VincularJugadorScreen: React.FC<{ onListo: () => void; onSalir: () 
       setCargando(false);
     }
   };
+
+  const handleAnotarme = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    if (!nombre.trim() || !apellido.trim()) return setError('Escribí tu nombre y tu apellido.');
+    if (cedula.replace(/\D/g, '').length < 6) return setError('Escribí tu cédula completa (con el dígito verificador).');
+    if (!nacimiento) return setError('Poné tu fecha de nacimiento.');
+    if (celular.replace(/\D/g, '').length < 8) return setError('Escribí tu número de celular completo (ej. 099 123 456).');
+    setCargando(true);
+    try {
+      const r = await anotarme({ nombre, apellido, cedula, fechaNacimiento: nacimiento, celular });
+      if (r === 'ok' || r === 'ya_anotado') return onListo();
+      setError('Esa cédula ya está en el plantel. Volvé y elegite de la lista.');
+    } catch (err) {
+      setError(mensajeErrorAuth(err));
+    } finally {
+      setCargando(false);
+    }
+  };
+
+  if (anotandome) {
+    return (
+      <Marco titulo="Anotarme en el plantel" subtitulo="Completá tus datos. Después la app te reconoce en este celular.">
+        <form onSubmit={handleAnotarme} className="flex flex-col gap-3" noValidate>
+          <label className="flex flex-col gap-1">
+            <span className={labelClass}>Nombre</span>
+            <input value={nombre} onChange={(e) => setNombre(e.target.value)} autoComplete="given-name" className={inputClass} />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className={labelClass}>Apellido</span>
+            <input value={apellido} onChange={(e) => setApellido(e.target.value)} autoComplete="family-name" className={inputClass} />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className={labelClass}>Cédula</span>
+            <input
+              inputMode="numeric"
+              autoComplete="off"
+              value={cedula}
+              onChange={(e) => setCedula(e.target.value)}
+              className={inputClass}
+              placeholder="1.234.567-8"
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className={labelClass}>Fecha de nacimiento</span>
+            <input type="date" value={nacimiento} onChange={(e) => setNacimiento(e.target.value)} className={inputClass} />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className={labelClass}>Celular</span>
+            <input
+              type="tel"
+              inputMode="tel"
+              autoComplete="tel"
+              value={celular}
+              onChange={(e) => setCelular(e.target.value)}
+              className={inputClass}
+              placeholder="099 123 456"
+            />
+          </label>
+
+          {error && <Aviso tipo="error">{error}</Aviso>}
+
+          <button type="submit" disabled={cargando} className={primaryBtn}>
+            {cargando ? 'Anotando…' : 'Anotarme'}
+          </button>
+        </form>
+        <button
+          type="button"
+          onClick={() => {
+            setAnotandome(false);
+            setError(null);
+          }}
+          className={linkBtn}
+        >
+          Volver a la lista
+        </button>
+      </Marco>
+    );
+  }
 
   return (
     <Marco titulo="¿Quién sos?" subtitulo="Se hace una sola vez: después la app te reconoce en este celular.">
@@ -439,9 +524,16 @@ export const VincularJugadorScreen: React.FC<{ onListo: () => void; onSalir: () 
       <button type="button" onClick={onSalir} className={linkBtn}>
         Volver
       </button>
-      <p className="font-sans text-[11px] text-[#747780] text-center leading-snug">
-        ¿No estás en la lista? Pedile al delegado que te agregue al plantel.
-      </p>
+      <button
+        type="button"
+        onClick={() => {
+          setAnotandome(true);
+          setError(null);
+        }}
+        className="h-11 rounded-lg border-2 border-[#00183a] text-[#00183a] font-heading text-[12px] font-bold uppercase"
+      >
+        No estoy en la lista: anotarme
+      </button>
     </Marco>
   );
 };

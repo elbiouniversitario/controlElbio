@@ -1,3 +1,6 @@
+/** Rol de un jugador en el club: el admin puede hacerlo delegado o cuerpo técnico. */
+export type RolClub = 'jugador' | 'delegado' | 'dt';
+
 export type TabType = 
   | 'alertas'
   | 'tesoreria'
@@ -26,6 +29,8 @@ export interface Player {
   email: string;
   address: string;
   isCaptain?: boolean;
+  /** Rol en el club que le dio el admin (por defecto, jugador). */
+  rolClub?: RolClub;
   
   // Emergency Contact
   emergencyContact: {
