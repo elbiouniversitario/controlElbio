@@ -274,7 +274,7 @@ export default function App({ perfil, onLogout, onRecargarPerfil }: AppProps) {
     }
     setPlayers((prev) => prev.map((x) => (x.id === p.id ? { ...x, rolClub: rol } : x)));
     showToast(
-      `${p.firstName} ${p.lastName}: ${rol === 'dt' ? 'cuerpo técnico' : rol === 'delegado' ? 'delegado' : 'jugador'}`,
+      `${p.firstName} ${p.lastName} ahora es ${rol === 'dt' ? 'cuerpo técnico' : rol === 'delegado' ? 'delegado' : 'jugador'}. Si tenía la app abierta, que la cierre y la vuelva a abrir.`,
       'badge',
       'success'
     );

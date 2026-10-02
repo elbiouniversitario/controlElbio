@@ -87,15 +87,20 @@ export const RolesPlantel: React.FC<{
                     ))}
                   </select>
                 </div>
-                {rol !== 'jugador' && <span className="font-sans text-[11px] text-[#747780]">{DESCRIPCION[rol]}</span>}
+                {rol !== 'jugador' && (
+                  <>
+                    <span className="flex items-center gap-1 font-heading text-[11px] font-bold text-emerald-700">
+                      <span className="material-symbols-outlined text-[14px]">check_circle</span>
+                      Ya tiene acceso de {ETIQUETA[rol].toLowerCase()}
+                    </span>
+                    <span className="font-sans text-[11px] text-[#747780]">{DESCRIPCION[rol]}</span>
+                  </>
+                )}
               </div>
             );
           })}
         </div>
       )}
-      <p className="font-sans text-[11px] text-[#747780]">
-        El rol queda guardado al elegirlo. Si esa persona tenía la app abierta, lo ve al cerrarla y volver a abrirla.
-      </p>
     </div>
   );
 };
