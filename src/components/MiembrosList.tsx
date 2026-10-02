@@ -3,7 +3,7 @@ import { Miembro } from '../lib/db';
 
 const NOMBRE: Record<Miembro['rol'], string> = {
   admin: 'Administrador',
-  dt: 'Cuerpo técnico / Delegado',
+  dt: 'Cuerpo técnico',
   tesorero: 'Tesorería',
 };
 

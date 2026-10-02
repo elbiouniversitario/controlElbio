@@ -53,6 +53,7 @@ function vistasPermitidas(perfil: Perfil | null): TabType[] {
     case 'admin':
       return TODAS_LAS_VISTAS.filter((v) => v !== 'jugador' || perfil.jugadorId);
     case 'dt':
+    case 'delegado':
       return ['alertas', 'planilla', 'nuevo-jugador', ...miFicha];
     case 'tesorero':
       return ['tesoreria', 'alertas', ...miFicha];
@@ -135,7 +136,9 @@ export default function App({ perfil, onLogout, onRecargarPerfil }: AppProps) {
   const [documentosId, setDocumentosId] = useState<string | null>(null);
   const jugadorDocumentos = players.find((p) => p.id === documentosId) ?? null;
   // Editar fichas: DT y admin (en modo demo, todos).
-  const puedeEditarJugadores = !perfil || perfil.rol === 'admin' || perfil.rol === 'dt';
+  // Admin, cuerpo técnico y delegado: alta, edición, documentos, convocatoria y próximo partido.
+  const puedeEditarJugadores = !perfil || perfil.rol === 'admin' || perfil.rol === 'dt' || perfil.rol === 'delegado';
+  const puedeCargarDocumentos = puedeEditarJugadores;
 
   const showToast = (
     message: string,
@@ -261,6 +264,25 @@ export default function App({ perfil, onLogout, onRecargarPerfil }: AppProps) {
   };
 
   // Próximo partido: lo cargan el admin y el cuerpo técnico (solo esas claves).
+  // Admin: rol del jugador en el club (jugador, delegado o cuerpo técnico).
+  const handleAsignarRol = async (p: Player, rol: NonNullable<Player['rolClub']>): Promise<boolean> => {
+    if (useDb) {
+      try {
+        await db.asignarRolJugador(p.id, rol);
+      } catch (err) {
+        reportDbError('asignar el rol', err);
+        return false;
+      }
+    }
+    setPlayers((prev) => prev.map((x) => (x.id === p.id ? { ...x, rolClub: rol } : x)));
+    showToast(
+      `${p.firstName} ${p.lastName}: ${rol === 'dt' ? 'cuerpo técnico' : rol === 'delegado' ? 'delegado' : 'jugador'}`,
+      'badge',
+      'success'
+    );
+    return true;
+  };
+
   const handleGuardarPartido = async (valores: Partial<Textos>): Promise<boolean> => {
     if (useDb) {
       try {
@@ -611,7 +633,9 @@ export default function App({ perfil, onLogout, onRecargarPerfil }: AppProps) {
 
   // --- Notificaciones del encabezado ------------------------------------
   // En "ver como jugador" se comporta como un jugador (sin buscador, notificaciones propias).
-  const esStaff = !modoJugador && (!perfil || perfil.rol === 'admin' || perfil.rol === 'dt' || perfil.rol === 'tesorero');
+  const esStaff =
+    !modoJugador &&
+    (!perfil || perfil.rol === 'admin' || perfil.rol === 'dt' || perfil.rol === 'delegado' || perfil.rol === 'tesorero');
   const opcionesHabilitacion = { bloquearPorDeuda: bloquearPorDeuda(textos.bloquear_por_deuda) };
   const textoVencimiento = (p: Player) => {
     const d = diasProximoVencimiento(p);
@@ -867,9 +891,9 @@ export default function App({ perfil, onLogout, onRecargarPerfil }: AppProps) {
                 destinatarios: pendientes,
               })
             }
-            onOpenLineupModal={() => goTo('nuevo-jugador')}
+            onOpenLineupModal={puedeEditarJugadores ? () => goTo('nuevo-jugador') : undefined}
             onEditPlayer={puedeEditarJugadores ? setJugadorEditando : undefined}
-            onOpenDocuments={puedeEditarJugadores ? (p) => setDocumentosId(p.id) : undefined}
+            onOpenDocuments={puedeCargarDocumentos ? (p) => setDocumentosId(p.id) : undefined}
             onGuardarPartido={puedeEditarJugadores ? handleGuardarPartido : undefined}
             onAbrirCartel={() => setVerCartel(true)}
             showToast={showToast}
@@ -904,6 +928,7 @@ export default function App({ perfil, onLogout, onRecargarPerfil }: AppProps) {
                 : undefined
             }
             roles={roles}
+            onAsignarRol={handleAsignarRol}
             textos={textos}
             onSaveTextos={handleSaveTextos}
             persistent={useDb}
@@ -984,6 +1009,11 @@ export default function App({ perfil, onLogout, onRecargarPerfil }: AppProps) {
             ? (p) => {
                 setVerBuscador(false);
                 setJugadorEditando(p);
+              }
+            : puedeCargarDocumentos
+            ? (p) => {
+                setVerBuscador(false);
+                setDocumentosId(p.id);
               }
             : undefined
         }

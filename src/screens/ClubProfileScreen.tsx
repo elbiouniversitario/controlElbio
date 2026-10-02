@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import { VentanaImprimible } from '../components/VentanaImprimible';
 import { CLUB_CREST_URL } from '../data/initialData';
-import { ClubRole, Player } from '../types';
+import { ClubRole, Player, RolClub } from '../types';
 import { bloquearPorDeuda, estadoHabilitacion } from '../lib/habilitacion';
 import { fechaCorta } from '../lib/fechas';
 import { linkWhatsApp, normalizarCelular } from '../lib/whatsapp';
 import { Textos } from '../lib/textos';
 import { TextosEditor } from '../components/TextosEditor';
 import { MiembrosList } from '../components/MiembrosList';
+import { RolesPlantel } from '../components/RolesPlantel';
 import { Miembro } from '../lib/db';
 
 interface ClubProfileScreenProps {
@@ -27,6 +28,8 @@ interface ClubProfileScreenProps {
   miEmail?: string;
   onQuitarMiembro: (email: string) => Promise<void>;
   onOpenAssignRoleModal: () => void;
+  /** Rol de un jugador en el club. */
+  onAsignarRol: (p: Player, rol: RolClub) => Promise<boolean>;
   showToast: (msg: string, icon?: string, type?: 'success' | 'warning' | 'info' | 'error') => void;
 }
 
@@ -41,6 +44,7 @@ export const ClubProfileScreen: React.FC<ClubProfileScreenProps> = ({
   miEmail,
   onQuitarMiembro,
   onOpenAssignRoleModal,
+  onAsignarRol,
   showToast,
 }) => {
   // Parámetros: se guardan en "Textos de la app" (dias_aviso_preventivo, dias_alerta_urgente, bloquear_por_deuda).
@@ -248,7 +252,9 @@ export const ClubProfileScreen: React.FC<ClubProfileScreenProps> = ({
             </span>
           </div>
 
-          {/* Action Button: Invite / Create User */}
+          <RolesPlantel players={players} onAsignar={onAsignarRol} />
+
+          {/* Staff que no juega (o entra con email): admin, cuerpo técnico, tesorería */}
           <button
             onClick={onOpenAssignRoleModal}
             className="w-full h-12 bg-[#00183a] hover:bg-[#0d2d59] text-white rounded-lg font-heading text-[12px] font-bold uppercase tracking-wider flex items-center justify-center gap-2 shadow-sm active:scale-[0.98] transition-all"

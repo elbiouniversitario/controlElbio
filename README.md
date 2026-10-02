@@ -41,6 +41,7 @@ Archivos:
 - `supabase/migrations/20260930030000_cuotas_desde_la_app.sql`: generar las cuotas del mes desde Tesorería; perfil "Tesorería"
 - `supabase/migrations/20261001000000_partido_editable_por_dt.sql`: el cuerpo técnico (DT) puede cargar el próximo partido desde Planilla
 - `supabase/migrations/20261002000000_notificaciones_push.sql`: notificaciones de la app (suscripciones de cada celular y funciones para mandarlas)
+- `supabase/migrations/20261004000000_anotarse_y_roles.sql`: los jugadores se anotan solos; rol de cada jugador (jugador, delegado, cuerpo técnico)
 - `src/lib/supabase.ts`: cliente; `src/lib/db.ts`: lecturas y escrituras
 
 ### Puesta en marcha (una sola vez)
@@ -134,6 +135,18 @@ La app no manda mensajes sola (eso requeriría la API paga de WhatsApp Business)
 Cada mensaje abierto queda en **Alertas → Historial**. Las plantillas se ven en **Alertas → Plantillas** y las edita el admin. Ahí o en *Textos de la app → Plantillas de WhatsApp* se pueden usar `{nombre}`, `{vencimiento}`, `{documento}`, `{deuda}`, `{fecha}`, `{rival}`, `{dia}`, `{hora}`, `{citacion}` y `{cancha}`.
 
 En **Textos de la app** conviene completar: celular y nombre del **delegado** (botón "Escribir al delegado" de los jugadores), celular de **tesorería** ("Avisar que pagué"), **cómo pagar** (datos de la cuenta) y el **aviso del tablón**.
+
+## Jugadores y roles
+
+- **Anotarse:** en el ingreso, *Soy jugador* → el jugador escribe su celular y se elige de la lista confirmando con la cédula. Si no está en la lista, toca **"No estoy en la lista: anotarme"** (nombre, apellido, cédula, nacimiento y celular) y entra directo al plantel. Si la cédula ya está en el padrón, se le pide que se elija de la lista.
+- **Roles del plantel** (Club → Gestión de roles, solo admin): todos son *Jugador*; el admin busca a uno y lo hace **Delegado** o **Cuerpo técnico**. Funciona aunque el jugador entre con el celular (sin email).
+
+| Rol | Ve | Puede |
+|---|---|---|
+| Jugador | Mi ficha | Confirmar asistencia, ver cuotas y avisos |
+| Cuerpo técnico | Alertas, Planilla, Mi ficha | Editar y dar de alta jugadores, cargar ficha médica, carné LUD y habilitación, convocatoria, próximo partido y avisos |
+| Delegado | Alertas, Planilla, Mi ficha | Lo mismo que el cuerpo técnico, y además le llega por notificación quién debe o está por deber la cuota |
+| Tesorería, admin | (por email, *+ Dar acceso al staff*) | Cuotas / todo |
 
 ## Notificaciones de la app
 
