@@ -29,6 +29,12 @@ export interface Player {
   email: string;
   address: string;
   isCaptain?: boolean;
+  /** Estudio (regla de la LUD): último examen aprobado o excepción. */
+  study?: {
+    /** 'YYYY-MM-DD' */
+    lastExam?: string;
+    exception?: 'recibido' | 'articulo';
+  };
   /** Rol en el club que le dio el admin (por defecto, jugador). */
   rolClub?: RolClub;
   

@@ -13,6 +13,8 @@ export interface EnvioAviso {
   /** Texto con {nombre}, {vencimiento}, etc. */
   plantilla: string;
   destinatarios: Player[];
+  /** Valores propios de este envío para la plantilla (ej. {documento} y {vencimiento} de una categoría). */
+  variablesExtra?: (p: Player) => Record<string, string>;
 }
 
 interface EnvioAvisoModalProps {
@@ -62,7 +64,10 @@ export const EnvioAvisoModal: React.FC<EnvioAvisoModalProps> = ({ envio, onClose
     try {
       const r = await mandarNotificaciones(
         envio.tema,
-        pendientes.map((p) => ({ jugadorId: p.id, cuerpo: rellenarPlantilla(texto, variablesMensaje(t, p)) }))
+        pendientes.map((p) => ({
+          jugadorId: p.id,
+          cuerpo: rellenarPlantilla(texto, { ...variablesMensaje(t, p), ...envio.variablesExtra?.(p) }),
+        }))
       );
       const llegaron = pendientes.filter((p) => r.enviados.includes(p.id));
       setNotificados((prev) => new Set([...prev, ...llegaron.map((p) => p.id)]));

@@ -3,11 +3,17 @@ import { Player } from '../types';
 import { bloquearPorDeuda, estadoHabilitacion } from '../lib/habilitacion';
 import { useTextos } from '../lib/textos';
 import { fechaCorta } from '../lib/fechas';
+import { corteTexto, describirEstudio, estadoEstudio } from '../lib/estudio';
 
 export interface FichaMedicaForm {
   vencimiento: string;
-  fechaExamen: string;
   clinica: string;
+}
+
+export interface EstudioForm {
+  /** Último examen aprobado ('YYYY-MM-DD'). */
+  ultimoExamen: string | null;
+  excepcion: 'recibido' | 'articulo' | null;
 }
 
 export interface CarneLudForm {
@@ -24,10 +30,13 @@ interface DocumentosModalProps {
   onGuardarHabilitacion: (override: Player['eligibilityOverride']) => Promise<boolean>;
   onCargarFichaMedica: (f: FichaMedicaForm) => Promise<boolean>;
   onGuardarCarneLud: (c: CarneLudForm) => Promise<boolean>;
+  onGuardarEstudio: (e: EstudioForm) => Promise<boolean>;
   onVerArchivo: (ruta: string) => void;
 }
 
 const MAX_BYTES = 10 * 1024 * 1024;
+
+type Seccion = 'hab' | 'ficha' | 'estudio' | 'carne';
 
 const inputClass =
   'h-11 w-full px-3 rounded-lg bg-[#f2f4f7] border border-[#e0e3e6] font-sans text-[16px] text-[#191c1e] outline-none focus:bg-white focus:border-[#00183a] select-text';
@@ -84,21 +93,24 @@ export const DocumentosModal: React.FC<DocumentosModalProps> = ({
   onGuardarHabilitacion,
   onCargarFichaMedica,
   onGuardarCarneLud,
+  onGuardarEstudio,
   onVerArchivo,
 }) => {
   const t = useTextos();
   const [modo, setModo] = useState<'auto' | 'habilitado' | 'inhabilitado'>('auto');
   const [motivo, setMotivo] = useState('');
-  const [ficha, setFicha] = useState<FichaMedicaForm>({ vencimiento: '', fechaExamen: '', clinica: '' });
+  const [ficha, setFicha] = useState<FichaMedicaForm>({ vencimiento: '', clinica: '' });
+  const [estudio, setEstudio] = useState<EstudioForm>({ ultimoExamen: null, excepcion: null });
   const [carne, setCarne] = useState<CarneLudForm>({ idFederado: null, vencimiento: null, archivo: null });
-  const [guardando, setGuardando] = useState<'hab' | 'ficha' | 'carne' | null>(null);
-  const [error, setError] = useState<{ seccion: 'hab' | 'ficha' | 'carne'; texto: string } | null>(null);
+  const [guardando, setGuardando] = useState<Seccion | null>(null);
+  const [error, setError] = useState<{ seccion: Seccion; texto: string } | null>(null);
 
   useEffect(() => {
     if (!player) return;
     setModo(player.eligibilityOverride?.status ?? 'auto');
     setMotivo(player.eligibilityOverride?.reason ?? '');
-    setFicha({ vencimiento: '', fechaExamen: '', clinica: player.medicalCertificate.clinic });
+    setFicha({ vencimiento: '', clinica: player.medicalCertificate.clinic });
+    setEstudio({ ultimoExamen: player.study?.lastExam ?? null, excepcion: player.study?.exception ?? null });
     setCarne({
       idFederado: player.ludRegistration.federatedId || null,
       vencimiento: player.ludRegistration.cardExpiry ?? null,
@@ -115,7 +127,7 @@ export const DocumentosModal: React.FC<DocumentosModalProps> = ({
   );
   const mc = player.medicalCertificate;
 
-  const guardar = async (seccion: 'hab' | 'ficha' | 'carne', accion: () => Promise<boolean>) => {
+  const guardar = async (seccion: Seccion, accion: () => Promise<boolean>) => {
     setError(null);
     setGuardando(seccion);
     await accion();
@@ -129,14 +141,15 @@ export const DocumentosModal: React.FC<DocumentosModalProps> = ({
 
   const handleFicha = () => {
     if (!ficha.vencimiento) return setError({ seccion: 'ficha', texto: 'Poné la fecha de vencimiento de la ficha.' });
-    if (ficha.fechaExamen && ficha.fechaExamen > ficha.vencimiento)
-      return setError({ seccion: 'ficha', texto: 'La fecha del examen no puede ser posterior al vencimiento.' });
     return guardar('ficha', async () => {
       const ok = await onCargarFichaMedica(ficha);
-      if (ok) setFicha((f) => ({ ...f, vencimiento: '', fechaExamen: '' }));
+      if (ok) setFicha((f) => ({ ...f, vencimiento: '' }));
       return ok;
     });
   };
+
+  const handleEstudio = () => guardar('estudio', () => onGuardarEstudio(estudio));
+  const est = estadoEstudio(player);
 
   const handleCarne = () => {
     const e = errorArchivo(carne.archivo);
@@ -148,7 +161,7 @@ export const DocumentosModal: React.FC<DocumentosModalProps> = ({
     });
   };
 
-  const Error = ({ seccion }: { seccion: 'hab' | 'ficha' | 'carne' }) =>
+  const Error = ({ seccion }: { seccion: Seccion }) =>
     error?.seccion === seccion ? (
       <p role="alert" className="rounded-lg bg-[#ffdad6] text-[#410002] px-3 py-2 font-sans text-[13px]">
         {error.texto}
@@ -227,7 +240,7 @@ export const DocumentosModal: React.FC<DocumentosModalProps> = ({
             </button>
           </Seccion>
 
-          <Seccion titulo="Ficha médica" icono="medical_services">
+          <Seccion titulo="Carné de salud (ficha médica)" icono="medical_services">
             <div className="flex items-center justify-between gap-2 bg-[#f2f4f7] rounded-lg px-3 py-2">
               <div className="font-sans text-[12px] text-[#44474f]">
                 {mc.expiryDate ? (
@@ -235,7 +248,6 @@ export const DocumentosModal: React.FC<DocumentosModalProps> = ({
                     <strong className={mc.daysRemaining <= 0 ? 'text-[#ba1a1a]' : 'text-[#00183a]'}>
                       {mc.daysRemaining <= 0 ? 'Vencida el' : 'Vence el'} {fechaCorta(mc.expiryDate)}
                     </strong>
-                    {mc.examDate && <span> · examen {fechaCorta(mc.examDate)}</span>}
                   </>
                 ) : (
                   'Sin ficha médica cargada'
@@ -243,26 +255,15 @@ export const DocumentosModal: React.FC<DocumentosModalProps> = ({
               </div>
             </div>
             <p className="font-heading text-[11px] font-bold text-[#44474f]">Cargar ficha nueva</p>
-            <div className="grid grid-cols-2 gap-3">
-              <label className="flex flex-col gap-1">
-                <span className={labelClass}>Fecha examen</span>
-                <input
-                  type="date"
-                  className={inputClass}
-                  value={ficha.fechaExamen}
-                  onChange={(e) => setFicha({ ...ficha, fechaExamen: e.target.value })}
-                />
-              </label>
-              <label className="flex flex-col gap-1">
-                <span className={labelClass}>Vence *</span>
-                <input
-                  type="date"
-                  className={inputClass}
-                  value={ficha.vencimiento}
-                  onChange={(e) => setFicha({ ...ficha, vencimiento: e.target.value })}
-                />
-              </label>
-            </div>
+            <label className="flex flex-col gap-1">
+              <span className={labelClass}>Vence *</span>
+              <input
+                type="date"
+                className={inputClass}
+                value={ficha.vencimiento}
+                onChange={(e) => setFicha({ ...ficha, vencimiento: e.target.value })}
+              />
+            </label>
             <label className="flex flex-col gap-1">
               <span className={labelClass}>Clínica / prestador</span>
               <input
@@ -274,6 +275,52 @@ export const DocumentosModal: React.FC<DocumentosModalProps> = ({
             <Error seccion="ficha" />
             <button type="button" onClick={handleFicha} disabled={guardando !== null} className={btnPrimario}>
               {guardando === 'ficha' ? 'Guardando…' : 'Guardar ficha médica'}
+            </button>
+          </Seccion>
+
+          <Seccion titulo="Estudio" icono="school">
+            <div
+              className={`rounded-lg px-3 py-2 font-sans text-[12px] ${
+                est.estado === 'vencido'
+                  ? 'bg-[#ffdad6] text-[#410002]'
+                  : est.estado === 'sin_dato'
+                  ? 'bg-amber-50 text-amber-900'
+                  : 'bg-[#f2f4f7] text-[#44474f]'
+              }`}
+            >
+              <strong>{describirEstudio(est)}</strong>
+              <span className="block text-[11px] mt-0.5">
+                La LUD pide un examen aprobado posterior al {corteTexto()} (salvo recibidos o con artículo).
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="flex flex-col gap-1">
+                <span className={labelClass}>Último examen</span>
+                <input
+                  type="date"
+                  className={inputClass}
+                  value={estudio.ultimoExamen ?? ''}
+                  onChange={(e) => setEstudio({ ...estudio, ultimoExamen: e.target.value || null })}
+                />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className={labelClass}>Excepción</span>
+                <select
+                  className={inputClass}
+                  value={estudio.excepcion ?? ''}
+                  onChange={(e) =>
+                    setEstudio({ ...estudio, excepcion: (e.target.value || null) as EstudioForm['excepcion'] })
+                  }
+                >
+                  <option value="">Ninguna</option>
+                  <option value="recibido">Recibido</option>
+                  <option value="articulo">Con artículo</option>
+                </select>
+              </label>
+            </div>
+            <Error seccion="estudio" />
+            <button type="button" onClick={handleEstudio} disabled={guardando !== null} className={btnPrimario}>
+              {guardando === 'estudio' ? 'Guardando…' : 'Guardar estudio'}
             </button>
           </Seccion>
 
