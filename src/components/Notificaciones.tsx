@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { VentanaImprimible } from './VentanaImprimible';
 import { alCambiarInstalacion, modoInstalar } from '../lib/instalar';
 import QRCode from 'qrcode';
-import { activarPush, desactivarPush, esIOS, EstadoPush, estadoPush } from '../lib/push';
+import { activarPush, desactivarPush, esIOS, EstadoPush, estadoPush, sincronizarPush } from '../lib/push';
 import { useTextos } from '../lib/textos';
 
 /** Estado de las notificaciones en este celular, con acciones para cambiarlo. */
@@ -168,6 +168,10 @@ export const TarjetaNotificaciones: React.FC = () => {
  */
 export const VentanaNotificaciones: React.FC = () => {
   const { estado, ocupado, error, activar, refrescar } = useNotificaciones();
+  // Ya activadas: se vuelve a guardar la suscripción (email y ficha al día).
+  useEffect(() => {
+    if (estado === 'activo') void sincronizarPush().catch(() => undefined);
+  }, [estado]);
   const [cerrada, setCerrada] = useState(false);
   const [listo, setListo] = useState(false);
   const [, setInstalacion] = useState(0);

@@ -984,7 +984,7 @@ export default function App({ perfil, onLogout, onRecargarPerfil }: AppProps) {
       <EnvioAvisoModal envio={envio} onClose={() => setEnvio(null)} onRegistrar={handleRegistrarEnvio} />
       <CartelModal abierto={verCartel} onClose={() => setVerCartel(false)} />
       {/* Al abrir la app: pedir que active las notificaciones hasta que lo haga. */}
-      {dataMode === 'supabase' && perfil?.jugadorId && <VentanaNotificaciones />}
+      {dataMode === 'supabase' && perfil?.rol && <VentanaNotificaciones />}
 
       <BuscadorJugadores
         abierto={verBuscador}
