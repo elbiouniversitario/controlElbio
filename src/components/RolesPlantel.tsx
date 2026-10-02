@@ -94,7 +94,7 @@ export const RolesPlantel: React.FC<{
         </div>
       )}
       <p className="font-sans text-[11px] text-[#747780]">
-        El cambio se aplica la próxima vez que esa persona abra la app.
+        El rol queda guardado al elegirlo. Si esa persona tenía la app abierta, lo ve al cerrarla y volver a abrirla.
       </p>
     </div>
   );
