@@ -6,6 +6,9 @@
 //     (urgente) y el día que vence;
 //   - cuota del mes sin pagar: 3 días antes y el día que vence;
 //   - cumpleaños: ese día.
+// Y a los delegados (rol que asigna el admin en Club → Roles del plantel),
+// un resumen de quién está por deber la cuota (3 días antes y el día que
+// vence) y de quién la debe (todos los lunes y los días después del vencimiento).
 // Cada aviso se manda una sola vez (tabla avisos_automaticos). Los avisos se
 // prenden y apagan en Alertas → Avisos activos (tabla reglas_automatizacion).
 //
@@ -47,7 +50,7 @@ export interface Ajustes {
 export interface Aviso {
   jugadorId: string;
   jugadorNombre: string;
-  tipo: 'ficha_medica' | 'carne_lud' | 'cuota' | 'cumpleanios';
+  tipo: 'ficha_medica' | 'carne_lud' | 'cuota' | 'cumpleanios' | 'resumen_cuotas';
   referencia: string;
   hito: string;
   titulo: string;
@@ -165,6 +168,64 @@ export function calcularAvisos(jugadores: JugadorAvisos[], a: Ajustes, hoy: stri
   return avisos;
 }
 
+const listaNombres = (js: JugadorAvisos[]) => {
+  const nombres = js.map((j) => `${j.nombre} ${j.apellido}`);
+  return nombres.length <= 4 ? nombres.join(', ') : `${nombres.slice(0, 4).join(', ')} y ${nombres.length - 4} más`;
+};
+
+/**
+ * Resumen de cuotas para los delegados: quién está por deber (3 días antes
+ * y el día del vencimiento) y quién debe (los lunes y del vencimiento en
+ * adelante, un aviso por día como máximo).
+ */
+export function calcularResumenDelegados(
+  jugadores: JugadorAvisos[],
+  delegados: { id: string; nombre: string; apellido: string }[],
+  a: Ajustes,
+  hoy: string
+): Aviso[] {
+  if (a.apagadas.has('cuota_mensual') || delegados.length === 0) return [];
+  const [anio, mes] = hoy.split('-').map(Number);
+  const periodoActual = `${hoy.slice(0, 7)}-01`;
+  const ultimoDiaMes = new Date(Date.UTC(anio, mes, 0)).getUTCDate();
+  const diaVence = Math.min(Math.max(a.diaVencimientoCuota, 1), ultimoDiaMes);
+  const dias = diasEntre(hoy, `${hoy.slice(0, 7)}-${String(diaVence).padStart(2, '0')}`);
+  const esLunes = new Date(`${hoy}T12:00:00Z`).getUTCDay() === 1;
+
+  // Deben: cuotas de meses anteriores sin pagar, o la de este mes si ya venció.
+  const deben = jugadores.filter((j) =>
+    j.cuotasImpagas.some((c) => c.periodo < periodoActual || (c.periodo === periodoActual && dias < 0))
+  );
+  // Por deber: la de este mes sin pagar, todavía no vencida (y que no deban de antes).
+  const porDeber = jugadores.filter(
+    (j) => !deben.includes(j) && j.cuotasImpagas.some((c) => c.periodo === periodoActual) && dias >= 0
+  );
+
+  const partes: string[] = [];
+  let titulo = '';
+  if ((dias === 3 || dias === 0) && porDeber.length) {
+    titulo = dias === 0 ? `Hoy vence la cuota: ${porDeber.length} sin pagar` : `En 3 días vence la cuota: ${porDeber.length} sin pagar`;
+    partes.push(`Por deber: ${listaNombres(porDeber)}.`);
+  }
+  // Los que deben van los lunes, los días después del vencimiento y junto con el aviso de "por deber".
+  if ((esLunes || (dias < 0 && dias >= -3) || titulo) && deben.length) {
+    if (!titulo) titulo = `${deben.length} ${deben.length === 1 ? 'jugador debe' : 'jugadores deben'} la cuota`;
+    partes.push(`Deben: ${listaNombres(deben)}.`);
+  }
+  if (!titulo) return [];
+  const cuerpo = `${partes.join(' ')} Mirá el detalle en Alertas.`;
+  return delegados.map((d) => ({
+    jugadorId: d.id,
+    jugadorNombre: `${d.nombre} ${d.apellido}`,
+    tipo: 'resumen_cuotas' as const,
+    referencia: hoy,
+    hito: 'dia',
+    titulo,
+    cuerpo,
+    tipoHistorial: 'cuota' as const,
+  }));
+}
+
 // ---------------------------------------------------------------------------
 // Cron
 // ---------------------------------------------------------------------------
@@ -251,7 +312,11 @@ export async function GET(request: Request): Promise<Response> {
     });
 
   const yaEnviado = new Set((enviadosR.data ?? []).map((e) => `${e.jugador_id}|${e.tipo}|${e.referencia}|${e.hito}`));
-  const avisos = calcularAvisos(jugadores, ajustes, hoy).filter(
+  // Delegados (columna rol_club de la migración 9; si todavía no se corrió, no hay resumen).
+  const delegadosR = await db.from('jugadores').select('id, nombre, apellido, activo').eq('rol_club', 'delegado');
+  const delegados = delegadosR.error ? [] : (delegadosR.data ?? []).filter((d) => d.activo !== false);
+
+  const avisos = [...calcularAvisos(jugadores, ajustes, hoy), ...calcularResumenDelegados(jugadores, delegados, ajustes, hoy)].filter(
     (a) => !yaEnviado.has(`${a.jugadorId}|${a.tipo}|${a.referencia}|${a.hito}`)
   );
 

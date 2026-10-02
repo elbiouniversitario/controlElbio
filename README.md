@@ -159,6 +159,8 @@ Todos los días a las 9:00 (hora de Uruguay; Vercel puede demorarlo hasta una ho
 | Ficha médica y carné LUD | cuando faltan los días de *Alerta urgente* (5) y el día que vence | Urgentes |
 | Cuota del mes sin pagar | 3 días antes y el día de vencimiento (*Textos → Tesorería*) | Cuotas pendientes |
 | Cumpleaños | ese día | Cumpleaños |
+| **A los delegados:** quién está por deber la cuota | 3 días antes y el día de vencimiento | Cuotas pendientes |
+| **A los delegados:** quién debe la cuota | los lunes y los 3 días después del vencimiento | Cuotas pendientes |
 
 - Cada aviso se manda **una sola vez** (tabla `avisos_automaticos`). Si el jugador no tiene las notificaciones activadas, no se marca: le llega cuando las active, si todavía corresponde.
 - Lo vencido hace más de 3 días no se avisa solo (se ve en Alertas).

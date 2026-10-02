@@ -101,7 +101,7 @@ const DESCRIPCION_REGLA: Record<string, (t: ReturnType<typeof useTextos>) => str
     `Aviso automático cuando faltan ${t.dias_alerta_urgente} días y el día que vence. En la lista, en rojo.`,
   cumpleanios: () => 'Saludo automático el día del cumpleaños.',
   cuota_mensual: (t) =>
-    `Recordatorio automático de la cuota pendiente: 3 días antes y el día ${t.cuota_dia_vencimiento}, cuando vence.`,
+    `Recordatorio automático de la cuota pendiente: 3 días antes y el día ${t.cuota_dia_vencimiento}, cuando vence. A los delegados les llega quién debe o está por deber.`,
 };
 
 const TITULO_REGLA: Record<string, (t: ReturnType<typeof useTextos>) => string> = {
