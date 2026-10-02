@@ -144,8 +144,8 @@ En **Textos de la app** conviene completar: celular y nombre del **delegado** (b
 | Rol | Ve | Puede |
 |---|---|---|
 | Jugador | Mi ficha | Confirmar asistencia, ver cuotas y avisos |
-| Delegado | Alertas, Planilla, Mi ficha | Cargar ficha médica, carné LUD (y foto) y habilitación; mandar avisos |
-| Cuerpo técnico | Alertas, Planilla, Mi ficha | Lo del delegado + editar jugadores, dar de alta, convocatoria y próximo partido |
+| Cuerpo técnico | Alertas, Planilla, Mi ficha | Editar y dar de alta jugadores, cargar ficha médica, carné LUD y habilitación, convocatoria, próximo partido y avisos |
+| Delegado | Alertas, Planilla, Mi ficha | Lo mismo que el cuerpo técnico, y además le llega por notificación quién debe o está por deber la cuota |
 | Tesorería, admin | (por email, *+ Dar acceso al staff*) | Cuotas / todo |
 
 ## Notificaciones de la app

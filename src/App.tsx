@@ -53,9 +53,8 @@ function vistasPermitidas(perfil: Perfil | null): TabType[] {
     case 'admin':
       return TODAS_LAS_VISTAS.filter((v) => v !== 'jugador' || perfil.jugadorId);
     case 'dt':
-      return ['alertas', 'planilla', 'nuevo-jugador', ...miFicha];
     case 'delegado':
-      return ['alertas', 'planilla', ...miFicha];
+      return ['alertas', 'planilla', 'nuevo-jugador', ...miFicha];
     case 'tesorero':
       return ['tesoreria', 'alertas', ...miFicha];
     default:
@@ -137,9 +136,9 @@ export default function App({ perfil, onLogout, onRecargarPerfil }: AppProps) {
   const [documentosId, setDocumentosId] = useState<string | null>(null);
   const jugadorDocumentos = players.find((p) => p.id === documentosId) ?? null;
   // Editar fichas: DT y admin (en modo demo, todos).
-  const puedeEditarJugadores = !perfil || perfil.rol === 'admin' || perfil.rol === 'dt';
-  // El delegado también carga ficha médica, carné LUD y habilitación.
-  const puedeCargarDocumentos = puedeEditarJugadores || perfil?.rol === 'delegado';
+  // Admin, cuerpo técnico y delegado: alta, edición, documentos, convocatoria y próximo partido.
+  const puedeEditarJugadores = !perfil || perfil.rol === 'admin' || perfil.rol === 'dt' || perfil.rol === 'delegado';
+  const puedeCargarDocumentos = puedeEditarJugadores;
 
   const showToast = (
     message: string,

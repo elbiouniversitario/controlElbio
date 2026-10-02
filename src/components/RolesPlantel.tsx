@@ -9,8 +9,8 @@ const ETIQUETA: Record<RolClub, string> = {
 
 const DESCRIPCION: Record<RolClub, string> = {
   jugador: 'Ve su ficha, sus cuotas y los avisos.',
-  delegado: 'Ve el plantel, Alertas y la Planilla. Carga ficha médica, carné LUD y habilitación.',
-  dt: 'Además arma la convocatoria, edita jugadores, da de alta y carga el próximo partido.',
+  delegado: 'Igual que el cuerpo técnico, y además le llegan los avisos de quién debe o está por deber la cuota.',
+  dt: 'Ve Alertas y la Planilla; edita y da de alta jugadores, carga documentos, arma la convocatoria y el próximo partido.',
 };
 
 /**
