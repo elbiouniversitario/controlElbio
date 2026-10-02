@@ -25,7 +25,7 @@ const Marco: React.FC<{ titulo: string; subtitulo?: string; children: React.Reac
   children,
 }) => (
   <div className="min-h-screen bg-[#00183a] flex flex-col items-center justify-center px-4 py-10 pt-[max(2.5rem,env(safe-area-inset-top))]">
-    <img src="/icons/icon-192.png" alt="" className="w-20 h-20 rounded-2xl shadow-lg mb-4" />
+    <img src="/escudo.png" alt="Escudo Club Elbio Fernández" className="h-28 w-auto drop-shadow-lg mb-4" />
     <p className="font-heading font-extrabold text-[11px] uppercase tracking-[0.2em] text-[#fabc4d]">
       Club Elbio Fernández
     </p>

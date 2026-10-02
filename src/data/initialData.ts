@@ -517,5 +517,6 @@ export const CLUB_ROLES: ClubRole[] = [
   },
 ];
 
-export const CLUB_CREST_URL = 'https://lh3.googleusercontent.com/aida-public/AB6AXuCSYXxGRcCR6zA1GJJz2bmAMAz4R7nsWafPVNgvMZw7JmxlJ03k-GNqEyL9ZAGBeKhcBFvFCW0EaRh-KDhorzwn01WKlG2zygvL0SjTp8sTZGGkhV7LKw1DGE8D9V82uP5EuVyybrI8Whe5hdxMLTa5xquj0K1GxCAQRZBnDvfGmZP2rpXa_sr5M1cyaxMlUE9vYIWf0VFrEIE8zZR_BlhYWEDg43HhWs3vFGOEhPweKQOL7wtbbOZFNyG0IecfsK-71w';
-export const CLUB_CREST_WATERMARK = 'https://lh3.googleusercontent.com/aida-public/AB6AXuAIxLmgnY8vteUqFWJpASqZF2VeT1YYdoMiE40iyh2mvxVaD5C27Lhj5fJRmIKrPj7k6KMutkjGkrPUTVEn5bUkDzt9cydAQOMPRDqd-L3XJMs9ATyMdpCpv_4MdUBiF5PCShJ_P3lNUaCoSH2y4bDvR2WDsN-gT57kVQZQa4ZWOShDjwNQwqhYh3q6yJCRW4EMu1DoYMqyctyN6oGZUiZZBcK7X5a628POAYTufJM2pN9Ydlh0sPLlNpzlDzBcfTHxiw';
+/** Escudo oficial del club (public/escudo.png, fondo transparente). */
+export const CLUB_CREST_URL = '/escudo.png';
+export const CLUB_CREST_WATERMARK = '/escudo.png';

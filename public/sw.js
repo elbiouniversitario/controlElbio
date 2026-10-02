@@ -3,8 +3,8 @@
 // - Archivos de la app (/assets, íconos) y fuentes de Google: copia guardada, actualizada en segundo plano.
 // - Supabase y cualquier otra API: nunca se guardan, siempre van a la red.
 // - Notificaciones: muestra los avisos que manda el staff y abre la app al tocarlos.
-const CACHE = 'elbio-lud-v2';
-const PRECACHE = ['/', '/manifest.webmanifest', '/apple-touch-icon.png', '/icons/icon-192.png', '/icons/icon-512.png'];
+const CACHE = 'elbio-lud-v3';
+const PRECACHE = ['/', '/manifest.webmanifest', '/escudo.png', '/apple-touch-icon.png', '/icons/icon-192.png', '/icons/icon-512.png'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE).then((c) => c.addAll(PRECACHE)).then(() => self.skipWaiting()));

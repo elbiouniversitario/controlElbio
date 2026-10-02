@@ -169,7 +169,6 @@ Archivos: `public/manifest.webmanifest` (nombre, colores e íconos), `public/sw.
 
 - Ver y quitar desde la app los celulares vinculados a cada jugador (hoy: tabla `vinculos_jugador`)
 - Fotos de perfil de los jugadores (hoy se muestran las iniciales)
-- Escudo del club: hoy apunta a una URL temporal de AI Studio; conviene subirlo a `public/`
 - Monto de la cuota al dar de alta: `alta_jugador` crea la cuota del mes con el monto por defecto de la tabla (1400), no con el de Textos → Tesorería
 
 ### Pendiente: cobros con dLocal Go
