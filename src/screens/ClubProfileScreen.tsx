@@ -56,12 +56,15 @@ export const ClubProfileScreen: React.FC<ClubProfileScreenProps> = ({
   const [verActa, setVerActa] = useState(false);
   // Cuántos jugadores activaron las notificaciones (null mientras carga).
   const [conPush, setConPush] = useState<Set<string> | null>(isSupabaseConfigured ? null : new Set());
-  useEffect(() => {
+  const [verQuienesPush, setVerQuienesPush] = useState(false);
+  const cargarConPush = () => {
     if (!isSupabaseConfigured) return;
+    setConPush(null);
     jugadoresConPush()
       .then(setConPush)
       .catch(() => setConPush(new Set()));
-  }, []);
+  };
+  useEffect(cargarConPush, []);
   const [rolAbierto, setRolAbierto] = useState<string | null>(null);
   const [fichaElegida, setFichaElegida] = useState('');
   const [asociando, setAsociando] = useState(false);
@@ -117,8 +120,12 @@ export const ClubProfileScreen: React.FC<ClubProfileScreenProps> = ({
 
   const handleExportPdf = () => setVerActa(true);
 
+  // Staff por email (miembros) + jugadores a los que el admin les dio rol en Roles del plantel.
   const cantidadRol = (key?: string) =>
-    key === 'jugador' ? players.length : miembros.filter((m) => m.rol === key).length;
+    key === 'jugador'
+      ? players.length
+      : miembros.filter((m) => m.rol === key).length + players.filter((p) => p.rolClub === key).length;
+  const cantidadStaff = miembros.length + players.filter((p) => p.rolClub && p.rolClub !== 'jugador').length;
 
   return (
     <div className="flex flex-col w-full pb-28">
@@ -165,7 +172,7 @@ export const ClubProfileScreen: React.FC<ClubProfileScreenProps> = ({
         {/* Quick Vital Metrics Ribbon */}
         <div className="grid grid-cols-3 gap-2 bg-[#0d2d59]/70 backdrop-blur-md p-2.5 rounded-xl border border-white/10">
           <div className="flex flex-col items-center text-center p-1">
-            <span className="font-heading font-bold text-[18px] text-[#fabc4d]">{miembros.length}</span>
+            <span className="font-heading font-bold text-[18px] text-[#fabc4d]">{cantidadStaff}</span>
             <span className="font-heading font-extrabold text-[10px] text-[#7b96c8] uppercase tracking-tight">
               Staff
             </span>
@@ -430,11 +437,49 @@ export const ClubProfileScreen: React.FC<ClubProfileScreenProps> = ({
                 Avisos por notificación
               </label>
               <div className="bg-[#f2f4f7] p-3 rounded-lg flex flex-col gap-1 border border-[#e0e3e6]">
-                <span className="font-heading font-bold text-[13px] text-[#00183a]">
-                  {conPush === null
-                    ? 'Notificaciones activadas: …'
-                    : `${players.filter((p) => conPush.has(p.id)).length} de ${players.length} jugadores las activaron`}
-                </span>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-heading font-bold text-[13px] text-[#00183a]">
+                    {conPush === null
+                      ? 'Notificaciones activadas: …'
+                      : `${players.filter((p) => conPush.has(p.id)).length} de ${players.length} jugadores las activaron`}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={cargarConPush}
+                    className="font-heading text-[11px] font-bold text-[#445e8d] underline shrink-0"
+                  >
+                    Actualizar
+                  </button>
+                </div>
+                {conPush && players.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setVerQuienesPush((v) => !v)}
+                    className="self-start font-heading text-[11px] font-bold text-[#445e8d] underline"
+                  >
+                    {verQuienesPush ? 'Ocultar la lista' : 'Ver quiénes'}
+                  </button>
+                )}
+                {conPush && verQuienesPush && (
+                  <div className="max-h-64 overflow-y-auto rounded-lg bg-white border border-[#e0e3e6] divide-y divide-[#eceef1]">
+                    {[...players]
+                      .sort((a, b) => Number(conPush.has(a.id)) - Number(conPush.has(b.id)) || a.lastName.localeCompare(b.lastName))
+                      .map((p) => (
+                        <div key={p.id} className="flex items-center justify-between px-3 py-1.5">
+                          <span className="font-sans text-[12px] text-[#191c1e] truncate">
+                            {p.lastName}, {p.firstName}
+                          </span>
+                          <span
+                            className={`font-heading text-[10px] font-bold shrink-0 ${
+                              conPush.has(p.id) ? 'text-emerald-700' : 'text-[#ba1a1a]'
+                            }`}
+                          >
+                            {conPush.has(p.id) ? 'Activadas' : 'No las activó'}
+                          </span>
+                        </div>
+                      ))}
+                  </div>
+                )}
                 <span className="font-sans text-[11px] text-[#44474f]">
                   Los vencimientos, cuotas y cumpleaños se avisan solos todos los días a la mañana. Se prenden y
                   apagan en Alertas → Avisos activos.
