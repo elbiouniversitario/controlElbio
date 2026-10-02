@@ -4,7 +4,7 @@ import { CLUB_CREST_URL } from '../data/initialData';
 import { ClubRole, Player, RolClub } from '../types';
 import { bloquearPorDeuda, estadoHabilitacion } from '../lib/habilitacion';
 import { fechaCorta } from '../lib/fechas';
-import { jugadoresConPush } from '../lib/push';
+import { emailsConPush, jugadoresConPush } from '../lib/push';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { Textos } from '../lib/textos';
 import { TextosEditor } from '../components/TextosEditor';
@@ -56,6 +56,7 @@ export const ClubProfileScreen: React.FC<ClubProfileScreenProps> = ({
   const [verActa, setVerActa] = useState(false);
   // Cuántos jugadores activaron las notificaciones (null mientras carga).
   const [conPush, setConPush] = useState<Set<string> | null>(isSupabaseConfigured ? null : new Set());
+  const [staffConPush, setStaffConPush] = useState<Set<string>>(new Set());
   const [verQuienesPush, setVerQuienesPush] = useState(false);
   const cargarConPush = () => {
     if (!isSupabaseConfigured) return;
@@ -63,6 +64,7 @@ export const ClubProfileScreen: React.FC<ClubProfileScreenProps> = ({
     jugadoresConPush()
       .then(setConPush)
       .catch(() => setConPush(new Set()));
+    void emailsConPush().then(setStaffConPush);
   };
   useEffect(cargarConPush, []);
   const [rolAbierto, setRolAbierto] = useState<string | null>(null);
@@ -453,7 +455,10 @@ export const ClubProfileScreen: React.FC<ClubProfileScreenProps> = ({
                   <span className="font-heading font-bold text-[13px] text-[#00183a]">
                     {conPush === null
                       ? 'Notificaciones activadas: …'
-                      : `${players.filter((p) => conPush.has(p.id)).length} de ${players.length} jugadores las activaron`}
+                      : `${players.filter((p) => conPush.has(p.id)).length} de ${players.length} jugadores las activaron` +
+                        (miembros.length
+                          ? ` · staff: ${miembros.filter((m) => staffConPush.has(m.email.toLowerCase())).length} de ${miembros.length}`
+                          : '')}
                   </span>
                   <button
                     type="button"
@@ -474,6 +479,25 @@ export const ClubProfileScreen: React.FC<ClubProfileScreenProps> = ({
                 )}
                 {conPush && verQuienesPush && (
                   <div className="max-h-64 overflow-y-auto rounded-lg bg-white border border-[#e0e3e6] divide-y divide-[#eceef1]">
+                    {/* Staff que entra con email */}
+                    {miembros.map((m) => {
+                      const activo = staffConPush.has(m.email.toLowerCase());
+                      return (
+                        <div key={m.email} className="flex items-center justify-between px-3 py-1.5 bg-[#f7f9fc]">
+                          <span className="font-sans text-[12px] text-[#191c1e] truncate">
+                            <strong className="font-heading text-[10px] text-[#445e8d] uppercase mr-1">Staff</strong>
+                            {m.nombre || m.email}
+                          </span>
+                          <span
+                            className={`font-heading text-[10px] font-bold shrink-0 ${
+                              activo ? 'text-emerald-700' : 'text-[#ba1a1a]'
+                            }`}
+                          >
+                            {activo ? 'Activadas' : 'No las activó'}
+                          </span>
+                        </div>
+                      );
+                    })}
                     {[...players]
                       .sort((a, b) => Number(conPush.has(a.id)) - Number(conPush.has(b.id)) || a.lastName.localeCompare(b.lastName))
                       .map((p) => (

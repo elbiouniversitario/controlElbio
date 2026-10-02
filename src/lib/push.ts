@@ -64,6 +64,24 @@ export async function activarPush(): Promise<EstadoPush> {
   return 'activo';
 }
 
+/**
+ * Con las notificaciones ya activadas, vuelve a guardar la suscripción de
+ * este celular (por si cambió el email, la ficha o se guardó sin email).
+ */
+export async function sincronizarPush(): Promise<void> {
+  if (!supabase || !soporta() || Notification.permission !== 'granted') return;
+  const reg = await navigator.serviceWorker.getRegistration();
+  const sub = await reg?.pushManager.getSubscription();
+  if (!sub) return;
+  const datos = sub.toJSON();
+  await supabase.rpc('guardar_suscripcion_push', {
+    p_endpoint: sub.endpoint,
+    p_p256dh: datos.keys?.p256dh ?? '',
+    p_auth: datos.keys?.auth ?? '',
+    p_dispositivo: navigator.userAgent,
+  });
+}
+
 export async function desactivarPush(): Promise<void> {
   const reg = await navigator.serviceWorker.getRegistration();
   const sub = await reg?.pushManager.getSubscription();
@@ -78,6 +96,14 @@ export async function jugadoresConPush(): Promise<Set<string>> {
   const { data, error } = await supabase.rpc('jugadores_con_push');
   if (error) throw error;
   return new Set((data as string[] | null) ?? []);
+}
+
+/** Staff: emails que activaron las notificaciones (staff que entra con email). Vacío si falta la migración 10. */
+export async function emailsConPush(): Promise<Set<string>> {
+  if (!supabase) return new Set();
+  const { data, error } = await supabase.rpc('emails_con_push');
+  if (error) return new Set();
+  return new Set(((data as string[] | null) ?? []).map((e) => e.toLowerCase()));
 }
 
 export interface ResultadoNotificacion {

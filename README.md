@@ -43,6 +43,7 @@ Archivos:
 - `supabase/migrations/20261002000000_notificaciones_push.sql`: notificaciones de la app (suscripciones de cada celular y funciones para mandarlas)
 - `supabase/migrations/20261003000000_avisos_automaticos.sql`: registro de los avisos automáticos ya mandados
 - `supabase/migrations/20261004000000_anotarse_y_roles.sql`: los jugadores se anotan solos; rol de cada jugador (jugador, delegado, cuerpo técnico)
+- `supabase/migrations/20261005000000_notificaciones_staff.sql`: las suscripciones guardan el email, para ver en Club qué miembros del staff activaron las notificaciones
 - `src/lib/supabase.ts`: cliente; `src/lib/db.ts`: lecturas y escrituras
 
 ### Puesta en marcha (una sola vez)
