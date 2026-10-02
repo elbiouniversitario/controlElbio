@@ -27,7 +27,7 @@ import {
 // Screens
 import { AlertasVencimientosScreen, ClavePlantilla, PLANTILLAS } from './screens/AlertasVencimientosScreen';
 import { EnvioAviso, EnvioAvisoModal } from './components/EnvioAvisoModal';
-import { BannerNotificaciones, CartelModal } from './components/Notificaciones';
+import { CartelModal, VentanaNotificaciones } from './components/Notificaciones';
 import { TesoreriaCuotasScreen } from './screens/TesoreriaCuotasScreen';
 import { PlanillaOpsScreen } from './screens/PlanillaOpsScreen';
 import { PerfilJugadorScreen } from './screens/PerfilJugadorScreen';
@@ -792,12 +792,6 @@ export default function App({ perfil, onLogout, onRecargarPerfil }: AppProps) {
           </div>
         )}
 
-        {dataMode === 'supabase' && perfil?.jugadorId && currentTab !== 'jugador' && (
-          <div className="mb-3">
-            <BannerNotificaciones />
-          </div>
-        )}
-
         {dataMode === 'demo' && (
           <div
             role="status"
@@ -989,6 +983,8 @@ export default function App({ perfil, onLogout, onRecargarPerfil }: AppProps) {
 
       <EnvioAvisoModal envio={envio} onClose={() => setEnvio(null)} onRegistrar={handleRegistrarEnvio} />
       <CartelModal abierto={verCartel} onClose={() => setVerCartel(false)} />
+      {/* Al abrir la app: pedir que active las notificaciones hasta que lo haga. */}
+      {dataMode === 'supabase' && perfil?.jugadorId && <VentanaNotificaciones />}
 
       <BuscadorJugadores
         abierto={verBuscador}

@@ -44,8 +44,9 @@ function claveBinaria(base64: string): Uint8Array<ArrayBuffer> {
 
 /** Pide permiso y guarda la suscripción de este celular. Devuelve el estado final. */
 export async function activarPush(): Promise<EstadoPush> {
-  if (!supabase) throw new Error('La app no está conectada a la base de datos');
+  // Primero el pedido de permiso: iPhone solo muestra su cartel si sale directo del toque.
   const permiso = await Notification.requestPermission();
+  if (!supabase) throw new Error('La app no está conectada a la base de datos');
   if (permiso === 'denied') return 'bloqueado';
   if (permiso !== 'granted') return 'inactivo';
   const reg = await navigator.serviceWorker.ready;

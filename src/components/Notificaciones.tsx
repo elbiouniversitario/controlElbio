@@ -42,7 +42,7 @@ function useNotificaciones() {
     }
   };
 
-  return { estado, ocupado, error, activar, desactivar };
+  return { estado, ocupado, error, activar, desactivar, refrescar };
 }
 
 /** Pasos para agregar la app a la pantalla de inicio (en iPhone es obligatorio para recibir avisos). */
@@ -160,64 +160,108 @@ export const TarjetaNotificaciones: React.FC = () => {
   );
 };
 
-const CLAVE_CERRADO = 'avisoNotificacionesCerrado';
+/**
+ * Ventana que aparece al abrir la app (o al volver a ella) mientras las
+ * notificaciones no estén activadas en ese celular. "Ahora no" la cierra
+ * hasta la próxima vez que se abra la app; activadas, no aparece más.
+ */
+export const VentanaNotificaciones: React.FC = () => {
+  const { estado, ocupado, error, activar, refrescar } = useNotificaciones();
+  const [cerrada, setCerrada] = useState(false);
+  const [listo, setListo] = useState(false);
 
-/** Aviso arriba de todo para quien todavía no activó las notificaciones. Se puede cerrar por una semana. */
-export const BannerNotificaciones: React.FC = () => {
-  const { estado, ocupado, activar } = useNotificaciones();
-  const [cerrado, setCerrado] = useState(() => {
-    try {
-      return Number(localStorage.getItem(CLAVE_CERRADO) ?? 0) > Date.now();
-    } catch {
-      return false;
-    }
-  });
-  const [verPasos, setVerPasos] = useState(false);
+  // Volver a la app (desde otra app o desde Ajustes) cuenta como abrirla de nuevo.
+  useEffect(() => {
+    const alVolver = () => {
+      if (document.visibilityState === 'visible') {
+        setCerrada(false);
+        refrescar();
+      }
+    };
+    document.addEventListener('visibilitychange', alVolver);
+    return () => document.removeEventListener('visibilitychange', alVolver);
+  }, [refrescar]);
 
-  if (cerrado || (estado !== 'inactivo' && estado !== 'instalar-primero')) return null;
+  // Recién activadas: se muestra "¡Listo!" un momento y se cierra sola.
+  useEffect(() => {
+    if (estado !== 'activo' || !listo) return;
+    const t = setTimeout(() => setListo(false), 1800);
+    return () => clearTimeout(t);
+  }, [estado, listo]);
 
-  const cerrar = () => {
-    setCerrado(true);
-    try {
-      localStorage.setItem(CLAVE_CERRADO, String(Date.now() + 7 * 24 * 60 * 60 * 1000));
-    } catch {
-      // Sin almacenamiento: vuelve a aparecer la próxima vez.
-    }
+  const pendiente = estado === 'inactivo' || estado === 'instalar-primero' || estado === 'bloqueado';
+  if (!listo && (cerrada || !pendiente)) return null;
+
+  const tocarActivar = async () => {
+    // El cartel de Apple / Android solo aparece si se pide al tocar un botón.
+    await activar();
+    setListo(true);
   };
 
   return (
-    <div className="rounded-xl bg-[#00183a] text-white p-3 flex flex-col gap-2 shadow-md">
-      <div className="flex items-start gap-2">
-        <span className="material-symbols-outlined text-[22px] text-[#fabc4d]">notifications_active</span>
-        <p className="font-sans text-[13px] flex-1">
-          Activá las notificaciones para enterarte de la convocatoria y los avisos del club.
-        </p>
-        <button type="button" onClick={cerrar} aria-label="Cerrar" className="text-[#acc7fc]">
-          <span className="material-symbols-outlined text-[20px]">close</span>
-        </button>
+    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-[#00183a]/75 backdrop-blur-xs p-4">
+      <div className="w-full max-w-sm bg-white rounded-2xl shadow-2xl p-5 flex flex-col items-center text-center gap-3">
+        <img src="/escudo.png" alt="" className="h-16 w-auto" />
+        {listo && estado === 'activo' ? (
+          <>
+            <span className="material-symbols-outlined text-[44px] text-emerald-600">check_circle</span>
+            <h2 className="font-heading font-bold text-[20px] text-[#00183a]">¡Notificaciones activadas!</h2>
+            <p className="font-sans text-[13px] text-[#44474f]">Te van a llegar los avisos del club en este celular.</p>
+          </>
+        ) : (
+          <>
+            <h2 className="font-heading font-bold text-[20px] text-[#00183a] leading-tight">Activá las notificaciones</h2>
+            <p className="font-sans text-[13px] text-[#44474f]">
+              Así te enterás de la convocatoria, los vencimientos de tu ficha y las cuotas, sin tener que entrar a la app.
+            </p>
+
+            {estado === 'inactivo' && (
+              <button
+                type="button"
+                onClick={tocarActivar}
+                disabled={ocupado}
+                className="w-full h-13 py-3.5 rounded-xl bg-[#b51a1b] text-white font-heading text-[14px] font-bold flex items-center justify-center gap-2 disabled:opacity-60"
+              >
+                <span className="material-symbols-outlined text-[22px]">notifications_active</span>
+                {ocupado ? 'Activando…' : 'Activar notificaciones'}
+              </button>
+            )}
+
+            {estado === 'instalar-primero' && (
+              <div className="w-full text-left bg-[#f2f4f7] rounded-lg p-3 flex flex-col gap-2">
+                <p className="font-heading text-[12px] font-bold text-[#00183a]">
+                  En iPhone, primero agregá la app a la pantalla de inicio:
+                </p>
+                <PasosInstalar compacto />
+              </div>
+            )}
+
+            {estado === 'bloqueado' && (
+              <div className="w-full text-left bg-[#ffdad6]/60 rounded-lg p-3 flex flex-col gap-1">
+                <p className="font-heading text-[12px] font-bold text-[#410002]">Las notificaciones están bloqueadas</p>
+                <p className="font-sans text-[12px] text-[#410002]">
+                  {esIOS()
+                    ? 'Abrí Ajustes del iPhone → Notificaciones → Elbio LUD → activá "Permitir notificaciones". Después volvé a la app.'
+                    : 'Tocá el candado al lado de la dirección (o Ajustes → Apps → Chrome / Elbio LUD → Notificaciones) y permitilas. Después volvé a la app.'}
+                </p>
+              </div>
+            )}
+
+            {error && <p className="font-sans text-[12px] text-[#ba1a1a]">{error}</p>}
+
+            <button
+              type="button"
+              onClick={() => {
+                setCerrada(true);
+                setListo(false);
+              }}
+              className="font-heading text-[12px] font-bold text-[#747780] underline"
+            >
+              Ahora no
+            </button>
+          </>
+        )}
       </div>
-      {estado === 'inactivo' ? (
-        <button
-          type="button"
-          onClick={activar}
-          disabled={ocupado}
-          className="h-10 rounded-lg bg-white text-[#00183a] font-heading text-[12px] font-bold disabled:opacity-60"
-        >
-          {ocupado ? 'Activando…' : 'Activar notificaciones'}
-        </button>
-      ) : verPasos ? (
-        <div className="bg-white rounded-lg p-3">
-          <PasosInstalar compacto />
-        </div>
-      ) : (
-        <button
-          type="button"
-          onClick={() => setVerPasos(true)}
-          className="h-10 rounded-lg bg-white text-[#00183a] font-heading text-[12px] font-bold"
-        >
-          Primero agregá la app al inicio: ver cómo
-        </button>
-      )}
     </div>
   );
 };
