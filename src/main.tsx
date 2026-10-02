@@ -2,14 +2,23 @@ import {createRoot} from 'react-dom/client';
 import App from './App.tsx';
 import { AuthGate } from './components/AuthGate.tsx';
 import './index.css';
+import { escucharInstalacion } from './lib/instalar';
+import { VentanaInstalar } from './components/VentanaInstalar';
+
+// El aviso de "se puede instalar" de Android llega apenas carga la página.
+escucharInstalacion();
 
 createRoot(document.getElementById('root')!).render(
-  <AuthGate>
-    {/* key: al cambiar de usuario, la app arranca de cero con sus datos. */}
-    {(perfil, salir, recargar) => (
-      <App key={perfil?.email ?? 'demo'} perfil={perfil} onLogout={salir} onRecargarPerfil={recargar} />
-    )}
-  </AuthGate>
+  <>
+    <AuthGate>
+      {/* key: al cambiar de usuario, la app arranca de cero con sus datos. */}
+      {(perfil, salir, recargar) => (
+        <App key={perfil?.email ?? 'demo'} perfil={perfil} onLogout={salir} onRecargarPerfil={recargar} />
+      )}
+    </AuthGate>
+    {/* Abierta desde el navegador del celular: primero, instalarla en la pantalla de inicio. */}
+    <VentanaInstalar />
+  </>
 );
 
 // Service worker (app instalable / sin conexión). Solo en producción, para no

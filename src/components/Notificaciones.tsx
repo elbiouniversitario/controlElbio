@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { VentanaImprimible } from './VentanaImprimible';
+import { alCambiarInstalacion, modoInstalar } from '../lib/instalar';
 import QRCode from 'qrcode';
 import { activarPush, desactivarPush, esIOS, EstadoPush, estadoPush } from '../lib/push';
 import { useTextos } from '../lib/textos';
@@ -169,6 +170,8 @@ export const VentanaNotificaciones: React.FC = () => {
   const { estado, ocupado, error, activar, refrescar } = useNotificaciones();
   const [cerrada, setCerrada] = useState(false);
   const [listo, setListo] = useState(false);
+  const [, setInstalacion] = useState(0);
+  useEffect(() => alCambiarInstalacion(() => setInstalacion((n) => n + 1)), []);
 
   // Volver a la app (desde otra app o desde Ajustes) cuenta como abrirla de nuevo.
   useEffect(() => {
@@ -190,7 +193,8 @@ export const VentanaNotificaciones: React.FC = () => {
   }, [estado, listo]);
 
   const pendiente = estado === 'inactivo' || estado === 'instalar-primero' || estado === 'bloqueado';
-  if (!listo && (cerrada || !pendiente)) return null;
+  // En el celular, primero se instala la app (VentanaInstalar); las notificaciones se piden después.
+  if (!listo && (cerrada || !pendiente || modoInstalar() !== 'listo')) return null;
 
   const tocarActivar = async () => {
     // El cartel de Apple / Android solo aparece si se pide al tocar un botón.
