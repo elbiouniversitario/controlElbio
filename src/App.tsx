@@ -26,10 +26,8 @@ import {
 
 // Screens
 import { AlertasVencimientosScreen, ClavePlantilla, PLANTILLAS } from './screens/AlertasVencimientosScreen';
-import { EnvioWhatsApp, EnvioWhatsAppModal } from './components/EnvioWhatsAppModal';
+import { EnvioAviso, EnvioAvisoModal } from './components/EnvioAvisoModal';
 import { BannerNotificaciones, CartelModal } from './components/Notificaciones';
-import { abrirWhatsApp, normalizarCelular, rellenarPlantilla } from './lib/whatsapp';
-import { variablesMensaje } from './lib/mensajes';
 import { TesoreriaCuotasScreen } from './screens/TesoreriaCuotasScreen';
 import { PlanillaOpsScreen } from './screens/PlanillaOpsScreen';
 import { PerfilJugadorScreen } from './screens/PerfilJugadorScreen';
@@ -124,7 +122,7 @@ export default function App({ perfil, onLogout, onRecargarPerfil }: AppProps) {
   // Modal states
   const [isBroadcastModalOpen, setIsBroadcastModalOpen] = useState(false);
   const [plantillaEditando, setPlantillaEditando] = useState<ClavePlantilla | null>(null);
-  const [envio, setEnvio] = useState<EnvioWhatsApp | null>(null);
+  const [envio, setEnvio] = useState<EnvioAviso | null>(null);
   const [verBuscador, setVerBuscador] = useState(false);
   const [verNotificaciones, setVerNotificaciones] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
@@ -314,7 +312,7 @@ export default function App({ perfil, onLogout, onRecargarPerfil }: AppProps) {
     );
   };
 
-  // Historial de envíos por WhatsApp. Sin destinatarios = mensaje al grupo.
+  // Historial de avisos mandados. Sin destinatarios = mensaje al grupo (registros viejos).
   const handleRegistrarEnvio = async (destinatarios: Player[], tema: string) => {
     if (useDb) {
       try {
@@ -341,15 +339,9 @@ export default function App({ perfil, onLogout, onRecargarPerfil }: AppProps) {
     setSentMessages((prev) => [...newSent, ...prev]);
   };
 
-  /** Abre WhatsApp con un mensaje para un solo jugador y lo registra. */
-  const avisarJugador = (p: Player, plantilla: string, tema: string) => {
-    if (!normalizarCelular(p.phone)) {
-      showToast(`${p.firstName} no tiene celular cargado. Cargalo en Planilla → Editar.`, 'phone_disabled', 'warning');
-      return;
-    }
-    abrirWhatsApp(p.phone, rellenarPlantilla(plantilla, variablesMensaje(textos, p)));
-    void handleRegistrarEnvio([p], tema);
-  };
+  /** Aviso por notificación a un solo jugador. */
+  const avisarJugador = (p: Player, plantilla: string, tema: string) =>
+    setEnvio({ titulo: `Avisar a ${p.firstName}`, tema, plantilla, destinatarios: [p] });
 
   const puedeEditarTextos = !perfil || perfil.rol === 'admin';
 
@@ -360,7 +352,6 @@ export default function App({ perfil, onLogout, onRecargarPerfil }: AppProps) {
       tema: `Convocatoria ${textos.fecha}`,
       plantilla: textos.plantilla_convocatoria,
       destinatarios: convocados,
-      permitirGrupo: true,
     });
 
   const audiencias: Record<Audiencia, Player[]> = {
@@ -863,7 +854,7 @@ export default function App({ perfil, onLogout, onRecargarPerfil }: AppProps) {
               setSelectedPlayerForPayment(p);
               setIsPaymentModalOpen(true);
             }}
-            onSendWhatsAppReminder={(p) => avisarJugador(p, textos.plantilla_cuota, 'Recordatorio de cuota')}
+            onAvisar={(p) => avisarJugador(p, textos.plantilla_cuota, 'Recordatorio de cuota')}
             onGenerarCuotas={!perfil || perfil.rol === 'admin' || perfil.rol === 'tesorero' ? handleGenerarCuotas : undefined}
             onSendMassReminder={() =>
               setEnvio({
@@ -979,7 +970,6 @@ export default function App({ perfil, onLogout, onRecargarPerfil }: AppProps) {
             tema: 'Mensaje del club',
             plantilla: msg,
             destinatarios: audiencias[audience],
-            permitirGrupo: audience === 'plantel' || audience === 'citados',
           })
         }
       />
@@ -997,7 +987,7 @@ export default function App({ perfil, onLogout, onRecargarPerfil }: AppProps) {
         onSave={(valor) => (plantillaEditando ? handleSaveTextos({ ...textos, [plantillaEditando]: valor }) : Promise.resolve(false))}
       />
 
-      <EnvioWhatsAppModal envio={envio} onClose={() => setEnvio(null)} onRegistrar={handleRegistrarEnvio} />
+      <EnvioAvisoModal envio={envio} onClose={() => setEnvio(null)} onRegistrar={handleRegistrarEnvio} />
       <CartelModal abierto={verCartel} onClose={() => setVerCartel(false)} />
 
       <BuscadorJugadores

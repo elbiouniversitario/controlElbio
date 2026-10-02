@@ -3,7 +3,7 @@ import { Textos } from './textos';
 import { fechaCorta } from './fechas';
 import { diasCarneLud } from './habilitacion';
 
-/** Valores para las plantillas de WhatsApp: los del partido y, si hay jugador, los suyos. */
+/** Valores para las plantillas de avisos: los del partido y, si hay jugador, los suyos. */
 export function variablesMensaje(t: Textos, p?: Player): Record<string, string> {
   const base: Record<string, string> = {
     fecha: t.fecha,

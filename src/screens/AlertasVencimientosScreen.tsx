@@ -4,9 +4,9 @@ import { CLUB_CREST_URL, CLUB_CREST_WATERMARK } from '../data/initialData';
 import { ClaveTexto, useTextos } from '../lib/textos';
 import { diasProximoVencimiento } from '../lib/habilitacion';
 import { diasHasta, fechaCorta, hoyISO } from '../lib/fechas';
-import { linkWhatsApp, rellenarPlantilla } from '../lib/whatsapp';
+import { rellenarPlantilla } from '../lib/whatsapp';
 import { variablesMensaje } from '../lib/mensajes';
-import { EnvioWhatsApp } from '../components/EnvioWhatsAppModal';
+import { EnvioAviso } from '../components/EnvioAvisoModal';
 
 export type ClavePlantilla = Extract<
   ClaveTexto,
@@ -25,7 +25,7 @@ interface AlertasVencimientosScreenProps {
   rules: AutomationRule[];
   sentMessages: SentMessage[];
   onToggleRule: (ruleId: string) => void;
-  onAbrirEnvio: (envio: EnvioWhatsApp) => void;
+  onAbrirEnvio: (envio: EnvioAviso) => void;
   onOpenNewBroadcastModal: () => void;
   /** Sin definir = no puede editar plantillas (solo admin). */
   onEditarPlantilla?: (clave: ClavePlantilla) => void;
@@ -63,7 +63,7 @@ const Tarjeta: React.FC<{
   </div>
 );
 
-const BotonWhatsApp: React.FC<{ onClick: () => void; children: React.ReactNode; disabled?: boolean }> = ({
+const BotonAviso: React.FC<{ onClick: () => void; children: React.ReactNode; disabled?: boolean }> = ({
   onClick,
   children,
   disabled,
@@ -73,7 +73,7 @@ const BotonWhatsApp: React.FC<{ onClick: () => void; children: React.ReactNode; 
     disabled={disabled}
     className="w-full bg-[#b51a1b] hover:bg-[#d93630] text-white rounded-lg py-2.5 px-3 flex items-center justify-center gap-2 font-heading text-[12px] font-bold uppercase tracking-wider shadow-sm active:scale-95 transition-all disabled:opacity-50"
   >
-    <span className="material-symbols-outlined text-[18px]">send</span>
+    <span className="material-symbols-outlined text-[18px]">notifications_active</span>
     <span>{children}</span>
   </button>
 );
@@ -93,13 +93,15 @@ const Chips: React.FC<{ items: { id: string; texto: string; rojo?: boolean }[] }
   </div>
 );
 
-// Qué hace cada regla (la app no manda mensajes sola: muestra la tarjeta para avisar).
+// Qué hace cada regla: el aviso automático diario (api/avisos-automaticos) y la tarjeta de esta pantalla.
 const DESCRIPCION_REGLA: Record<string, (t: ReturnType<typeof useTextos>) => string> = {
   carne_30_dias: (t) =>
-    `Mostrar los vencimientos de ficha médica y carné LUD de los próximos ${t.dias_aviso_preventivo} días.`,
-  alerta_urgente: (t) => `Marcar en rojo lo que vence en ${t.dias_alerta_urgente} días o menos, o ya venció.`,
-  cumpleanios: () => 'Mostrar los cumpleaños de la semana para saludar por WhatsApp.',
-  cuota_mensual: () => 'Mostrar quién debe cuotas para mandarle el recordatorio.',
+    `Aviso automático al jugador cuando a su ficha médica o carné LUD le faltan ${t.dias_aviso_preventivo} días.`,
+  alerta_urgente: (t) =>
+    `Aviso automático cuando faltan ${t.dias_alerta_urgente} días y el día que vence. En la lista, en rojo.`,
+  cumpleanios: () => 'Saludo automático el día del cumpleaños.',
+  cuota_mensual: (t) =>
+    `Recordatorio automático de la cuota pendiente: 3 días antes y el día ${t.cuota_dia_vencimiento}, cuando vence. A los delegados les llega quién debe o está por deber.`,
 };
 
 const TITULO_REGLA: Record<string, (t: ReturnType<typeof useTextos>) => string> = {
@@ -206,7 +208,7 @@ export const AlertasVencimientosScreen: React.FC<AlertasVencimientosScreenProps>
               </span>
             </div>
             <h2 className="font-heading font-bold text-[20px] tracking-tight text-white truncate">Avisos al plantel</h2>
-            <p className="font-sans text-[12px] text-[#7b96c8]">Vencimientos, convocatorias y mensajes por WhatsApp</p>
+            <p className="font-sans text-[12px] text-[#7b96c8]">Vencimientos, convocatorias y avisos por notificación</p>
           </div>
         </div>
       </div>
@@ -257,7 +259,7 @@ export const AlertasVencimientosScreen: React.FC<AlertasVencimientosScreenProps>
                         };
                       })}
                     />
-                    <BotonWhatsApp
+                    <BotonAviso
                       onClick={() =>
                         onAbrirEnvio({
                           titulo: 'Aviso de vencimiento',
@@ -267,8 +269,8 @@ export const AlertasVencimientosScreen: React.FC<AlertasVencimientosScreenProps>
                         })
                       }
                     >
-                      Avisar por WhatsApp ({porVencer.length})
-                    </BotonWhatsApp>
+                      Avisar ({porVencer.length})
+                    </BotonAviso>
                   </>
                 )}
               </Tarjeta>
@@ -280,19 +282,18 @@ export const AlertasVencimientosScreen: React.FC<AlertasVencimientosScreenProps>
               titulo={`Convocatoria: ${t.fecha} vs ${t.rival}`}
               subtitulo={`${t.partido_dia} ${t.partido_hora} • ${t.cancha} • ${convocados.length} convocados`}
             >
-              <BotonWhatsApp
+              <BotonAviso
                 onClick={() =>
                   onAbrirEnvio({
                     titulo: 'Convocatoria',
                     tema: `Convocatoria ${t.fecha}`,
                     plantilla: t.plantilla_convocatoria,
                     destinatarios: convocados,
-                    permitirGrupo: true,
                   })
                 }
               >
-                Convocar por WhatsApp
-              </BotonWhatsApp>
+                Convocar
+              </BotonAviso>
             </Tarjeta>
 
             {activa('cuota_mensual') && deudores.length > 0 && (
@@ -302,7 +303,7 @@ export const AlertasVencimientosScreen: React.FC<AlertasVencimientosScreenProps>
                 titulo="Cuotas pendientes"
                 subtitulo={`${deudores.length} jugadores deben cuotas`}
               >
-                <BotonWhatsApp
+                <BotonAviso
                   onClick={() =>
                     onAbrirEnvio({
                       titulo: 'Recordatorio de cuota',
@@ -312,8 +313,8 @@ export const AlertasVencimientosScreen: React.FC<AlertasVencimientosScreenProps>
                     })
                   }
                 >
-                  Recordar por WhatsApp ({deudores.length})
-                </BotonWhatsApp>
+                  Recordar ({deudores.length})
+                </BotonAviso>
               </Tarjeta>
             )}
 
@@ -326,7 +327,7 @@ export const AlertasVencimientosScreen: React.FC<AlertasVencimientosScreenProps>
                   .map(({ p, d }) => `${p.firstName} ${p.lastName} (${d === 0 ? 'hoy' : `en ${d}d`})`)
                   .join(' · ')}
               >
-                <BotonWhatsApp
+                <BotonAviso
                   onClick={() =>
                     onAbrirEnvio({
                       titulo: 'Saludo de cumpleaños',
@@ -336,8 +337,8 @@ export const AlertasVencimientosScreen: React.FC<AlertasVencimientosScreenProps>
                     })
                   }
                 >
-                  Saludar por WhatsApp
-                </BotonWhatsApp>
+                  Saludar
+                </BotonAviso>
               </Tarjeta>
             )}
           </div>
@@ -348,7 +349,7 @@ export const AlertasVencimientosScreen: React.FC<AlertasVencimientosScreenProps>
               <div>
                 <h3 className="font-heading font-bold text-[18px] text-[#00183a]">Avisos activos</h3>
                 <p className="font-sans text-[12px] text-[#44474f]">
-                  Qué te muestra la app. Los mensajes los mandás vos desde tu WhatsApp.
+                  Salen solos todos los días a la mañana, por notificación, a quienes las activaron.
                 </p>
               </div>
               <span className="font-heading text-[10px] bg-[#d7e3ff] text-[#00183a] px-2 py-0.5 rounded-full font-bold">
@@ -422,7 +423,7 @@ export const AlertasVencimientosScreen: React.FC<AlertasVencimientosScreenProps>
           <div>
             <h3 className="font-heading font-bold text-[18px] text-[#00183a]">Historial de envíos</h3>
             <p className="font-sans text-[12px] text-[#44474f]">
-              Mensajes abiertos en WhatsApp desde la app ({sentMessages.length}).
+              Avisos mandados desde la app ({sentMessages.length}).
             </p>
           </div>
           {listaMensajes(sentMessages)}
@@ -442,7 +443,7 @@ export const AlertasVencimientosScreen: React.FC<AlertasVencimientosScreenProps>
                   <span className="material-symbols-outlined text-[#00183a] text-[20px]">{icono}</span>
                   <h3 className="font-heading font-bold text-[16px] text-[#00183a]">{titulo}</h3>
                 </div>
-                <div className="bg-[#e7ffdb] rounded-lg rounded-tl-none p-3 shadow-xs border border-[#c8e6c9]">
+                <div className="bg-[#f3f7ff] rounded-lg p-3 shadow-xs border border-[#d7e3ff]">
                   <p className="font-sans text-[13px] text-[#191c1e] leading-relaxed whitespace-pre-line">{ejemplo}</p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -455,15 +456,6 @@ export const AlertasVencimientosScreen: React.FC<AlertasVencimientosScreenProps>
                       Editar
                     </button>
                   )}
-                  <a
-                    href={linkWhatsApp(null, ejemplo)}
-                    target="_blank"
-                    rel="noopener"
-                    className="flex-1 py-2.5 px-3 bg-[#0d2d59] hover:bg-[#00183a] text-white rounded-lg font-heading text-[12px] font-bold flex items-center justify-center gap-1.5 active:scale-95 shadow-sm"
-                  >
-                    <span className="material-symbols-outlined text-[18px]">send_to_mobile</span>
-                    Probar en mi WhatsApp
-                  </a>
                 </div>
               </div>
             );

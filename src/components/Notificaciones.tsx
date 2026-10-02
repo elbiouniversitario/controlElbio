@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { VentanaImprimible } from './VentanaImprimible';
 import QRCode from 'qrcode';
 import { activarPush, desactivarPush, esIOS, EstadoPush, estadoPush } from '../lib/push';
-import { linkWhatsApp } from '../lib/whatsapp';
 import { useTextos } from '../lib/textos';
 
 /** Estado de las notificaciones en este celular, con acciones para cambiarlo. */
@@ -249,6 +248,18 @@ export const CartelModal: React.FC<{ abierto: boolean; onClose: () => void }> = 
     `4. Tocá *"Activar notificaciones"*\n\n` +
     `Ahí te van a llegar la convocatoria, los avisos y los recordatorios. ¡Arriba Elbio!`;
 
+  const compartir = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: 'App del plantel — Elbio Fernández', text: textoGrupo });
+        return;
+      } catch (err) {
+        if ((err as Error).name === 'AbortError') return;
+      }
+    }
+    await copiar();
+  };
+
   const copiar = async () => {
     try {
       await navigator.clipboard.writeText(textoGrupo);
@@ -322,15 +333,14 @@ export const CartelModal: React.FC<{ abierto: boolean; onClose: () => void }> = 
             Imprimir / guardar PDF
           </button>
           <div className="flex gap-2">
-            <a
-              href={linkWhatsApp(null, textoGrupo)}
-              target="_blank"
-              rel="noopener"
-              className="flex-1 h-11 rounded-lg bg-[#25d366] text-white font-heading text-[12px] font-bold flex items-center justify-center gap-1.5"
+            <button
+              type="button"
+              onClick={compartir}
+              className="flex-1 h-11 rounded-lg bg-[#b51a1b] text-white font-heading text-[12px] font-bold flex items-center justify-center gap-1.5"
             >
-              <span className="material-symbols-outlined text-[18px]">groups</span>
-              Mandar al grupo
-            </a>
+              <span className="material-symbols-outlined text-[18px]">share</span>
+              Compartir
+            </button>
             <button
               type="button"
               onClick={copiar}

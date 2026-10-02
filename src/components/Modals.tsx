@@ -44,7 +44,7 @@ export const NewBroadcastModal: React.FC<NewBroadcastModalProps> = ({
                 Nuevo Mensaje Masivo
               </h3>
               <p className="font-sans text-[11px] text-[#44474f]">
-                Se abre en tu WhatsApp, listo para mandar
+                Les llega como notificación de la app
               </p>
             </div>
           </div>
@@ -118,7 +118,7 @@ export const NewBroadcastModal: React.FC<NewBroadcastModalProps> = ({
   );
 };
 
-// Modal 2: Editor de una plantilla de WhatsApp (se guarda en "Textos de la app")
+// Modal 2: Editor de una plantilla de aviso (se guarda en "Textos de la app")
 interface EditTemplateModalProps {
   /** Plantilla a editar; null = cerrado. */
   plantilla: { titulo: string; valor: string } | null;

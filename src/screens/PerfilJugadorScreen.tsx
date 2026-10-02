@@ -48,7 +48,7 @@ export const PerfilJugadorScreen: React.FC<PerfilJugadorScreenProps> = ({
   const monto = Number(t.cuota_monto) || 1400;
   const debe = player.dues.debtAmount > 0 || player.dues.status !== 'paid';
 
-  /** Abre WhatsApp con el delegado (o avisa si el club no cargó su celular). */
+  /** Abre un chat de WhatsApp con el delegado (o avisa si el club no cargó su celular). */
   const escribirA = (celular: string, texto: string, quien: string) => {
     if (!normalizarCelular(celular)) {
       showToast(`El club todavía no cargó el celular ${quien}`, 'phone_disabled', 'warning');
@@ -528,7 +528,7 @@ export const PerfilJugadorScreen: React.FC<PerfilJugadorScreenProps> = ({
       </div>
 
       {verComoPagar && (
-        <VentanaImprimible className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-[#00183a]/70 p-4">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-[#00183a]/70 p-4">
           <div className="w-full max-w-md bg-white rounded-2xl p-5 shadow-2xl flex flex-col gap-3">
             <div className="flex items-center justify-between">
               <h3 className="font-heading font-bold text-[16px] text-[#00183a]">Cómo pagar la cuota</h3>
@@ -545,25 +545,12 @@ export const PerfilJugadorScreen: React.FC<PerfilJugadorScreenProps> = ({
               Cuota: ${monto.toLocaleString('es-UY')} · vence el día {t.cuota_dia_vencimiento} de cada mes
               {player.dues.debtAmount > 0 ? ` · hoy debés $${player.dues.debtAmount.toLocaleString('es-UY')}` : ''}.
             </p>
-            <button
-              onClick={() =>
-                escribirA(
-                  t.tesorero_celular || t.delegado_celular,
-                  `Hola, soy ${player.firstName} ${player.lastName}. Te aviso que pagué la cuota ($${(player.dues.debtAmount || monto).toLocaleString('es-UY')}). Te mando el comprobante.`,
-                  'de tesorería'
-                )
-              }
-              className="h-11 rounded-lg bg-[#25d366] text-white font-heading text-[12px] font-bold flex items-center justify-center gap-1.5"
-            >
-              <span className="material-symbols-outlined text-[18px]">send</span>
-              Avisar que pagué (WhatsApp)
-            </button>
           </div>
-        </VentanaImprimible>
+        </div>
       )}
 
       {verRecibo && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-[#00183a]/70 p-4">
+        <VentanaImprimible className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-[#00183a]/70 p-4">
           <div className="area-impresion w-full max-w-md bg-white rounded-2xl p-5 shadow-2xl flex flex-col gap-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -612,7 +599,7 @@ export const PerfilJugadorScreen: React.FC<PerfilJugadorScreenProps> = ({
               Imprimir / guardar PDF
             </button>
           </div>
-        </div>
+        </VentanaImprimible>
       )}
     </div>
   );
