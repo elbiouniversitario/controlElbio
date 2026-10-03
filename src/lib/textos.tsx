@@ -39,6 +39,11 @@ export const TEXTOS = {
   },
   aviso_dt_autor: { grupo: 'Tablón del equipo', label: 'Firma del aviso', valor: 'Cuerpo Técnico' },
 
+  estudio_corte: {
+    grupo: 'Alertas',
+    label: 'Estudio: fecha de corte de exámenes (AAAA-MM-DD). Vacía = 25/10 del año anterior',
+    valor: '',
+  },
   dias_aviso_preventivo: { grupo: 'Alertas', label: 'Avisar vencimientos con cuántos días de anticipación', valor: '30' },
   dias_alerta_urgente: { grupo: 'Alertas', label: 'Alerta urgente: días antes de vencer', valor: '5' },
   bloquear_por_deuda: { grupo: 'Alertas', label: 'Inhabilitar por cuota vencida (si / no)', valor: 'no' },

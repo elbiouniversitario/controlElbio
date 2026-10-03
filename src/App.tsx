@@ -7,6 +7,7 @@ import { initialsAvatar } from './lib/avatar';
 import { combinarTextos, Textos, TextosProvider, TEXTOS_DEFAULT } from './lib/textos';
 import { NOMBRE_ROL, Perfil } from './lib/auth';
 import { diasProximoVencimiento } from './lib/habilitacion';
+import { configurarCorteEstudio } from './lib/estudio';
 import { Header } from './components/Header';
 import { EditarJugadorModal } from './components/EditarJugadorModal';
 import { BuscadorJugadores, Notificacion, PanelNotificaciones } from './components/HeaderPaneles';
@@ -109,6 +110,8 @@ export default function App({ perfil, onLogout, onRecargarPerfil }: AppProps) {
   const [dataMode, setDataMode] = useState<DataMode>(isSupabaseConfigured ? 'cargando' : 'demo');
   const [loadError, setLoadError] = useState<string | null>(null);
   const [textos, setTextos] = useState<Textos>(TEXTOS_DEFAULT);
+  // Fecha de corte de exámenes (estudio): la que puso el admin o la automática.
+  configurarCorteEstudio(textos.estudio_corte);
   const [verCartel, setVerCartel] = useState(false);
   const [miembros, setMiembros] = useState<db.Miembro[]>([]);
 
@@ -501,8 +504,8 @@ export default function App({ perfil, onLogout, onRecargarPerfil }: AppProps) {
   };
 
   // Estudio: último examen aprobado y excepción (recibido / artículo).
-  const handleGuardarEstudio = async (e: EstudioForm): Promise<boolean> => {
-    const p = jugadorDocumentos;
+  const handleGuardarEstudio = async (e: EstudioForm, jugador?: Player): Promise<boolean> => {
+    const p = jugador ?? jugadorDocumentos;
     if (!p) return false;
     try {
       if (useDb) {
@@ -515,9 +518,26 @@ export default function App({ perfil, onLogout, onRecargarPerfil }: AppProps) {
       reportDbError('guardar el estudio', err);
       return false;
     }
-    showToast(`Estudio de ${p.firstName} guardado`, 'school', 'success');
+    showToast(
+      e.excepcion === 'recibido' ? `${p.firstName} ${p.lastName}: recibido` : `Estudio de ${p.firstName} guardado`,
+      'school',
+      'success'
+    );
     return true;
   };
+
+  /** Casilla "Recibido" de la lista de Estudio en Alertas. */
+  const handleMarcarRecibido = (p: Player, recibido: boolean) =>
+    handleGuardarEstudio(
+      {
+        ultimoExamen: p.study?.lastExam ?? null,
+        excepcion: recibido ? 'recibido' : p.study?.exception === 'articulo' ? 'articulo' : null,
+      },
+      p
+    );
+
+  /** Fecha de corte de exámenes ('' = 25/10 del año anterior). Solo admin. */
+  const handleGuardarCorteEstudio = (valor: string) => handleSaveTextos({ ...textos, estudio_corte: valor });
 
   const handleCargarFichaMedica = async (f: FichaMedicaForm): Promise<boolean> => {
     const p = jugadorDocumentos;
@@ -855,6 +875,8 @@ export default function App({ perfil, onLogout, onRecargarPerfil }: AppProps) {
             onOpenNewBroadcastModal={() => setIsBroadcastModalOpen(true)}
             onEditarPlantilla={puedeEditarTextos ? setPlantillaEditando : undefined}
             onOpenDocuments={puedeCargarDocumentos ? (p) => setDocumentosId(p.id) : undefined}
+            onMarcarRecibido={puedeCargarDocumentos ? handleMarcarRecibido : undefined}
+            onGuardarCorteEstudio={puedeEditarTextos ? handleGuardarCorteEstudio : undefined}
             showToast={showToast}
           />
         )}

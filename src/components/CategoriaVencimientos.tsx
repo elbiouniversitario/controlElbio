@@ -59,7 +59,11 @@ export const CategoriaVencimientos: React.FC<{
   onAvisar?: (players: Player[]) => void;
   /** Tocar a un jugador abre sus documentos. */
   onAbrir?: (p: Player) => void;
-}> = ({ titulo, icono, colorIcono, items, nota, onAvisar, onAbrir }) => {
+  /** Algo más al final de cada fila (ej. la casilla "Recibido"). */
+  extraFila?: (i: ItemVencimiento) => React.ReactNode;
+  /** Contenido extra debajo de la nota (ej. editar la fecha de corte). */
+  children?: React.ReactNode;
+}> = ({ titulo, icono, colorIcono, items, nota, onAvisar, onAbrir, extraFila, children }) => {
   const [verTodos, setVerTodos] = useState(false);
   const ordenados = ordenarItems(items);
   const atencion = ordenados.filter((i) => ATENCION.includes(i.estado));
@@ -96,27 +100,30 @@ export const CategoriaVencimientos: React.FC<{
         )}
       </div>
       {nota && <p className="font-sans text-[11px] text-[#747780] -mt-1">{nota}</p>}
+      {children}
 
       {visibles.length > 0 && (
         <div className="rounded-lg border border-[#e0e3e6] divide-y divide-[#eceef1]">
           {visibles.map((i) => (
-            <button
-              key={i.player.id}
-              type="button"
-              onClick={onAbrir ? () => onAbrir(i.player) : undefined}
-              disabled={!onAbrir}
-              className="w-full flex items-center justify-between gap-2 px-3 py-2 text-left enabled:active:bg-[#f2f4f7]"
-            >
-              <div className="min-w-0">
-                <p className="font-heading text-[13px] font-bold text-[#00183a] truncate">
-                  {i.player.lastName}, {i.player.firstName}
-                </p>
-                <p className="font-sans text-[11px] text-[#747780] truncate">{i.detalle}</p>
-              </div>
-              <span className={`font-heading text-[10px] font-bold rounded-full px-2 py-0.5 shrink-0 ${CHIP[i.estado]}`}>
-                {textoChip(i)}
-              </span>
-            </button>
+            <div key={i.player.id} className="flex items-center gap-2 pr-3">
+              <button
+                type="button"
+                onClick={onAbrir ? () => onAbrir(i.player) : undefined}
+                disabled={!onAbrir}
+                className="flex-1 min-w-0 flex items-center justify-between gap-2 pl-3 py-2 text-left enabled:active:bg-[#f2f4f7]"
+              >
+                <div className="min-w-0">
+                  <p className="font-heading text-[13px] font-bold text-[#00183a] truncate">
+                    {i.player.lastName}, {i.player.firstName}
+                  </p>
+                  <p className="font-sans text-[11px] text-[#747780] truncate">{i.detalle}</p>
+                </div>
+                <span className={`font-heading text-[10px] font-bold rounded-full px-2 py-0.5 shrink-0 ${CHIP[i.estado]}`}>
+                  {textoChip(i)}
+                </span>
+              </button>
+              {extraFila?.(i)}
+            </div>
           ))}
         </div>
       )}

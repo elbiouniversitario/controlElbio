@@ -6,8 +6,22 @@ import { diasHasta, fechaCorta, hoyISO } from './fechas';
  * 25/10 del año anterior. Excepciones: recibido o con artículo.
  */
 
-/** Fecha de corte del año en curso: 25/10 del año anterior ('YYYY-MM-DD'). */
-export const corteEstudio = (hoy = hoyISO()) => `${Number(hoy.slice(0, 4)) - 1}-10-25`;
+/** Corte automático: 25/10 del año anterior ('YYYY-MM-DD'). */
+export const corteAutomatico = (hoy = hoyISO()) => `${Number(hoy.slice(0, 4)) - 1}-10-25`;
+
+// Corte puesto a mano por el admin (Alertas → Estudio, o Textos de la app → Alertas), para dar margen.
+let corteManual: string | null = null;
+
+/** La app lo llama con el valor de Textos de la app ('' = automático). */
+export function configurarCorteEstudio(valor: string) {
+  const v = (valor ?? '').trim();
+  corteManual = /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null;
+}
+
+export const corteEsManual = () => corteManual !== null;
+
+/** Fecha de corte vigente: la puesta a mano o, si no hay, el 25/10 del año anterior. */
+export const corteEstudio = (hoy = hoyISO()) => corteManual ?? corteAutomatico(hoy);
 
 /**
  * Hasta cuándo sirve un examen: el último año en que vale es el siguiente si

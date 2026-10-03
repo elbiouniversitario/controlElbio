@@ -3,7 +3,7 @@ import { Player, AutomationRule, SentMessage } from '../types';
 import { CLUB_CREST_URL, CLUB_CREST_WATERMARK } from '../data/initialData';
 import { ClaveTexto, useTextos } from '../lib/textos';
 import { CategoriaVencimientos, estadoPorDias, ItemVencimiento } from '../components/CategoriaVencimientos';
-import { corteTexto, estadoEstudio } from '../lib/estudio';
+import { corteAutomatico, corteEsManual, corteEstudio, corteTexto, estadoEstudio } from '../lib/estudio';
 import { diasHasta, fechaCorta, hoyISO } from '../lib/fechas';
 import { rellenarPlantilla } from '../lib/whatsapp';
 import { variablesMensaje } from '../lib/mensajes';
@@ -30,6 +30,10 @@ interface AlertasVencimientosScreenProps {
   onOpenNewBroadcastModal: () => void;
   /** Tocar a un jugador en una categoría abre sus documentos. Sin definir = sin permiso. */
   onOpenDocuments?: (p: Player) => void;
+  /** Casilla "Recibido" en la lista de Estudio. Sin definir = sin permiso. */
+  onMarcarRecibido?: (p: Player, recibido: boolean) => Promise<boolean>;
+  /** Cambiar la fecha de corte de exámenes ('' = automática). Solo admin. */
+  onGuardarCorteEstudio?: (valor: string) => Promise<boolean>;
   /** Sin definir = no puede editar plantillas (solo admin). */
   onEditarPlantilla?: (clave: ClavePlantilla) => void;
   showToast: (msg: string, icon?: string, type?: 'success' | 'warning' | 'info' | 'error') => void;
@@ -99,6 +103,104 @@ const TITULO_REGLA: Record<string, (t: ReturnType<typeof useTextos>) => string> 
   cuota_mensual: () => 'Cuotas pendientes',
 };
 
+/** Casilla "Recibido" de cada jugador en la lista de Estudio. */
+const CasillaRecibido: React.FC<{ player: Player; onMarcar: (p: Player, recibido: boolean) => Promise<boolean> }> = ({
+  player,
+  onMarcar,
+}) => {
+  const [guardando, setGuardando] = useState(false);
+  const marcado = player.study?.exception === 'recibido';
+  return (
+    <label className="flex flex-col items-center gap-0.5 shrink-0 cursor-pointer select-none">
+      <input
+        type="checkbox"
+        checked={marcado}
+        disabled={guardando}
+        onChange={async (e) => {
+          setGuardando(true);
+          await onMarcar(player, e.target.checked);
+          setGuardando(false);
+        }}
+        className="w-5 h-5 accent-[#00183a]"
+        aria-label={`${player.firstName} ${player.lastName} está recibido`}
+      />
+      <span className="font-heading text-[9px] font-bold text-[#44474f] uppercase">Recibido</span>
+    </label>
+  );
+};
+
+/** Admin: fecha de corte de exámenes, editable para dar margen. */
+const EditorCorte: React.FC<{ onGuardar: (valor: string) => Promise<boolean> }> = ({ onGuardar }) => {
+  const [editando, setEditando] = useState(false);
+  const [valor, setValor] = useState(corteEstudio());
+  const [guardando, setGuardando] = useState(false);
+  const guardar = async (v: string) => {
+    setGuardando(true);
+    const ok = await onGuardar(v);
+    setGuardando(false);
+    if (ok) setEditando(false);
+  };
+  if (!editando)
+    return (
+      <div className="flex items-center justify-between gap-2 bg-[#f2f4f7] rounded-lg px-3 py-2">
+        <span className="font-sans text-[12px] text-[#191c1e]">
+          Fecha de corte: <strong>{corteTexto()}</strong> {corteEsManual() ? '(puesta a mano)' : '(automática)'}
+        </span>
+        <button
+          type="button"
+          onClick={() => {
+            setValor(corteEstudio());
+            setEditando(true);
+          }}
+          className="font-heading text-[11px] font-bold text-[#445e8d] underline shrink-0"
+        >
+          Cambiar
+        </button>
+      </div>
+    );
+  return (
+    <div className="flex flex-col gap-2 bg-[#f2f4f7] rounded-lg p-3">
+      <label className="flex flex-col gap-1">
+        <span className="font-heading text-[11px] font-bold text-[#00183a] uppercase">Fecha de corte de exámenes</span>
+        <input
+          type="date"
+          value={valor}
+          onChange={(e) => setValor(e.target.value)}
+          className="h-11 px-3 rounded-lg bg-white border border-[#e0e3e6] font-sans text-[16px] text-[#191c1e]"
+        />
+      </label>
+      <p className="font-sans text-[11px] text-[#747780]">
+        Los exámenes anteriores a esta fecha no habilitan. Automática: {corteAutomatico().split('-').reverse().join('/')}.
+      </p>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          disabled={guardando || !valor}
+          onClick={() => void guardar(valor)}
+          className="flex-1 h-10 rounded-lg bg-[#00183a] text-white font-heading text-[12px] font-bold disabled:opacity-50"
+        >
+          {guardando ? 'Guardando…' : 'Guardar'}
+        </button>
+        <button
+          type="button"
+          disabled={guardando}
+          onClick={() => void guardar('')}
+          className="h-10 px-3 rounded-lg bg-white border border-[#e0e3e6] text-[#00183a] font-heading text-[11px] font-bold"
+        >
+          Usar la automática
+        </button>
+        <button
+          type="button"
+          onClick={() => setEditando(false)}
+          className="h-10 px-2 font-heading text-[11px] font-bold text-[#747780] underline"
+        >
+          Cancelar
+        </button>
+      </div>
+    </div>
+  );
+};
+
 export const AlertasVencimientosScreen: React.FC<AlertasVencimientosScreenProps> = ({
   players,
   rules,
@@ -107,6 +209,8 @@ export const AlertasVencimientosScreen: React.FC<AlertasVencimientosScreenProps>
   onAbrirEnvio,
   onOpenNewBroadcastModal,
   onOpenDocuments,
+  onMarcarRecibido,
+  onGuardarCorteEstudio,
   onEditarPlantilla,
   showToast,
 }) => {
@@ -272,6 +376,11 @@ export const AlertasVencimientosScreen: React.FC<AlertasVencimientosScreenProps>
             items={estudio}
             nota={`Examen aprobado posterior al ${corteTexto()}, o recibido / con artículo. Si no, queda inhabilitado.`}
             onAbrir={onOpenDocuments}
+            extraFila={
+              onMarcarRecibido
+                ? (i) => <CasillaRecibido player={i.player} onMarcar={onMarcarRecibido} />
+                : undefined
+            }
             onAvisar={(destinatarios) =>
               onAbrirEnvio({
                 titulo: 'Aviso: estudio',
@@ -280,7 +389,9 @@ export const AlertasVencimientosScreen: React.FC<AlertasVencimientosScreenProps>
                 destinatarios,
               })
             }
-          />
+          >
+            {onGuardarCorteEstudio && <EditorCorte onGuardar={onGuardarCorteEstudio} />}
+          </CategoriaVencimientos>
           <CategoriaVencimientos
             titulo="Carné LUD"
             icono="badge"

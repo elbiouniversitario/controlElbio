@@ -290,7 +290,8 @@ export const DocumentosModal: React.FC<DocumentosModalProps> = ({
             >
               <strong>{describirEstudio(est)}</strong>
               <span className="block text-[11px] mt-0.5">
-                La LUD pide un examen aprobado posterior al {corteTexto()} (salvo recibidos o con artículo).
+                La LUD pide un examen aprobado posterior al {corteTexto()}. Si está recibido o con artículo, no se
+                mira la fecha.
               </span>
             </div>
             <div className="grid grid-cols-2 gap-3">
@@ -303,20 +304,19 @@ export const DocumentosModal: React.FC<DocumentosModalProps> = ({
                   onChange={(e) => setEstudio({ ...estudio, ultimoExamen: e.target.value || null })}
                 />
               </label>
-              <label className="flex flex-col gap-1">
-                <span className={labelClass}>Excepción</span>
-                <select
-                  className={inputClass}
-                  value={estudio.excepcion ?? ''}
-                  onChange={(e) =>
-                    setEstudio({ ...estudio, excepcion: (e.target.value || null) as EstudioForm['excepcion'] })
-                  }
-                >
-                  <option value="">Ninguna</option>
-                  <option value="recibido">Recibido</option>
-                  <option value="articulo">Con artículo</option>
-                </select>
-              </label>
+              <div className="flex flex-col gap-2 justify-end pb-1">
+                {(['recibido', 'articulo'] as const).map((exc) => (
+                  <label key={exc} className="flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      className="w-5 h-5 accent-[#00183a]"
+                      checked={estudio.excepcion === exc}
+                      onChange={(e) => setEstudio({ ...estudio, excepcion: e.target.checked ? exc : null })}
+                    />
+                    <span className="font-sans text-[13px] text-[#191c1e]">{exc === 'recibido' ? 'Recibido' : 'Con artículo'}</span>
+                  </label>
+                ))}
+              </div>
             </div>
             <Error seccion="estudio" />
             <button type="button" onClick={handleEstudio} disabled={guardando !== null} className={btnPrimario}>
