@@ -53,6 +53,8 @@ interface JugadorRow {
   fecha_nacimiento: string | null;
   habilitacion_manual: 'habilitado' | 'inhabilitado' | null;
   rol_club?: Player['rolClub'] | null;
+  fecha_ultimo_examen?: string | null;
+  excepcion_estudio?: 'recibido' | 'articulo' | null;
   motivo_habilitacion: string | null;
   nombre: string;
   apellido: string;
@@ -182,6 +184,11 @@ function mapJugador(r: JugadorRow): Player {
       cardFilePath: ficha?.archivo_carne_path ?? undefined,
     },
     rolClub: r.rol_club ?? 'jugador',
+    // Si todavía no se corrió la migración 11, el último examen sigue en la ficha médica.
+    study: {
+      lastExam: r.fecha_ultimo_examen ?? carne?.fecha_examen ?? undefined,
+      exception: r.excepcion_estudio ?? undefined,
+    },
     eligibilityOverride: r.habilitacion_manual
       ? { status: r.habilitacion_manual, reason: r.motivo_habilitacion ?? undefined }
       : undefined,
@@ -564,6 +571,20 @@ export async function guardarHabilitacion(
     p_motivo: override?.reason?.trim() || null,
   });
   if (error) throw error;
+}
+
+/** Último examen aprobado y excepción (recibido / artículo). */
+export async function guardarEstudio(
+  jugadorId: string,
+  e: { ultimoExamen: string | null; excepcion: 'recibido' | 'articulo' | null }
+): Promise<void> {
+  const { data, error } = await cliente()
+    .from('jugadores')
+    .update({ fecha_ultimo_examen: e.ultimoExamen, excepcion_estudio: e.excepcion })
+    .eq('id', jugadorId)
+    .select('id');
+  if (error) throw error;
+  if (!data?.length) throw sinPermiso();
 }
 
 /** Admin: rol del jugador en el club (jugador, delegado o cuerpo técnico). */

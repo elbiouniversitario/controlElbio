@@ -375,5 +375,10 @@ export async function GET(request: Request): Promise<Response> {
   }
   if (vencidas.length) await db.from('push_suscripciones').delete().in('endpoint', vencidas);
 
+  // Resumen en los logs de Vercel (Logs → Messages).
+  console.log(
+    `Avisos automáticos ${hoy}: ${mandados.length} enviados, ${sinNotificaciones} sin notificaciones activadas` +
+      (mandados.length ? ` · ${mandados.map((a) => `${a.jugadorNombre}: ${a.titulo}`).join(' | ')}` : '')
+  );
   return json({ fecha: hoy, enviados: mandados.length, sinNotificaciones, suscripcionesBorradas: vencidas.length });
 }

@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { Player, AutomationRule, SentMessage } from '../types';
 import { CLUB_CREST_URL, CLUB_CREST_WATERMARK } from '../data/initialData';
 import { ClaveTexto, useTextos } from '../lib/textos';
-import { diasProximoVencimiento } from '../lib/habilitacion';
+import { CategoriaVencimientos, estadoPorDias, ItemVencimiento } from '../components/CategoriaVencimientos';
+import { corteAutomatico, corteEsManual, corteEstudio, corteTexto, estadoEstudio } from '../lib/estudio';
 import { diasHasta, fechaCorta, hoyISO } from '../lib/fechas';
 import { rellenarPlantilla } from '../lib/whatsapp';
 import { variablesMensaje } from '../lib/mensajes';
@@ -27,6 +28,12 @@ interface AlertasVencimientosScreenProps {
   onToggleRule: (ruleId: string) => void;
   onAbrirEnvio: (envio: EnvioAviso) => void;
   onOpenNewBroadcastModal: () => void;
+  /** Tocar a un jugador en una categoría abre sus documentos. Sin definir = sin permiso. */
+  onOpenDocuments?: (p: Player) => void;
+  /** Casilla "Recibido" en la lista de Estudio. Sin definir = sin permiso. */
+  onMarcarRecibido?: (p: Player, recibido: boolean) => Promise<boolean>;
+  /** Cambiar la fecha de corte de exámenes ('' = automática). Solo admin. */
+  onGuardarCorteEstudio?: (valor: string) => Promise<boolean>;
   /** Sin definir = no puede editar plantillas (solo admin). */
   onEditarPlantilla?: (clave: ClavePlantilla) => void;
   showToast: (msg: string, icon?: string, type?: 'success' | 'warning' | 'info' | 'error') => void;
@@ -78,21 +85,6 @@ const BotonAviso: React.FC<{ onClick: () => void; children: React.ReactNode; dis
   </button>
 );
 
-const Chips: React.FC<{ items: { id: string; texto: string; rojo?: boolean }[] }> = ({ items }) => (
-  <div className="flex items-center gap-1.5 overflow-x-auto py-1 text-xs no-scrollbar">
-    {items.map((i) => (
-      <span
-        key={i.id}
-        className={`bg-white px-2 py-1 rounded-md shadow-xs shrink-0 border border-[#e0e3e6] font-heading text-[10px] font-bold ${
-          i.rojo ? 'text-[#b51a1b]' : 'text-[#00183a]'
-        }`}
-      >
-        {i.texto}
-      </span>
-    ))}
-  </div>
-);
-
 // Qué hace cada regla: el aviso automático diario (api/avisos-automaticos) y la tarjeta de esta pantalla.
 const DESCRIPCION_REGLA: Record<string, (t: ReturnType<typeof useTextos>) => string> = {
   carne_30_dias: (t) =>
@@ -111,6 +103,104 @@ const TITULO_REGLA: Record<string, (t: ReturnType<typeof useTextos>) => string> 
   cuota_mensual: () => 'Cuotas pendientes',
 };
 
+/** Casilla "Recibido" de cada jugador en la lista de Estudio. */
+const CasillaRecibido: React.FC<{ player: Player; onMarcar: (p: Player, recibido: boolean) => Promise<boolean> }> = ({
+  player,
+  onMarcar,
+}) => {
+  const [guardando, setGuardando] = useState(false);
+  const marcado = player.study?.exception === 'recibido';
+  return (
+    <label className="flex flex-col items-center gap-0.5 shrink-0 cursor-pointer select-none">
+      <input
+        type="checkbox"
+        checked={marcado}
+        disabled={guardando}
+        onChange={async (e) => {
+          setGuardando(true);
+          await onMarcar(player, e.target.checked);
+          setGuardando(false);
+        }}
+        className="w-5 h-5 accent-[#00183a]"
+        aria-label={`${player.firstName} ${player.lastName} está recibido`}
+      />
+      <span className="font-heading text-[9px] font-bold text-[#44474f] uppercase">Recibido</span>
+    </label>
+  );
+};
+
+/** Admin: fecha de corte de exámenes, editable para dar margen. */
+const EditorCorte: React.FC<{ onGuardar: (valor: string) => Promise<boolean> }> = ({ onGuardar }) => {
+  const [editando, setEditando] = useState(false);
+  const [valor, setValor] = useState(corteEstudio());
+  const [guardando, setGuardando] = useState(false);
+  const guardar = async (v: string) => {
+    setGuardando(true);
+    const ok = await onGuardar(v);
+    setGuardando(false);
+    if (ok) setEditando(false);
+  };
+  if (!editando)
+    return (
+      <div className="flex items-center justify-between gap-2 bg-[#f2f4f7] rounded-lg px-3 py-2">
+        <span className="font-sans text-[12px] text-[#191c1e]">
+          Fecha de corte: <strong>{corteTexto()}</strong> {corteEsManual() ? '(puesta a mano)' : '(automática)'}
+        </span>
+        <button
+          type="button"
+          onClick={() => {
+            setValor(corteEstudio());
+            setEditando(true);
+          }}
+          className="font-heading text-[11px] font-bold text-[#445e8d] underline shrink-0"
+        >
+          Cambiar
+        </button>
+      </div>
+    );
+  return (
+    <div className="flex flex-col gap-2 bg-[#f2f4f7] rounded-lg p-3">
+      <label className="flex flex-col gap-1">
+        <span className="font-heading text-[11px] font-bold text-[#00183a] uppercase">Fecha de corte de exámenes</span>
+        <input
+          type="date"
+          value={valor}
+          onChange={(e) => setValor(e.target.value)}
+          className="h-11 px-3 rounded-lg bg-white border border-[#e0e3e6] font-sans text-[16px] text-[#191c1e]"
+        />
+      </label>
+      <p className="font-sans text-[11px] text-[#747780]">
+        Los exámenes anteriores a esta fecha no habilitan. Automática: {corteAutomatico().split('-').reverse().join('/')}.
+      </p>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          disabled={guardando || !valor}
+          onClick={() => void guardar(valor)}
+          className="flex-1 h-10 rounded-lg bg-[#00183a] text-white font-heading text-[12px] font-bold disabled:opacity-50"
+        >
+          {guardando ? 'Guardando…' : 'Guardar'}
+        </button>
+        <button
+          type="button"
+          disabled={guardando}
+          onClick={() => void guardar('')}
+          className="h-10 px-3 rounded-lg bg-white border border-[#e0e3e6] text-[#00183a] font-heading text-[11px] font-bold"
+        >
+          Usar la automática
+        </button>
+        <button
+          type="button"
+          onClick={() => setEditando(false)}
+          className="h-10 px-2 font-heading text-[11px] font-bold text-[#747780] underline"
+        >
+          Cancelar
+        </button>
+      </div>
+    </div>
+  );
+};
+
 export const AlertasVencimientosScreen: React.FC<AlertasVencimientosScreenProps> = ({
   players,
   rules,
@@ -118,6 +208,9 @@ export const AlertasVencimientosScreen: React.FC<AlertasVencimientosScreenProps>
   onToggleRule,
   onAbrirEnvio,
   onOpenNewBroadcastModal,
+  onOpenDocuments,
+  onMarcarRecibido,
+  onGuardarCorteEstudio,
   onEditarPlantilla,
   showToast,
 }) => {
@@ -129,11 +222,58 @@ export const AlertasVencimientosScreen: React.FC<AlertasVencimientosScreenProps>
   const diasPreventivo = Number(t.dias_aviso_preventivo) || 30;
   const diasUrgente = Number(t.dias_alerta_urgente) || 5;
 
-  const limiteVencimientos = activa('carne_30_dias') ? diasPreventivo : activa('alerta_urgente') ? diasUrgente : -Infinity;
-  const porVencer = players
-    .filter((p) => diasProximoVencimiento(p) <= limiteVencimientos)
-    .sort((a, b) => diasProximoVencimiento(a) - diasProximoVencimiento(b));
-  const urgentes = porVencer.filter((p) => diasProximoVencimiento(p) <= diasUrgente);
+  const porDias = (dias: number) => estadoPorDias(dias, diasUrgente, diasPreventivo);
+  const venceTexto = (iso: string, dias: number) => `${dias <= 0 ? 'Venció' : 'Vence'} el ${fechaCorta(iso)}`;
+
+  // 1. Carné de salud (ficha médica)
+  const salud: ItemVencimiento[] = players.map((p) => {
+    const mc = p.medicalCertificate;
+    if (!mc.expiryDate) return { player: p, estado: 'sin_dato', dias: null, detalle: 'Sin carné de salud cargado' };
+    return { player: p, estado: porDias(mc.daysRemaining), dias: mc.daysRemaining, detalle: venceTexto(mc.expiryDate, mc.daysRemaining) };
+  });
+
+  // 2. Estudio: examen aprobado posterior al 25/10 del año anterior (salvo recibido / artículo)
+  const estudio: ItemVencimiento[] = players.map((p) => {
+    const e = estadoEstudio(p);
+    switch (e.estado) {
+      case 'excepcion':
+        return { player: p, estado: 'excepcion', dias: null, detalle: e.motivo === 'recibido' ? 'Recibido' : 'Con artículo' };
+      case 'sin_dato':
+        return { player: p, estado: 'sin_dato', dias: null, detalle: 'Sin último examen cargado' };
+      case 'vencido':
+        return {
+          player: p,
+          estado: 'vencido',
+          dias: null,
+          detalle: `Último examen ${fechaCorta(e.examen)} (anterior al ${corteTexto()}) · INHABILITADO`,
+        };
+      case 'vigente':
+        return {
+          player: p,
+          estado: porDias(e.dias),
+          dias: e.dias,
+          detalle: `Último examen ${fechaCorta(e.examen)} · sirve hasta ${fechaCorta(e.vence)}`,
+        };
+    }
+  });
+
+  // 3. Carné LUD
+  const lud: ItemVencimiento[] = players.map((p) => {
+    const v = p.ludRegistration.cardExpiry;
+    if (!v) return { player: p, estado: 'sin_dato', dias: null, detalle: 'Sin carné LUD cargado' };
+    const d = diasHasta(v);
+    return { player: p, estado: porDias(d), dias: d, detalle: venceTexto(v, d) };
+  });
+
+  /** Aviso de vencimiento con el documento y la fecha de esta categoría. */
+  const avisarVencimiento = (documento: string, fecha: (p: Player) => string | undefined) => (destinatarios: Player[]) =>
+    onAbrirEnvio({
+      titulo: `Aviso: ${documento}`,
+      tema: `Aviso de vencimiento (${documento})`,
+      plantilla: t.plantilla_vencimiento,
+      destinatarios,
+      variablesExtra: (p) => ({ documento, vencimiento: fecha(p) ? fechaCorta(fecha(p)!) : 'pronto' }),
+    });
 
   const convocados = players.filter((p) => p.matchStatus.lineupRole !== 'BAJA');
   const deudores = players.filter((p) => p.dues.debtAmount > 0 || p.dues.status === 'overdue');
@@ -221,61 +361,50 @@ export const AlertasVencimientosScreen: React.FC<AlertasVencimientosScreenProps>
 
       {activeSubTab === 'automaticos' && (
         <>
+          <CategoriaVencimientos
+            titulo="Carné de salud"
+            icono="medical_services"
+            colorIcono="bg-[#ffdad6] text-[#ba1a1a]"
+            items={salud}
+            onAbrir={onOpenDocuments}
+            onAvisar={avisarVencimiento('carné de salud', (p) => p.medicalCertificate.expiryDate)}
+          />
+          <CategoriaVencimientos
+            titulo="Estudio"
+            icono="school"
+            colorIcono="bg-[#d7e3ff] text-[#00183a]"
+            items={estudio}
+            nota={`Examen aprobado posterior al ${corteTexto()}, o recibido / con artículo. Si no, queda inhabilitado.`}
+            onAbrir={onOpenDocuments}
+            extraFila={
+              onMarcarRecibido
+                ? (i) => <CasillaRecibido player={i.player} onMarcar={onMarcarRecibido} />
+                : undefined
+            }
+            onAvisar={(destinatarios) =>
+              onAbrirEnvio({
+                titulo: 'Aviso: estudio',
+                tema: 'Aviso de estudio (último examen)',
+                plantilla: `Hola {nombre}, para jugar en la Liga Universitaria necesitás un examen aprobado posterior al ${corteTexto()}. Mandale al delegado tu escolaridad actualizada. ¡Arriba Elbio!`,
+                destinatarios,
+              })
+            }
+          >
+            {onGuardarCorteEstudio && <EditorCorte onGuardar={onGuardarCorteEstudio} />}
+          </CategoriaVencimientos>
+          <CategoriaVencimientos
+            titulo="Carné LUD"
+            icono="badge"
+            colorIcono="bg-[#e8f5e9] text-[#1b5e20]"
+            items={lud}
+            onAbrir={onOpenDocuments}
+            onAvisar={avisarVencimiento('carné de la LUD', (p) => p.ludRegistration.cardExpiry)}
+          />
+
           <div className="rounded-xl bg-white p-4 shadow-sm space-y-3 border border-[#e0e3e6]/50">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span
-                  className={`flex h-2.5 w-2.5 rounded-full ${urgentes.length ? 'bg-[#b51a1b] animate-pulse' : 'bg-emerald-600'}`}
-                ></span>
-                <span className="font-heading font-extrabold text-[10px] uppercase tracking-wider text-[#b51a1b]">
-                  Para hacer hoy
-                </span>
-              </div>
-              <span className="font-heading text-[10px] bg-[#ffdad6] text-[#410002] px-2 py-0.5 rounded-full font-bold">
-                {urgentes.length} urgentes
-              </span>
-            </div>
-
-            {limiteVencimientos > -Infinity && (
-              <Tarjeta
-                icono="medical_services"
-                colorIcono="bg-[#ffdad6] text-[#ba1a1a]"
-                titulo="Fichas y carnés por vencer"
-                subtitulo={
-                  porVencer.length
-                    ? `${porVencer.length} en los próximos ${limiteVencimientos} días (${urgentes.length} urgentes o vencidos)`
-                    : `Nada vence en los próximos ${limiteVencimientos} días`
-                }
-              >
-                {porVencer.length > 0 && (
-                  <>
-                    <Chips
-                      items={porVencer.map((p) => {
-                        const d = diasProximoVencimiento(p);
-                        return {
-                          id: p.id,
-                          texto: `${p.firstName[0]}. ${p.lastName} (${d <= 0 ? 'vencido' : `${d}d`})`,
-                          rojo: activa('alerta_urgente') && d <= diasUrgente,
-                        };
-                      })}
-                    />
-                    <BotonAviso
-                      onClick={() =>
-                        onAbrirEnvio({
-                          titulo: 'Aviso de vencimiento',
-                          tema: 'Aviso de vencimiento',
-                          plantilla: t.plantilla_vencimiento,
-                          destinatarios: porVencer,
-                        })
-                      }
-                    >
-                      Avisar ({porVencer.length})
-                    </BotonAviso>
-                  </>
-                )}
-              </Tarjeta>
-            )}
-
+            <span className="font-heading font-extrabold text-[10px] uppercase tracking-wider text-[#445e8d]">
+              Otros avisos
+            </span>
             <Tarjeta
               icono="sports_soccer"
               colorIcono="bg-[#d7e3ff] text-[#00183a]"
