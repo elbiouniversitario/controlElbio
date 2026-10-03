@@ -2,12 +2,14 @@ import { Player } from '../types';
 import { diasHasta, fechaCorta, hoyISO } from './fechas';
 
 /**
- * Regla de la LUD: para jugar hay que tener un examen aprobado posterior al
- * 25/10 del año anterior. Excepciones: recibido o con artículo.
+ * Regla de la LUD: "certificado de examen o curso aprobado, posterior al 31 de
+ * octubre de dos años anteriores a la temporada en la cual pretenda jugar".
+ * La temporada es el año en curso (2026 → examen posterior al 31/10/2024).
+ * Excepciones: recibido o con artículo.
  */
 
-/** Corte automático: 25/10 del año anterior ('YYYY-MM-DD'). */
-export const corteAutomatico = (hoy = hoyISO()) => `${Number(hoy.slice(0, 4)) - 1}-10-25`;
+/** Corte automático: 31/10 de dos años antes de la temporada ('YYYY-MM-DD'). */
+export const corteAutomatico = (hoy = hoyISO()) => `${Number(hoy.slice(0, 4)) - 2}-10-31`;
 
 // Corte puesto a mano por el admin (Alertas → Estudio, o Textos de la app → Alertas), para dar margen.
 let corteManual: string | null = null;
@@ -20,17 +22,18 @@ export function configurarCorteEstudio(valor: string) {
 
 export const corteEsManual = () => corteManual !== null;
 
-/** Fecha de corte vigente: la puesta a mano o, si no hay, el 25/10 del año anterior. */
+/** Fecha de corte vigente: la puesta a mano o, si no hay, el 31/10 de dos años antes. */
 export const corteEstudio = (hoy = hoyISO()) => corteManual ?? corteAutomatico(hoy);
 
 /**
- * Hasta cuándo sirve un examen: el último año en que vale es el siguiente si
- * se dio después del 25/10, o ese mismo año si fue antes. Vence el 31/12.
+ * Hasta cuándo sirve un examen: la última temporada en que vale es la de dos
+ * años después si se dio después del 31/10, o la del año siguiente si fue
+ * antes. Vence el 31/12 de esa temporada.
  */
 export function venceExamen(examenISO: string): string {
   const anio = Number(examenISO.slice(0, 4));
-  const ultimoAnio = examenISO.slice(5) >= '10-25' ? anio + 1 : anio;
-  return `${ultimoAnio}-12-31`;
+  const ultimaTemporada = examenISO.slice(5) > '10-31' ? anio + 2 : anio + 1;
+  return `${ultimaTemporada}-12-31`;
 }
 
 export type EstadoEstudio =
@@ -45,12 +48,13 @@ export function estadoEstudio(p: Player, hoy = hoyISO()): EstadoEstudio {
   const examen = p.study?.lastExam;
   if (!examen) return { estado: 'sin_dato' };
   const corte = corteEstudio(hoy);
-  if (examen < corte) return { estado: 'vencido', examen, corte };
+  // "Posterior al" corte: un examen el mismo día del corte no alcanza.
+  if (examen <= corte) return { estado: 'vencido', examen, corte };
   const vence = venceExamen(examen);
   return { estado: 'vigente', examen, vence, dias: diasHasta(vence) };
 }
 
-/** Texto corto del corte, ej. '25/10/2025'. */
+/** Texto corto del corte, ej. '31/10/2024'. */
 export const corteTexto = (hoy = hoyISO()) => {
   const [a, m, d] = corteEstudio(hoy).split('-');
   return `${d}/${m}/${a}`;

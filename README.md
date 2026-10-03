@@ -44,7 +44,7 @@ Archivos:
 - `supabase/migrations/20261003000000_avisos_automaticos.sql`: registro de los avisos automáticos ya mandados
 - `supabase/migrations/20261004000000_anotarse_y_roles.sql`: los jugadores se anotan solos; rol de cada jugador (jugador, delegado, cuerpo técnico)
 - `supabase/migrations/20261005000000_notificaciones_staff.sql`: las suscripciones guardan el email, para ver en Club qué miembros del staff activaron las notificaciones
-- `supabase/migrations/20261006000000_estudio.sql`: último examen aprobado y excepción (recibido / artículo) en la ficha del jugador; regla de la LUD del 25/10
+- `supabase/migrations/20261006000000_estudio.sql`: último examen aprobado y excepción (recibido / artículo) en la ficha del jugador; regla de la LUD: examen posterior al 31/10 de dos años antes de la temporada
 - `src/lib/supabase.ts`: cliente; `src/lib/db.ts`: lecturas y escrituras
 
 ### Puesta en marcha (una sola vez)

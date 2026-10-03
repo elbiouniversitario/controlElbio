@@ -536,7 +536,7 @@ export default function App({ perfil, onLogout, onRecargarPerfil }: AppProps) {
       p
     );
 
-  /** Fecha de corte de exámenes ('' = 25/10 del año anterior). Solo admin. */
+  /** Fecha de corte de exámenes ('' = 31/10 de dos años antes de la temporada). Solo admin. */
   const handleGuardarCorteEstudio = (valor: string) => handleSaveTextos({ ...textos, estudio_corte: valor });
 
   const handleCargarFichaMedica = async (f: FichaMedicaForm): Promise<boolean> => {
