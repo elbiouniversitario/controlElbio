@@ -232,7 +232,7 @@ export const AlertasVencimientosScreen: React.FC<AlertasVencimientosScreenProps>
     return { player: p, estado: porDias(mc.daysRemaining), dias: mc.daysRemaining, detalle: venceTexto(mc.expiryDate, mc.daysRemaining) };
   });
 
-  // 2. Estudio: examen aprobado posterior al 25/10 del año anterior (salvo recibido / artículo)
+  // 2. Estudio: examen aprobado posterior al 31/10 de dos años antes de la temporada (salvo recibido / artículo)
   const estudio: ItemVencimiento[] = players.map((p) => {
     const e = estadoEstudio(p);
     switch (e.estado) {

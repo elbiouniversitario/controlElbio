@@ -41,7 +41,7 @@ export const TEXTOS = {
 
   estudio_corte: {
     grupo: 'Alertas',
-    label: 'Estudio: fecha de corte de exámenes (AAAA-MM-DD). Vacía = 25/10 del año anterior',
+    label: 'Estudio: fecha de corte de exámenes (AAAA-MM-DD). Vacía = 31/10 de dos años antes de la temporada',
     valor: '',
   },
   dias_aviso_preventivo: { grupo: 'Alertas', label: 'Avisar vencimientos con cuántos días de anticipación', valor: '30' },

@@ -22,7 +22,7 @@ export interface EstadoHabilitacion {
 
 /**
  * Si el staff forzó la habilitación, manda eso. Si no, se calcula: ficha
- * médica vigente, examen aprobado posterior al 25/10 del año anterior (o
+ * médica vigente, examen aprobado posterior al 31/10 de dos años antes (o
  * recibido / con artículo), no estar de baja (y, si está activado, sin cuota vencida).
  * El carné LUD vencido NO inhabilita: solo genera alertas.
  */
@@ -36,7 +36,7 @@ export function estadoHabilitacion(p: Player, opciones: { bloquearPorDeuda?: boo
     };
   }
   if (p.medicalCertificate.daysRemaining <= 0) return { habilitado: false, motivo: 'Ficha médica vencida', manual: false };
-  // LUD: examen aprobado posterior al 25/10 del año anterior (salvo recibido o con artículo).
+  // LUD: examen aprobado posterior al 31/10 de dos años antes de la temporada (salvo recibido o con artículo).
   if (estadoEstudio(p).estado === 'vencido')
     return { habilitado: false, motivo: `Sin examen aprobado desde el ${corteTexto()}`, manual: false };
   if (p.matchStatus.lineupRole === 'BAJA') return { habilitado: false, motivo: 'Dado de baja', manual: false };
