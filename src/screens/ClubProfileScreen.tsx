@@ -128,6 +128,8 @@ export const ClubProfileScreen: React.FC<ClubProfileScreenProps> = ({
       ? players.length
       : miembros.filter((m) => m.rol === key).length + players.filter((p) => p.rolClub === key).length;
   const cantidadStaff = miembros.length + players.filter((p) => p.rolClub && p.rolClub !== 'jugador').length;
+  const habilitados = players.filter((p) => estadoHabilitacion(p, opcionesHab).habilitado).length;
+  const conNotificaciones = conPush ? players.filter((p) => conPush.has(p.id)).length : 0;
 
   return (
     <div className="flex flex-col w-full pb-28">
@@ -197,6 +199,26 @@ export const ClubProfileScreen: React.FC<ClubProfileScreenProps> = ({
           </div>
         </div>
       </section>
+
+      <div className="px-4 -mt-3 relative z-10">
+        <div className="summary-grid">
+          <div className="summary-card">
+            <span className="label">Plantel</span>
+            <span className="value">{players.length}</span>
+            <span className="meta" style={{ background: '#eafbf2', color: '#14532d' }}>Total</span>
+          </div>
+          <div className="summary-card">
+            <span className="label">Habilitados</span>
+            <span className="value" style={{ color: '#14532d' }}>{habilitados}</span>
+            <span className="meta" style={{ background: '#eafbf2', color: '#14532d' }}>OK</span>
+          </div>
+          <div className="summary-card">
+            <span className="label">Push</span>
+            <span className="value" style={{ color: '#00183a' }}>{conNotificaciones}</span>
+            <span className="meta" style={{ background: '#e9f1ff', color: '#2342a3' }}>Activos</span>
+          </div>
+        </div>
+      </div>
 
       {/* Content Container */}
       <div className="px-4 flex flex-col gap-5 mt-4">
