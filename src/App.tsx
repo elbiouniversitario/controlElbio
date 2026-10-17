@@ -735,6 +735,13 @@ export default function App({ perfil, onLogout, onRecargarPerfil }: AppProps) {
   const pendingAlertsCount = players.filter((p) => diasProximoVencimiento(p) <= 5).length;
   // Quienes deben plata (sin cuotas generadas todavía no cuentan como deudores).
   const pendingDuesCount = players.filter((p) => p.dues.debtAmount > 0 || p.dues.status === 'overdue').length;
+  const activePlayersCount = players.filter((p) => p.matchStatus.lineupRole !== 'BAJA').length;
+
+  const summaryCards = [
+    { label: 'Urgentes', value: pendingAlertsCount, meta: pendingAlertsCount ? 'Revisar' : 'Todo bien', tone: 'bg-[#fff1e0] text-[#8a5300]' },
+    { label: 'Cuotas', value: pendingDuesCount, meta: pendingDuesCount ? 'Pendientes' : 'Cerrado', tone: 'bg-[#ebf3ff] text-[#113d7c]' },
+    { label: 'Plantel', value: activePlayersCount, meta: 'Activos', tone: 'bg-[#eafbf2] text-[#14532d]' },
+  ];
 
   // Screen titles
   const screenMeta: Record<TabType, { title: string; subtitle: string }> = {
@@ -780,17 +787,17 @@ export default function App({ perfil, onLogout, onRecargarPerfil }: AppProps) {
 
       {/* Quick Screen Carousel Shortcut Ribbon for Easy Exploration of ALL Screens */}
       {mostrarMenu && (
-      <div className="fixed top-16 inset-x-0 z-30 bg-white/90 backdrop-blur-md border-b border-[#e0e3e6]/80 px-3 py-1.5 flex items-center gap-1.5 overflow-x-auto no-scrollbar shadow-xs">
-        <span className="font-heading font-extrabold text-[9px] uppercase tracking-wider text-[#747780] mr-1 shrink-0">
-          Vistas:
+      <div className="fixed top-16 inset-x-0 z-30 bg-white/85 backdrop-blur-md border-b border-[#e0e3e6]/80 px-3 py-1.5 flex items-center gap-1.5 overflow-x-auto no-scrollbar shadow-[0_6px_18px_rgba(0,24,58,0.05)]">
+        <span className="font-heading font-extrabold text-[9px] uppercase tracking-[0.16em] text-[#747780] mr-1 shrink-0">
+          Vistas
         </span>
         {[
-          { id: 'alertas' as TabType, label: '🔔 Alertas', count: pendingAlertsCount },
-          { id: 'tesoreria' as TabType, label: '💰 Cuotas', count: pendingDuesCount },
-          { id: 'planilla' as TabType, label: '📋 Planilla DT', count: undefined },
-          { id: 'jugador' as TabType, label: '⚽ Mi Ficha', count: undefined },
-          { id: 'club' as TabType, label: '⚙️ Club Admin', count: undefined },
-          { id: 'nuevo-jugador' as TabType, label: '➕ Nuevo Jugador', count: undefined },
+          { id: 'alertas' as TabType, label: 'Alertas', count: pendingAlertsCount },
+          { id: 'tesoreria' as TabType, label: 'Cuotas', count: pendingDuesCount },
+          { id: 'planilla' as TabType, label: 'Planilla', count: undefined },
+          { id: 'jugador' as TabType, label: 'Mi ficha', count: undefined },
+          { id: 'club' as TabType, label: 'Club', count: undefined },
+          { id: 'nuevo-jugador' as TabType, label: 'Nuevo', count: undefined },
         ].filter((btn) => vistas.includes(btn.id)).map((btn) => (
           <button
             key={btn.id}
@@ -814,6 +821,38 @@ export default function App({ perfil, onLogout, onRecargarPerfil }: AppProps) {
 
       {/* Main Content Area */}
       <main className={`flex-1 w-full max-w-lg mx-auto px-4 ${mostrarMenu ? 'pt-28' : 'pt-20'} pb-8 flex flex-col`}>
+        <section className="mb-4">
+          <div className="summary-grid">
+            {summaryCards.map((card) => (
+              <div key={card.label} className="summary-card">
+                <span className="label">{card.label}</span>
+                <span className="value">{card.value}</span>
+                <span className={`meta ${card.tone}`}>{card.meta}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="section-shell mb-4 px-3 py-3">
+          <div className="section-heading">
+            <h2>Acciones rápidas</h2>
+            <span>Club</span>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <button type="button" className="quick-action" onClick={() => setEnvio({ titulo: 'Convocatoria', tema: `Convocatoria ${textos.fecha}`, plantilla: textos.plantilla_convocatoria, destinatarios: convocados })}>
+              <span className="material-symbols-outlined">sports_soccer</span>
+              <span>Convocar</span>
+            </button>
+            <button type="button" className="quick-action" onClick={() => setVerNotificaciones(true)}>
+              <span className="material-symbols-outlined">notifications</span>
+              <span>Alertas</span>
+            </button>
+            <button type="button" className="quick-action" onClick={() => goTo('tesoreria')}>
+              <span className="material-symbols-outlined">payments</span>
+              <span>Cuotas</span>
+            </button>
+          </div>
+        </section>
         {modoJugador && (
           <div className="mb-3 flex items-center justify-between gap-2 rounded-lg bg-[#00183a] px-3 py-2 text-white">
             <span className="flex items-center gap-1.5 font-heading text-[12px] font-bold">
