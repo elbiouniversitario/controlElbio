@@ -92,7 +92,7 @@ export const TesoreriaCuotasScreen: React.FC<TesoreriaCuotasScreenProps> = ({
   return (
     <div className="flex flex-col w-full space-y-4 pb-28 relative">
       {/* Encabezado Institucional de Tesorería */}
-      <section className="bg-[#0d2d59] text-white rounded-xl p-4 shadow-md relative overflow-hidden">
+      <section className="bg-[#0d2d59] text-white rounded-[20px] p-4 shadow-[0_12px_28px_rgba(0,24,58,0.18)] relative overflow-hidden">
         <div className="absolute -right-4 -top-6 w-32 h-32 bg-[#00183a]/40 rounded-full blur-2xl pointer-events-none"></div>
         <div className="flex items-center justify-between relative z-10">
           <div className="flex flex-col">
@@ -103,8 +103,8 @@ export const TesoreriaCuotasScreen: React.FC<TesoreriaCuotasScreenProps> = ({
               >
                 star
               </span>
-              <span className="font-heading font-extrabold text-[10px] text-[#fabc4d] tracking-wider uppercase">
-                Temporada {t.temporada} • Liga Universitaria
+              <span className="font-heading font-extrabold text-[10px] text-[#fabc4d] tracking-[0.14em] uppercase">
+                Temporada {t.temporada}
               </span>
             </div>
             <h2 className="font-heading font-bold text-[20px] text-white leading-tight">
@@ -119,6 +119,24 @@ export const TesoreriaCuotasScreen: React.FC<TesoreriaCuotasScreenProps> = ({
             alt="Escudo Oficial Club Elbio Fernández"
             className="w-12 h-14 object-contain shrink-0 drop-shadow-md"
           />
+        </div>
+
+        <div className="mt-4 grid grid-cols-3 gap-2 relative z-10">
+          <div className="money-panel p-2.5">
+            <span className="kpi-label">Al día</span>
+            <span className="kpi-value text-[#1b5e20]">{paidCount}</span>
+            <span className="kpi-trend bg-[#eafbf2] text-[#14532d]">OK</span>
+          </div>
+          <div className="money-panel p-2.5">
+            <span className="kpi-label">Pend.</span>
+            <span className="kpi-value text-[#b76e00]">{pendingCount}</span>
+            <span className="kpi-trend bg-[#fff1e0] text-[#8a5300]">Avisar</span>
+          </div>
+          <div className="money-panel p-2.5">
+            <span className="kpi-label">Mor.</span>
+            <span className="kpi-value text-[#b51a1b]">{overdueCount}</span>
+            <span className="kpi-trend bg-[#ffebee] text-[#b51a1b]">Revisar</span>
+          </div>
         </div>
 
         {/* Selector de Período y Concepto */}
@@ -199,99 +217,23 @@ export const TesoreriaCuotasScreen: React.FC<TesoreriaCuotasScreenProps> = ({
       </section>
 
       {/* Tarjetas KPI de Recaudación */}
-      <section className="grid grid-cols-3 gap-2">
-        {/* Al día */}
-        <button
-          onClick={() => setFilter('paid')}
-          className={`bg-white rounded-xl p-2.5 flex flex-col shadow-sm text-left border transition-all ${
-            filter === 'paid' ? 'border-[#1b5e20] ring-2 ring-[#1b5e20]/20' : 'border-[#e0e3e6]/60'
-          }`}
-        >
-          <div className="flex items-center justify-between mb-1">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#1b5e20]"></span>
-            <span className="material-symbols-outlined text-[#1b5e20] text-[16px]">
-              check_circle
-            </span>
+      <section className="money-panel p-3">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <span className="kpi-label">Recaudado</span>
+            <p className="font-heading text-[15px] font-bold text-[#00183a] mt-1">${totalCollected.toLocaleString('es-UY')}</p>
           </div>
-          <span className="font-heading font-bold text-[18px] text-[#00183a]">
-            {paidCount}
-          </span>
-          <span className="font-heading font-bold text-[10px] text-[#44474f]">
-            Al Día
-          </span>
-        </button>
-
-        {/* Pendientes */}
-        <button
-          onClick={() => setFilter('pending')}
-          className={`bg-white rounded-xl p-2.5 flex flex-col shadow-sm text-left border transition-all ${
-            filter === 'pending' ? 'border-[#b76e00] ring-2 ring-[#b76e00]/20' : 'border-[#e0e3e6]/60'
-          }`}
-        >
-          <div className="flex items-center justify-between mb-1">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#b76e00]"></span>
-            <span className="material-symbols-outlined text-[#b76e00] text-[16px]">
-              pending
-            </span>
-          </div>
-          <span className="font-heading font-bold text-[18px] text-[#00183a]">
-            {pendingCount}
-          </span>
-          <span className="font-heading font-bold text-[10px] text-[#44474f]">
-            Pendientes
-          </span>
-        </button>
-
-        {/* Morosos */}
-        <button
-          onClick={() => setFilter('overdue')}
-          className={`bg-white rounded-xl p-2.5 flex flex-col shadow-sm text-left border transition-all ${
-            filter === 'overdue' ? 'border-[#b51a1b] ring-2 ring-[#b51a1b]/20' : 'border-[#e0e3e6]/60'
-          }`}
-        >
-          <div className="flex items-center justify-between mb-1">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#b51a1b]"></span>
-            <span className="material-symbols-outlined text-[#b51a1b] text-[16px]">
-              warning
-            </span>
-          </div>
-          <span className="font-heading font-bold text-[18px] text-[#b51a1b]">
-            {overdueCount}
-          </span>
-          <span className="font-heading font-bold text-[10px] text-[#44474f]">
-            &gt;2 Meses
-          </span>
-        </button>
-      </section>
-
-      {/* Barra de Meta Financiera */}
-      <section className="bg-white rounded-xl p-4 shadow-sm flex flex-col gap-2 border border-[#e0e3e6]/60">
-        <div className="flex items-baseline justify-between">
-          <div className="flex flex-col">
-            <span className="font-heading font-extrabold text-[10px] uppercase text-[#44474f]">
-              Total Recaudado
-            </span>
-            <span className="font-heading font-bold text-[24px] text-[#00183a] tracking-tight">
-              ${totalCollected.toLocaleString('es-UY')}{' '}
-              <span className="font-sans text-[12px] text-[#44474f] font-normal">
-                / ${totalGoal.toLocaleString('es-UY')}
-              </span>
-            </span>
-          </div>
-          <div className="bg-[#00183a]/10 text-[#00183a] px-2.5 py-1 rounded-full font-heading font-bold text-[12px] flex items-center gap-1">
-            <span className="material-symbols-outlined text-[14px]">trending_up</span>
-            <span>{percentage}% Meta</span>
-          </div>
+          <span className="kpi-trend bg-[#eafbf2] text-[#14532d]">{percentage}% meta</span>
         </div>
-        <div className="w-full bg-[#e0e3e6] rounded-full h-3 overflow-hidden p-0.5">
+        <div className="w-full bg-[#e0e3e6] rounded-full h-2.5 overflow-hidden mt-3">
           <div
             className="bg-gradient-to-r from-[#00183a] to-[#445e8d] h-full rounded-full transition-all duration-500"
             style={{ width: `${percentage}%` }}
           ></div>
         </div>
-        <div className="flex justify-between items-center text-[#44474f] font-sans text-[12px] pt-0.5">
-          <span>Faltan cobrar: ${remaining.toLocaleString('es-UY')}</span>
-          <span>{totalCount} Plantel Total</span>
+        <div className="mt-2 flex items-center justify-between text-[11px] text-[#44474f]">
+          <span>Faltan ${remaining.toLocaleString('es-UY')}</span>
+          <span>{totalCount} jugadores</span>
         </div>
       </section>
 
@@ -385,7 +327,7 @@ export const TesoreriaCuotasScreen: React.FC<TesoreriaCuotasScreenProps> = ({
             return (
               <div
                 key={player.id}
-                className="bg-white rounded-xl p-3.5 shadow-sm flex flex-col gap-2.5 border border-[#e0e3e6]/60 transition-transform active:scale-[0.99]"
+                className="payer-row p-3.5 flex flex-col gap-2.5 transition-transform active:scale-[0.99]"
               >
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
