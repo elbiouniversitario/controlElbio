@@ -202,6 +202,24 @@ export const PlanillaOpsScreen: React.FC<PlanillaOpsScreenProps> = ({
           )}
         </div>
 
+        <div className="mt-4 grid grid-cols-3 gap-2 relative z-10">
+          <div className="summary-card bg-[#0d2d59]/85 border border-white/10 shadow-none">
+            <span className="label text-[#b6c9f0]">Convocados</span>
+            <span className="value text-white">{convocados.length}</span>
+            <span className="meta" style={{ background: '#e9f1ff', color: '#2342a3' }}>Listos</span>
+          </div>
+          <div className="summary-card bg-[#0d2d59]/85 border border-white/10 shadow-none">
+            <span className="label text-[#b6c9f0]">Carnés</span>
+            <span className="value text-white">{cardsInHandCount}</span>
+            <span className="meta" style={{ background: '#fff1e0', color: '#8a5300' }}>{faltanCarne.length} faltan</span>
+          </div>
+          <div className="summary-card bg-[#0d2d59]/85 border border-white/10 shadow-none">
+            <span className="label text-[#b6c9f0]">Hábiles</span>
+            <span className="value text-white">{players.filter((p) => estadoHabilitacion(p, { bloquearPorDeuda: bloqueaDeuda }).habilitado).length}</span>
+            <span className="meta" style={{ background: '#eafbf2', color: '#14532d' }}>OK</span>
+          </div>
+        </div>
+
         {/* Primary Action: Build Roster (sin permiso de convocatoria no se muestra) */}
         {onGuardarConvocatoria && (
         <button
