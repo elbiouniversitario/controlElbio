@@ -6,7 +6,7 @@
 //     (urgente) y el día que vence;
 //   - cuota del mes sin pagar: 3 días antes y el día que vence;
 //   - cumpleaños: ese día.
-// Y a los delegados (rol que asigna el admin en Club → Roles del plantel),
+// Y al staff (delegados y tesoreros, rol que asigna el tesorero en Más → Roles),
 // un resumen de quién está por deber la cuota (3 días antes y el día que
 // vence) y de quién la debe (todos los lunes y los días después del vencimiento).
 // Cada aviso se manda una sola vez (tabla avisos_automaticos). Los avisos se
@@ -32,8 +32,23 @@ export interface JugadorAvisos {
   /** Vencimiento más lejano de la ficha médica (la última cargada). */
   fichaMedica: string | null;
   carneLud: string | null;
-  /** Cuotas sin pagar: periodo 'YYYY-MM-01' y monto. */
-  cuotasImpagas: { periodo: string; monto: number }[];
+  /**
+   * Cuotas sin pagar: periodo 'YYYY-MM-01', saldo (cargo menos pagos
+   * confirmados) y vencimiento del cobro si lo tiene. Las que el jugador ya
+   * informó (pago a confirmar por el tesorero) no entran: no se le insiste.
+   */
+  cuotasImpagas: { periodo: string; monto: number; vence?: string | null }[];
+}
+
+/** El vencimiento de la cuota del mes: el del cobro si lo tiene; si no, el día configurado. */
+function vencimientoCuota(j: JugadorAvisos[] | JugadorAvisos, a: Ajustes, hoy: string): string {
+  const periodoActual = `${hoy.slice(0, 7)}-01`;
+  const lista = Array.isArray(j) ? j : [j];
+  const delCobro = lista.flatMap((x) => x.cuotasImpagas).find((c) => c.periodo === periodoActual && c.vence)?.vence;
+  if (delCobro) return delCobro;
+  const [anio, mes] = hoy.split('-').map(Number);
+  const ultimoDiaMes = new Date(Date.UTC(anio, mes, 0)).getUTCDate();
+  return `${hoy.slice(0, 7)}-${String(Math.min(Math.max(a.diaVencimientoCuota, 1), ultimoDiaMes)).padStart(2, '0')}`;
 }
 
 export interface Ajustes {
@@ -98,12 +113,10 @@ export function calcularAvisos(jugadores: JugadorAvisos[], a: Ajustes, hoy: stri
     ...(prendida('carne_30_dias') ? [a.diasPreventivo] : []),
     ...(prendida('alerta_urgente') ? [a.diasUrgente, 0] : []),
   ];
-  const [anio, mes] = hoy.split('-').map(Number);
   const periodoActual = `${hoy.slice(0, 7)}-01`;
-  const ultimoDiaMes = new Date(Date.UTC(anio, mes, 0)).getUTCDate();
-  const venceCuota = `${hoy.slice(0, 7)}-${String(Math.min(Math.max(a.diaVencimientoCuota, 1), ultimoDiaMes)).padStart(2, '0')}`;
 
   for (const j of jugadores) {
+    const venceCuota = vencimientoCuota(j, a, hoy);
     const nombreCompleto = `${j.nombre} ${j.apellido}`;
 
     for (const [tipo, venc, documento] of [
@@ -185,11 +198,8 @@ export function calcularResumenDelegados(
   hoy: string
 ): Aviso[] {
   if (a.apagadas.has('cuota_mensual') || delegados.length === 0) return [];
-  const [anio, mes] = hoy.split('-').map(Number);
   const periodoActual = `${hoy.slice(0, 7)}-01`;
-  const ultimoDiaMes = new Date(Date.UTC(anio, mes, 0)).getUTCDate();
-  const diaVence = Math.min(Math.max(a.diaVencimientoCuota, 1), ultimoDiaMes);
-  const dias = diasEntre(hoy, `${hoy.slice(0, 7)}-${String(diaVence).padStart(2, '0')}`);
+  const dias = diasEntre(hoy, vencimientoCuota(jugadores, a, hoy));
   const esLunes = new Date(`${hoy}T12:00:00Z`).getUTCDay() === 1;
 
   // Deben: cuotas de meses anteriores sin pagar, o la de este mes si ya venció.
@@ -213,7 +223,7 @@ export function calcularResumenDelegados(
     partes.push(`Deben: ${listaNombres(deben)}.`);
   }
   if (!titulo) return [];
-  const cuerpo = `${partes.join(' ')} Mirá el detalle en Alertas.`;
+  const cuerpo = `${partes.join(' ')} Mirá el detalle en la app.`;
   return delegados.map((d) => ({
     jugadorId: d.id,
     jugadorNombre: `${d.nombre} ${d.apellido}`,
@@ -261,16 +271,18 @@ export async function GET(request: Request): Promise<Response> {
   const db = createClient(url, servicio, { auth: { persistSession: false, autoRefreshToken: false } });
   const hoy = hoyUruguay();
 
-  const [textosR, reglasR, jugadoresR, subsR, enviadosR] = await Promise.all([
+  const [textosR, reglasR, jugadoresR, cuotasR, subsR, enviadosR] = await Promise.all([
     db.from('textos_app').select('clave, valor'),
     db.from('reglas_automatizacion').select('clave, activa'),
     db
       .from('jugadores')
-      .select('id, nombre, apellido, activo, fecha_nacimiento, carnes_salud(vencimiento), fichas_lud(vencimiento_carne), cuotas(periodo, monto, estado)'),
+      .select('id, nombre, apellido, activo, rol_club, fecha_nacimiento, carnes_salud(vencimiento), fichas_lud(vencimiento_carne)'),
+    // Plata del rediseño (migración 12): cobros de tipo cuota → cargos → pagos.
+    db.from('cobros').select('periodo, vence, cargos(jugador_id, monto, pagos(monto, estado))').eq('tipo', 'cuota'),
     db.from('push_suscripciones').select('jugador_id, endpoint, p256dh, auth').not('jugador_id', 'is', null),
     db.from('avisos_automaticos').select('jugador_id, tipo, referencia, hito'),
   ]);
-  const error = textosR.error || reglasR.error || jugadoresR.error || subsR.error || enviadosR.error;
+  const error = textosR.error || reglasR.error || jugadoresR.error || cuotasR.error || subsR.error || enviadosR.error;
   if (error) return json({ error: error.message }, 500);
 
   const texto = (clave: string) =>
@@ -292,10 +304,29 @@ export async function GET(request: Request): Promise<Response> {
     activo: boolean | null;
     fecha_nacimiento: string | null;
     carnes_salud: { vencimiento: string }[] | null;
+    rol_club: string | null;
     fichas_lud: { vencimiento_carne: string | null } | { vencimiento_carne: string | null }[] | null;
-    cuotas: { periodo: string; monto: number; estado: string }[] | null;
   };
-  const jugadores: JugadorAvisos[] = ((jugadoresR.data ?? []) as FilaJugador[])
+  type FilaCobro = {
+    periodo: string;
+    vence: string | null;
+    cargos: { jugador_id: string; monto: number; pagos: { monto: number; estado: string }[] | null }[] | null;
+  };
+  // Mismo criterio que la app (modelo.ts): saldo = cargo − pagos confirmados;
+  // si lo informado cubre el saldo, está "por confirmar" y no se avisa.
+  const cuotasDe = new Map<string, JugadorAvisos['cuotasImpagas']>();
+  for (const cobro of (cuotasR.data ?? []) as FilaCobro[]) {
+    for (const cargo of cobro.cargos ?? []) {
+      const suma = (estado: string) => (cargo.pagos ?? []).filter((p) => p.estado === estado).reduce((s, p) => s + p.monto, 0);
+      const saldo = Math.max(0, cargo.monto - suma('confirmado'));
+      if (saldo === 0 || suma('informado') >= saldo) continue;
+      const lista = cuotasDe.get(cargo.jugador_id) ?? [];
+      lista.push({ periodo: cobro.periodo, monto: saldo, vence: cobro.vence });
+      cuotasDe.set(cargo.jugador_id, lista);
+    }
+  }
+  const filas = (jugadoresR.data ?? []) as FilaJugador[];
+  const jugadores: JugadorAvisos[] = filas
     .filter((j) => j.activo !== false)
     .map((j) => {
       const ficha = Array.isArray(j.fichas_lud) ? j.fichas_lud[0] : j.fichas_lud;
@@ -307,14 +338,13 @@ export async function GET(request: Request): Promise<Response> {
         fechaNacimiento: j.fecha_nacimiento,
         fichaMedica: fichasMedicas[fichasMedicas.length - 1] ?? null,
         carneLud: ficha?.vencimiento_carne ?? null,
-        cuotasImpagas: (j.cuotas ?? []).filter((c) => c.estado !== 'pagada').map((c) => ({ periodo: c.periodo, monto: c.monto })),
+        cuotasImpagas: cuotasDe.get(j.id) ?? [],
       };
     });
 
   const yaEnviado = new Set((enviadosR.data ?? []).map((e) => `${e.jugador_id}|${e.tipo}|${e.referencia}|${e.hito}`));
-  // Delegados (columna rol_club de la migración 9; si todavía no se corrió, no hay resumen).
-  const delegadosR = await db.from('jugadores').select('id, nombre, apellido, activo').eq('rol_club', 'delegado');
-  const delegados = delegadosR.error ? [] : (delegadosR.data ?? []).filter((d) => d.activo !== false);
+  // El resumen de deudores va al staff: delegados y tesoreros (los dos ven quién debe).
+  const delegados = filas.filter((d) => d.activo !== false && (d.rol_club === 'delegado' || d.rol_club === 'tesorero'));
 
   const avisos = [...calcularAvisos(jugadores, ajustes, hoy), ...calcularResumenDelegados(jugadores, delegados, ajustes, hoy)].filter(
     (a) => !yaEnviado.has(`${a.jugadorId}|${a.tipo}|${a.referencia}|${a.hito}`)
