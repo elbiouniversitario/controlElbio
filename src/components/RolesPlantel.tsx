@@ -4,12 +4,14 @@ import { Player, RolClub } from '../types';
 const ETIQUETA: Record<RolClub, string> = {
   jugador: 'Jugador',
   delegado: 'Delegado',
+  tesorero: 'Tesorero',
   dt: 'Cuerpo técnico',
 };
 
 const DESCRIPCION: Record<RolClub, string> = {
   jugador: 'Ve su ficha, sus cuotas y los avisos.',
   delegado: 'Igual que el cuerpo técnico, y además le llegan los avisos de quién debe o está por deber la cuota.',
+  tesorero: 'Maneja la plata: cobros, pagos y caja.',
   dt: 'Ve Alertas y la Planilla; edita y da de alta jugadores, carga documentos, arma la convocatoria y el próximo partido.',
 };
 

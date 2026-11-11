@@ -46,8 +46,9 @@ interface EstadoPlanillaRow {
   motivo_baja: string | null;
 }
 
-interface JugadorRow {
+export interface JugadorRow {
   id: string;
+  activo?: boolean;
   numero: number | null;
   documento: string | null;
   fecha_nacimiento: string | null;
@@ -116,6 +117,9 @@ interface RolRow {
   cantidad_activos: number;
 }
 
+/** Rediseño 2026-11: sin planilla ni cuotas viejas (la plata va por cargos). */
+export const JUGADOR_SELECT_DOCS = '*, carnes_salud(*), fichas_lud(*)';
+
 const JUGADOR_SELECT =
   '*, carnes_salud(*), fichas_lud(*), estado_planilla(*), cuotas(periodo, monto, estado, pagos(monto, metodo, recibo, pagado_en))';
 
@@ -131,7 +135,7 @@ const ESTADO_CUOTA: Record<CuotaRow['estado'], DuesStatus> = {
   vencida: 'overdue',
 };
 
-function mapJugador(r: JugadorRow): Player {
+export function mapJugador(r: JugadorRow): Player {
   const carne = [...(r.carnes_salud ?? [])].sort((a, b) => b.vencimiento.localeCompare(a.vencimiento))[0];
   const ficha = uno(r.fichas_lud);
   const planilla = uno(r.estado_planilla);
@@ -156,6 +160,7 @@ function mapJugador(r: JugadorRow): Player {
     email: r.email,
     address: r.direccion,
     isCaptain: r.es_capitan,
+    activo: r.activo ?? true,
     emergencyContact: {
       name: r.emergencia_nombre,
       phone: r.emergencia_telefono,

@@ -1,5 +1,5 @@
 /** Rol de un jugador en el club: el admin puede hacerlo delegado o cuerpo técnico. */
-export type RolClub = 'jugador' | 'delegado' | 'dt';
+export type RolClub = 'jugador' | 'delegado' | 'tesorero' | 'dt';
 
 export type TabType = 
   | 'alertas'
@@ -29,6 +29,8 @@ export interface Player {
   email: string;
   address: string;
   isCaptain?: boolean;
+  /** false = dado de baja en el padrón. */
+  activo?: boolean;
   /** Estudio (regla de la LUD): último examen aprobado o excepción. */
   study?: {
     /** 'YYYY-MM-DD' */

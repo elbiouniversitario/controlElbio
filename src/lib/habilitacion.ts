@@ -23,10 +23,11 @@ export interface EstadoHabilitacion {
 /**
  * Si el staff forzó la habilitación, manda eso. Si no, se calcula: ficha
  * médica vigente, examen aprobado posterior al 31/10 de dos años antes (o
- * recibido / con artículo), no estar de baja (y, si está activado, sin cuota vencida).
- * El carné LUD vencido NO inhabilita: solo genera alertas.
+ * recibido / con artículo) y no estar de baja.
+ * La deuda NO inhabilita (rediseño 2026-11) y el carné LUD vencido tampoco: solo avisan.
+ * `_opciones` queda solo para que compilen las pantallas viejas; se ignora.
  */
-export function estadoHabilitacion(p: Player, opciones: { bloquearPorDeuda?: boolean } = {}): EstadoHabilitacion {
+export function estadoHabilitacion(p: Player, _opciones: { bloquearPorDeuda?: boolean } = {}): EstadoHabilitacion {
   const o = p.eligibilityOverride;
   if (o) {
     return {
@@ -39,9 +40,8 @@ export function estadoHabilitacion(p: Player, opciones: { bloquearPorDeuda?: boo
   // LUD: examen aprobado posterior al 31/10 de dos años antes de la temporada (salvo recibido o con artículo).
   if (estadoEstudio(p).estado === 'vencido')
     return { habilitado: false, motivo: `Sin examen aprobado desde el ${corteTexto()}`, manual: false };
-  if (p.matchStatus.lineupRole === 'BAJA') return { habilitado: false, motivo: 'Dado de baja', manual: false };
-  if (opciones.bloquearPorDeuda && p.dues.status === 'overdue')
-    return { habilitado: false, motivo: 'Cuota vencida', manual: false };
+  if (p.activo === false || p.matchStatus.lineupRole === 'BAJA')
+    return { habilitado: false, motivo: 'Dado de baja', manual: false };
   return { habilitado: true, motivo: null, manual: false };
 }
 
