@@ -59,5 +59,18 @@ igual(
   'lista completa: encabezado, 4 seguros, un repetido, uno desconocido'
 );
 
+// Encabezado corto (≤4 palabras) arriba de una lista numerada: también se ignora.
+igual(
+  parsearLista('Práctica jueves 20hs\n1. Lucas Méndez\n2. Federico', plantel).map((l) => l.estado),
+  ['ignorada', 'seguro', 'no_encontrado'],
+  'encabezado corto en lista numerada'
+);
+// Sin numeración, un nombre desconocido sigue siendo "no lo encuentro".
+igual(
+  parsearLista('Lucas Méndez\nFederico', plantel).map((l) => l.estado),
+  ['seguro', 'no_encontrado'],
+  'lista sin numerar'
+);
+
 console.log(fallas ? `\n${fallas} falla(s)` : '\nTodo ok');
 process.exit(fallas ? 1 : 0);

@@ -1,6 +1,5 @@
 import {createRoot} from 'react-dom/client';
-import App from './App.tsx';
-import { AuthGate } from './components/AuthGate.tsx';
+import AppNueva from './rediseno/AppNueva.tsx';
 import './index.css';
 import { escucharInstalacion } from './lib/instalar';
 import { VentanaInstalar } from './components/VentanaInstalar';
@@ -10,12 +9,8 @@ escucharInstalacion();
 
 createRoot(document.getElementById('root')!).render(
   <>
-    <AuthGate>
-      {/* key: al cambiar de usuario, la app arranca de cero con sus datos. */}
-      {(perfil, salir, recargar) => (
-        <App key={perfil?.email ?? 'demo'} perfil={perfil} onLogout={salir} onRecargarPerfil={recargar} />
-      )}
-    </AuthGate>
+    {/* Rediseño 2026-11: sesión anónima + vínculo por cédula; el staff pasa a su rol con PIN. */}
+    <AppNueva />
     {/* Abierta desde el navegador del celular: primero, instalarla en la pantalla de inicio. */}
     <VentanaInstalar />
   </>

@@ -146,8 +146,12 @@ export function parsearLista(texto: string, plantel: CandidatoLista[]): LineaLis
   const indice = plantel.map((c) => ({ id: c.id, p: partes(c) }));
   const vistos = new Set<string>();
   const salida: LineaLista[] = [];
+  const lineas = texto.split(/\r?\n/).filter((l) => l.trim());
+  const numerada = (l: string) => /^\s*\d{1,3}\s*[.)\-–:]/.test(l);
+  // Lista numerada: una línea sin número que no matchea a nadie es encabezado ("Práctica jueves 20hs").
+  const listaNumerada = lineas.filter(numerada).length * 2 > lineas.length;
 
-  for (const linea of texto.split(/\r?\n/)) {
+  for (const linea of lineas) {
     if (!linea.trim()) continue;
     const limpio = limpiarLinea(linea);
     const tokens = normalizar(limpio).split(' ').filter((t) => t.length > 0);
@@ -166,7 +170,8 @@ export function parsearLista(texto: string, plantel: CandidatoLista[]): LineaLis
       .slice(0, 3);
 
     if (candidatos.length === 0) {
-      salida.push({ ...base, estado: tokens.length > 4 ? 'ignorada' : 'no_encontrado' });
+      const encabezado = tokens.length > 4 || (listaNumerada && !numerada(linea));
+      salida.push({ ...base, estado: encabezado ? 'ignorada' : 'no_encontrado' });
       continue;
     }
     const [mejor, segundo] = candidatos;

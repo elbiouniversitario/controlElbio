@@ -1,6 +1,20 @@
 @import "tailwindcss";
 
 @theme {
+  /* Rediseño 2026-11 (DISENO-2026-11.md). Contrastes: VERIFICAR. */
+  --font-barlow: 'Barlow', system-ui, sans-serif;
+  --font-cond: 'Barlow Condensed', 'Barlow', system-ui, sans-serif;
+  --color-navy: #00183a;
+  --color-marca: #b51a1b;
+  --color-oro: #fabc4d;
+  --color-fondo: #f5f6f8;
+  --color-ok: #15803d;
+  --color-warn: #b45309;
+  --color-bad: #b91c1c;
+  --color-tinta: #0f172a;
+  --color-gris: #475569;
+  --color-borde: #e2e8f0;
+
   --font-sans: 'Inter', system-ui, sans-serif;
   --font-heading: 'Montserrat', system-ui, sans-serif;
 
@@ -39,15 +53,15 @@
 }
 
 body {
-  font-family: 'Inter', sans-serif;
-  background: linear-gradient(180deg, #f3f6fb 0%, #eef3f8 100%);
-  color: #191c1e;
+  font-family: 'Barlow', system-ui, sans-serif;
+  background: #f5f6f8;
+  color: #0f172a;
   -webkit-tap-highlight-color: transparent;
   color-scheme: light;
 }
 
 h1, h2, h3, h4, h5, h6, .font-heading {
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Barlow Condensed', 'Barlow', sans-serif;
 }
 
 .material-symbols-outlined {
@@ -86,7 +100,7 @@ h1, h2, h3, h4, h5, h6, .font-heading {
   font-size: 22px;
   line-height: 1;
   font-weight: 800;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Barlow Condensed', 'Barlow', sans-serif;
 }
 
 .summary-card .meta {
@@ -120,7 +134,7 @@ h1, h2, h3, h4, h5, h6, .font-heading {
   display: block;
   margin-top: 8px;
   color: #00183a;
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Barlow Condensed', 'Barlow', sans-serif;
   font-size: 24px;
   line-height: 1;
   font-weight: 800;
@@ -259,3 +273,10 @@ h1, h2, h3, h4, h5, h6, .font-heading {
     border-radius: 0;
   }
 }
+
+/* ---- Rediseño 2026-11 ---- */
+.cifra { font-variant-numeric: tabular-nums; }
+.app-nueva input, .app-nueva select, .app-nueva textarea { font-size: 16px; }
+@keyframes subir { from { transform: translateY(100%); } to { transform: translateY(0); } }
+.hoja { animation: subir 220ms ease-out; }
+@media (prefers-reduced-motion: reduce) { .hoja { animation: none; } }

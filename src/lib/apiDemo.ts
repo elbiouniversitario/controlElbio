@@ -44,7 +44,16 @@ function escribir(clave: string, valor: string | null) {
 }
 
 // ---- Estado inicial ---------------------------------------------------------
-const jugadores: Player[] = copia(INITIAL_PLAYERS).map((p) => ({ ...p, activo: true }));
+// El seed trae fechas de 2025 con días fijos: se conservan los días y se corre la fecha a hoy + días,
+// para que "Vence el …" y "Vigente/Vencida" no se contradigan.
+const fechaEn = (dias: number) => new Date(Date.parse(hoyISO()) + dias * 86_400_000).toISOString().slice(0, 10);
+const jugadores: Player[] = copia(INITIAL_PLAYERS).map((p) => ({
+  ...p,
+  activo: true,
+  medicalCertificate: p.medicalCertificate.expiryDate
+    ? { ...p.medicalCertificate, expiryDate: fechaEn(p.medicalCertificate.daysRemaining) }
+    : p.medicalCertificate,
+}));
 const mes = periodoActual(); // YYYY-MM
 const mesAnterior = (() => {
   const [a, m] = mes.split('-').map(Number);
@@ -219,7 +228,8 @@ export const apiDemo: Api = {
   async jugadores() {
     await espera();
     if (rolEfectivo() === 'jugador') return copia(jugadores.filter((p) => p.id === yo()));
-    return copia(jugadores);
+    // El rol del usuario demo sale de la BarraDemo: que la lista de roles lo refleje.
+    return copia(jugadores.map((p) => (p.id === yo() ? { ...p, rolClub: rolAsignado() } : p)));
   },
   async jugador(id) {
     const p = jugadores.find((x) => x.id === id);
