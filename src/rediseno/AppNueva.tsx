@@ -156,7 +156,7 @@ function Encabezado() {
     <header className="sticky top-0 z-30 bg-navy text-white">
       <div className="mx-auto flex max-w-[480px] items-center justify-between gap-2 px-4 py-2">
         <div className="flex min-w-0 items-center gap-2">
-          <img src="/escudo.png" alt="" width={36} height={36} className="size-9 shrink-0" />
+          <img src="/escudo.png" alt="" width={36} height={36} className="size-9 shrink-0 object-contain" />
           <div className="min-w-0 leading-tight">
             <p className="font-cond text-xl font-bold uppercase tracking-wide">Control Elbio</p>
             {enModo && <p className="text-sm text-oro">Modo {NOMBRE_ROL[perfil.rol].toLowerCase()}</p>}

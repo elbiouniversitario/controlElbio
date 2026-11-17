@@ -40,7 +40,7 @@ export default function Vincular({ onListo }: { onListo: () => Promise<void> }) 
   return (
     <div className="mx-auto max-w-[480px] space-y-4 px-4 pb-10 pt-6">
       <div className="flex items-center gap-3">
-        <img src="/escudo.png" alt="" width={56} height={56} className="size-14" />
+        <img src="/escudo.png" alt="" width={56} height={56} className="size-14 object-contain" />
         <div>
           <h1 className="font-cond text-[28px] font-extrabold uppercase leading-none text-navy">Control Elbio</h1>
           <p className="text-gris">Tu estado en el club, en un solo lugar.</p>
