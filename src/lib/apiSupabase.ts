@@ -308,6 +308,16 @@ export const apiSupabase: Api = {
     const { error } = await db().from('gastos').insert({ fecha: g.fecha, monto: g.monto, descripcion: g.descripcion.trim() });
     if (error) throw error;
   },
+  async editarGasto(g) {
+    const { data, error } = await db()
+      .from('gastos')
+      .update({ fecha: g.fecha, monto: g.monto, descripcion: g.descripcion.trim() })
+      .eq('id', g.id)
+      .select('id');
+    if (error) throw error;
+    if (!data?.length) throw sinPermiso();
+  },
+  borrarCobro: (cobroId) => rpc<void>('borrar_cobro', { p_cobro_id: cobroId }),
   async borrarGasto(id) {
     const { data, error } = await db().from('gastos').delete().eq('id', id).select('id');
     if (error) throw error;

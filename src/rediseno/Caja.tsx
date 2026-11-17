@@ -1,9 +1,9 @@
 /** Tesorero: saldo, pagos por confirmar, deudores, cobros y gastos. */
 import { useMemo, useState, type ReactNode } from 'react';
-import { CalendarPlus, Check, Plus, Receipt, Trash2, X } from 'lucide-react';
+import { CalendarPlus, Check, Pencil, Plus, Receipt, Trash2, X } from 'lucide-react';
 import type { Player } from '../types';
 import { api, mensajeError } from '../lib/api';
-import { pesos, type PagoPendiente } from '../lib/modelo';
+import { pagadoDe, pesos, type Cargo, type Cobro, type Gasto, type PagoPendiente } from '../lib/modelo';
 import { fechaCorta, hoyISO, nombrePeriodo, periodoActual } from '../lib/fechas';
 import { useSesion } from './comun';
 import { Boton, Campo, Card, Cargando, Chip, ErrorCaja, Hoja, Opciones, Pantalla, Titulo, Vacio, cx, nombreDe, useDatos, useToast } from './ui';
@@ -14,7 +14,7 @@ export default function Caja() {
   const periodo = periodoActual();
   const desde = `${periodo}-01`;
   const { datos, error, recargar } = useDatos(async () => {
-    const [pendientes, deudores, ingresos, gastos, ingresosMes, gastosMes, jugadores] = await Promise.all([
+    const [pendientes, deudores, ingresos, gastos, ingresosMes, gastosMes, jugadores, cargos] = await Promise.all([
       api.pagosPendientes(),
       api.deudores(),
       api.ingresos(),
@@ -22,11 +22,22 @@ export default function Caja() {
       api.ingresos(desde),
       api.gastos(desde),
       api.jugadores(),
+      api.cargos(),
     ]);
-    return { pendientes, deudores, ingresos, gastos, ingresosMes, gastosMes, jugadores: jugadores.filter((j) => j.activo !== false) };
+    return {
+      pendientes,
+      deudores,
+      ingresos,
+      gastos,
+      ingresosMes,
+      gastosMes,
+      jugadores: jugadores.filter((j) => j.activo !== false),
+      cobros: resumirCobros(cargos),
+    };
   });
   const [revisando, setRevisando] = useState<PagoPendiente | null>(null);
-  const [hoja, setHoja] = useState<'cobro' | 'gasto' | 'cuota' | 'gastos' | 'deudores' | null>(null);
+  const [hoja, setHoja] = useState<'cobro' | 'gasto' | 'cuota' | 'gastos' | 'cobros' | 'deudores' | null>(null);
+  const [editando, setEditando] = useState<Gasto | null>(null);
 
   const porId = useMemo(() => new Map((datos?.jugadores ?? []).map((j) => [j.id, j])), [datos]);
   const nombre = (id: string) => {
@@ -151,9 +162,14 @@ export default function Caja() {
           <Boton variante="secundario" icono={Receipt} bloque onClick={() => setHoja('gasto')}>
             Anotar un gasto
           </Boton>
-          <Boton variante="texto" bloque onClick={() => setHoja('gastos')}>
-            Ver gastos ({datos.gastos.length})
-          </Boton>
+          <div className="grid grid-cols-2 gap-2">
+            <Boton variante="texto" bloque onClick={() => setHoja('gastos')}>
+              Ver gastos ({datos.gastos.length})
+            </Boton>
+            <Boton variante="texto" bloque onClick={() => setHoja('cobros')}>
+              Ver cobros ({datos.cobros.length})
+            </Boton>
+          </div>
         </div>
       </section>
 
@@ -170,6 +186,16 @@ export default function Caja() {
       )}
       {hoja === 'cobro' && <HojaCobro jugadores={datos.jugadores} onCerrar={() => cerrar(false)} onListo={() => cerrar()} />}
       {hoja === 'gasto' && <HojaGasto onCerrar={() => cerrar(false)} onListo={() => cerrar()} />}
+      {editando && (
+        <HojaGasto
+          gasto={editando}
+          onCerrar={() => setEditando(null)}
+          onListo={() => {
+            setEditando(null);
+            recargar();
+          }}
+        />
+      )}
       {hoja === 'cuota' && (
         <Hoja
           titulo={`Cuota de ${nombrePeriodo(periodo).toLowerCase()}`}
@@ -218,19 +244,29 @@ export default function Caja() {
           <p className="text-sm text-gris">Para avisarles, andá a Avisos → destino “Los que deben”.</p>
         </Hoja>
       )}
-      {hoja === 'gastos' && (
+      {hoja === 'gastos' && !editando && (
         <Hoja titulo="Gastos" onCerrar={() => cerrar(false)}>
           {datos.gastos.length === 0 ? (
             <Vacio>No hay gastos anotados.</Vacio>
           ) : (
+            <>
+            <p className="text-sm text-gris">Tocá un gasto para corregirlo.</p>
             <ul className="divide-y divide-borde">
               {datos.gastos.map((g) => (
                 <li key={g.id} className="flex min-h-12 items-center gap-2">
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-semibold">{g.descripcion}</p>
-                    <p className="text-sm text-gris">{fechaCorta(g.fecha)}</p>
-                  </div>
-                  <span className="cifra font-semibold">{pesos(g.monto)}</span>
+                  <button
+                    type="button"
+                    onClick={() => setEditando(g)}
+                    aria-label={`Editar gasto ${g.descripcion}`}
+                    className="-ml-2 flex min-h-12 min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-xl px-2 text-left hover:bg-fondo"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-semibold">{g.descripcion}</p>
+                      <p className="text-sm text-gris">{fechaCorta(g.fecha)}</p>
+                    </div>
+                    <span className="cifra font-semibold">{pesos(g.monto)}</span>
+                    <Pencil className="size-4 shrink-0 text-gris" aria-hidden />
+                  </button>
                   <button
                     type="button"
                     aria-label={`Borrar gasto ${g.descripcion}`}
@@ -251,6 +287,53 @@ export default function Caja() {
                 </li>
               ))}
             </ul>
+            </>
+          )}
+        </Hoja>
+      )}
+      {hoja === 'cobros' && (
+        <Hoja titulo="Cobros" onCerrar={() => cerrar(false)}>
+          {datos.cobros.length === 0 ? (
+            <Vacio>No hay cobros.</Vacio>
+          ) : (
+            <>
+              <p className="text-sm text-gris">
+                Borrar un cobro se lo saca a todos los jugadores. Si alguno ya lo pagó y el pago está confirmado, no se puede borrar.
+              </p>
+              <ul className="divide-y divide-borde">
+                {datos.cobros.map((c) => (
+                  <li key={c.cobro.id} className="flex min-h-14 items-center gap-2 py-1">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-semibold">{c.cobro.concepto}</p>
+                      <p className="text-sm text-gris">
+                        {fechaCorta(c.cobro.fecha)} · {c.jugadores} jugador{c.jugadores === 1 ? '' : 'es'} ·{' '}
+                        <span className="cifra">{pesos(c.pagado)}</span> de <span className="cifra">{pesos(c.total)}</span>
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      aria-label={`Borrar cobro ${c.cobro.concepto}`}
+                      onClick={async () => {
+                        const msg =
+                          `¿Borrar el cobro “${c.cobro.concepto}”?\n\n` +
+                          `Se les saca a ${c.jugadores} jugador${c.jugadores === 1 ? '' : 'es'} (${pesos(c.total)} en total). No se puede deshacer.`;
+                        if (!window.confirm(msg)) return;
+                        try {
+                          await api.borrarCobro(c.cobro.id);
+                          toast('Cobro borrado');
+                          recargar();
+                        } catch (e) {
+                          toast(mensajeError(e), 'error');
+                        }
+                      }}
+                      className="flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-xl text-gris hover:bg-red-50 hover:text-bad"
+                    >
+                      <Trash2 className="size-5" aria-hidden />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </>
           )}
         </Hoja>
       )}
@@ -474,17 +557,30 @@ export function ListaSeleccion({
   );
 }
 
-function HojaGasto({ onCerrar, onListo }: { onCerrar: () => void; onListo: () => void }) {
+/** Un renglón por cobro, armado desde los cargos (más nuevo primero). */
+function resumirCobros(cargos: Cargo[]) {
+  const m = new Map<string, { cobro: Cobro; jugadores: number; total: number; pagado: number }>();
+  for (const c of cargos) {
+    const r = m.get(c.cobro.id) ?? { cobro: c.cobro, jugadores: 0, total: 0, pagado: 0 };
+    r.jugadores += 1;
+    r.total += c.monto;
+    r.pagado += pagadoDe(c);
+    m.set(c.cobro.id, r);
+  }
+  return [...m.values()].sort((a, b) => b.cobro.fecha.localeCompare(a.cobro.fecha));
+}
+
+function HojaGasto({ gasto, onCerrar, onListo }: { gasto?: Gasto; onCerrar: () => void; onListo: () => void }) {
   const toast = useToast();
-  const [descripcion, setDescripcion] = useState('');
-  const [monto, setMonto] = useState('');
-  const [fecha, setFecha] = useState(hoyISO());
+  const [descripcion, setDescripcion] = useState(gasto?.descripcion ?? '');
+  const [monto, setMonto] = useState(gasto ? String(gasto.monto) : '');
+  const [fecha, setFecha] = useState(gasto?.fecha ?? hoyISO());
   const [cargando, setCargando] = useState(false);
   const n = Number(monto.replace(/\D/g, ''));
 
   return (
     <Hoja
-      titulo="Anotar gasto"
+      titulo={gasto ? 'Editar gasto' : 'Anotar gasto'}
       onCerrar={onCerrar}
       pie={
         <Boton
@@ -495,8 +591,10 @@ function HojaGasto({ onCerrar, onListo }: { onCerrar: () => void; onListo: () =>
             if (!(n > 0)) return toast('Poné un monto mayor a cero.', 'error');
             setCargando(true);
             try {
-              await api.agregarGasto({ descripcion: descripcion.trim(), monto: n, fecha });
-              toast('Gasto anotado');
+              const g = { descripcion: descripcion.trim(), monto: n, fecha };
+              if (gasto) await api.editarGasto({ ...g, id: gasto.id });
+              else await api.agregarGasto(g);
+              toast(gasto ? 'Gasto corregido' : 'Gasto anotado');
               onListo();
             } catch (e) {
               toast(mensajeError(e), 'error');
@@ -505,7 +603,7 @@ function HojaGasto({ onCerrar, onListo }: { onCerrar: () => void; onListo: () =>
             }
           }}
         >
-          Guardar gasto
+          {gasto ? 'Guardar cambios' : 'Guardar gasto'}
         </Boton>
       }
     >

@@ -388,6 +388,21 @@ export const apiDemo: Api = {
     exigir('tesorero');
     gastos = [...gastos, { ...g, id: uid() }];
   },
+  async editarGasto(g) {
+    exigir('tesorero');
+    gastos = gastos.map((x) => (x.id === g.id ? { ...g, descripcion: g.descripcion.trim() } : x));
+  },
+  async borrarCobro(cobroId) {
+    exigir('tesorero');
+    const pagos = cargos
+      .filter((c) => c.cobro.id === cobroId)
+      .flatMap((c) => c.pagos.filter((p) => p.estado === 'confirmado'));
+    if (pagos.length > 0)
+      throw new Error(
+        `No se puede borrar: ya tiene ${pagos.length} pago(s) confirmado(s) por $${pagos.reduce((s, p) => s + p.monto, 0)}. Esa plata ya está en la caja.`
+      );
+    cargos = cargos.filter((c) => c.cobro.id !== cobroId);
+  },
   async borrarGasto(id) {
     exigir('tesorero');
     gastos = gastos.filter((g) => g.id !== id);

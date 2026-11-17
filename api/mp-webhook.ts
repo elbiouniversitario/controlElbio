@@ -81,7 +81,16 @@ async function procesarPago(paymentId: string, jugadorPorSuscripcion?: string) {
     p_monto: Math.round(pago.transaction_amount),
     p_fecha: (pago.date_approved ?? new Date().toISOString()).slice(0, 10),
   });
-  if (error) throw new Error(error.message);
+  if (error) {
+    // El tesorero borró el cobro mientras el pago estaba en curso: no hay dónde
+    // anotarlo. Se loguea (para devolverlo a mano desde MP) y se contesta 200
+    // para que MP no reintente para siempre.
+    if (error.message.includes('No existe ese cargo')) {
+      console.error(`Pago MP ${mpId} aprobado para un cargo borrado (${cargoId}). Revisar y devolver desde MP.`);
+      return 'cargo borrado';
+    }
+    throw new Error(error.message);
+  }
   return 'registrado';
 }
 

@@ -108,12 +108,15 @@ export interface Api {
   revisarPago(pagoId: string, confirmar: boolean, motivo?: string): Promise<void>;
   registrarPagoDirecto(cargoId: string, monto: number, metodo: MetodoPago): Promise<void>;
   crearCobro(c: NuevoCobro): Promise<string>;
+  /** Falla si el cobro ya tiene pagos confirmados. */
+  borrarCobro(cobroId: string): Promise<void>;
   /** 'YYYY-MM-01'. Devuelve cuántos cargos generó. */
   generarCuotaMes(periodo: string): Promise<number>;
   deudores(): Promise<Deudor[]>;
   ingresos(desde?: string): Promise<Ingreso[]>;
   gastos(desde?: string): Promise<Gasto[]>;
   agregarGasto(g: Omit<Gasto, 'id'>): Promise<void>;
+  editarGasto(g: Gasto): Promise<void>;
   borrarGasto(id: string): Promise<void>;
   // ---- Mercado Pago ----
   /** Link de pago (Checkout Pro) por lo que falta pagar de ese cargo. */
