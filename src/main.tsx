@@ -3,6 +3,7 @@ import AppNueva from './rediseno/AppNueva.tsx';
 import './index.css';
 import { escucharInstalacion } from './lib/instalar';
 import { VentanaInstalar } from './components/VentanaInstalar';
+import Bienvenida from './rediseno/Bienvenida';
 
 // El aviso de "se puede instalar" de Android llega apenas carga la página.
 escucharInstalacion();
@@ -13,6 +14,8 @@ createRoot(document.getElementById('root')!).render(
     <AppNueva />
     {/* Abierta desde el navegador del celular: primero, instalarla en la pantalla de inicio. */}
     <VentanaInstalar />
+    {/* Escudo animado al abrir (se saltea con un toque o con "reducir movimiento"). */}
+    <Bienvenida />
   </>
 );
 
