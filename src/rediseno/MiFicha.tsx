@@ -3,9 +3,9 @@
  * prácticas y notificaciones. Una sola acción principal: informar un pago.
  */
 import { useEffect, useMemo, useState } from 'react';
-import { Bell, CalendarCheck, CheckCircle2, Copy, Receipt, Upload, XCircle } from 'lucide-react';
+import { Bell, CalendarCheck, CheckCircle2, Copy, CreditCard, Receipt, Repeat, Upload, XCircle } from 'lucide-react';
 import { api, mensajeError } from '../lib/api';
-import { estadoCargo, informadoDe, pesos, saldoDe, type Cargo, type MetodoPago } from '../lib/modelo';
+import { estadoCargo, informadoDe, pesos, saldoDe, type Cargo, type MetodoPago, type SuscripcionMP } from '../lib/modelo';
 import { estadoHabilitacion } from '../lib/habilitacion';
 import { fechaCorta, hoyISO } from '../lib/fechas';
 import { activarPush, estadoPush, type EstadoPush } from '../lib/push';
@@ -22,14 +22,38 @@ export default function MiFicha() {
   const { perfil, textos } = useSesion();
   const id = perfil.jugadorId;
   const { datos, error, recargar } = useDatos(
-    () => Promise.all([api.jugador(id), api.cargos(id), api.practicas()]),
+    () => Promise.all([api.jugador(id), api.cargos(id), api.practicas(), api.suscripcionMP()]),
     [id]
   );
   const [informar, setInformar] = useState(false);
+  const toast = useToast();
+  const [abriendoMP, setAbriendoMP] = useState<string | null>(null);
+
+  // Vuelta de un pago con MP: el aviso de MP puede tardar unos segundos en llegar.
+  const [volvioDeMP] = useState(() => /[?&]mp=(ok|suscripcion)/.test(window.location.search));
+  useEffect(() => {
+    if (!volvioDeMP) return;
+    const t = setTimeout(recargar, 5000);
+    return () => clearTimeout(t);
+  }, [volvioDeMP]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const pagarConMP = async (cargoId: string) => {
+    setAbriendoMP(cargoId);
+    try {
+      irAMercadoPago(await api.linkPagoMP(cargoId), () => {
+        toast('Pago aprobado (simulado)');
+        setAbriendoMP(null);
+        recargar();
+      });
+    } catch (e) {
+      toast(mensajeError(e), 'error');
+      setAbriendoMP(null);
+    }
+  };
 
   if (error) return <ErrorCaja reintentar={recargar}>{mensajeError(error)}</ErrorCaja>;
   if (!datos) return <Cargando />;
-  const [yo, cargos, practicas] = datos;
+  const [yo, cargos, practicas, suscripcion] = datos;
 
   const h = estadoHabilitacion(yo);
   const docs = documentos(yo, diasAviso(textos));
@@ -109,6 +133,18 @@ export default function MiFicha() {
                   {rechazado && estadoCargo(c) === 'debe' && (
                     <p className="mt-1 text-sm text-bad">Pago rechazado: {rechazado.motivoRechazo}</p>
                   )}
+                  {estadoCargo(c) === 'debe' && saldoDe(c) - informadoDe(c) > 0 && (
+                    <Boton
+                      variante="secundario"
+                      icono={CreditCard}
+                      className="mt-2 w-full"
+                      cargando={abriendoMP === c.id}
+                      disabled={abriendoMP !== null && abriendoMP !== c.id}
+                      onClick={() => pagarConMP(c.id)}
+                    >
+                      Pagar {pesos(saldoDe(c))} con Mercado Pago
+                    </Boton>
+                  )}
                 </li>
               );
             })}
@@ -120,6 +156,12 @@ export default function MiFicha() {
           </Boton>
         )}
       </Card>
+
+      <DebitoAutomatico
+        suscripcion={suscripcion}
+        cuota={Number(String(textos.cuota_monto ?? '').replace(/\D/g, '')) || 0}
+        onCambio={recargar}
+      />
 
       <Card>
         <Titulo>Prácticas</Titulo>
@@ -270,6 +312,138 @@ function DatosPago({ texto }: { texto: string }) {
       </div>
       <p className="whitespace-pre-line text-sm text-gris">{texto}</p>
     </div>
+  );
+}
+
+/**
+ * Manda al link de MP. Un link interno ("/?mp=…") solo lo devuelve la demo,
+ * que guarda todo en memoria: ahí no se recarga la página para no perderlo.
+ */
+function irAMercadoPago(url: string, enDemo: () => void) {
+  if (url.startsWith('/')) enDemo();
+  else window.location.href = url;
+}
+
+const ESTADO_DEBITO = {
+  authorized: { tono: 'ok', texto: 'Activo' },
+  pending: { tono: 'warn', texto: 'Falta autorizar' },
+  paused: { tono: 'warn', texto: 'Pausado' },
+  cancelled: { tono: 'neutro', texto: 'Apagado' },
+} as const;
+
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** Débito automático de la cuota con Mercado Pago. */
+function DebitoAutomatico({
+  suscripcion,
+  cuota,
+  onCambio,
+}: {
+  suscripcion: SuscripcionMP | null;
+  cuota: number;
+  onCambio: () => void;
+}) {
+  const toast = useToast();
+  const [email, setEmail] = useState(suscripcion?.email ?? '');
+  const [cargando, setCargando] = useState<'activar' | 'cancelar' | null>(null);
+  const [confirmarBaja, setConfirmarBaja] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const estado = suscripcion?.estado ?? 'cancelled';
+  const activo = estado === 'authorized' || estado === 'paused';
+  const monto = suscripcion && estado !== 'cancelled' ? suscripcion.monto : cuota;
+
+  const activar = async () => {
+    if (!EMAIL.test(email.trim())) return setError('Poné el email de tu cuenta de Mercado Pago.');
+    setError(null);
+    setCargando('activar');
+    try {
+      irAMercadoPago(await api.activarSuscripcionMP(email.trim()), () => {
+        toast('Débito automático activado (simulado)');
+        setCargando(null);
+        onCambio();
+      });
+    } catch (e) {
+      setError(mensajeError(e));
+      setCargando(null);
+    }
+  };
+  const cancelar = async () => {
+    setCargando('cancelar');
+    try {
+      await api.cancelarSuscripcionMP();
+      toast('Débito automático apagado');
+      setConfirmarBaja(false);
+      onCambio();
+    } catch (e) {
+      toast(mensajeError(e), 'error');
+    } finally {
+      setCargando(null);
+    }
+  };
+
+  return (
+    <Card>
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <Titulo>Débito automático</Titulo>
+        {suscripcion && <Chip tono={ESTADO_DEBITO[estado].tono}>{ESTADO_DEBITO[estado].texto}</Chip>}
+      </div>
+      {activo ? (
+        <div className="space-y-3">
+          <div className="flex items-start gap-3">
+            <Repeat className="mt-0.5 size-6 shrink-0 text-navy" aria-hidden />
+            <div className="min-w-0">
+              <p className="text-tinta">
+                Mercado Pago te cobra la cuota sola todos los meses: <span className="cifra font-bold">{pesos(monto)}</span>
+              </p>
+              {suscripcion?.email && <p className="break-all text-sm text-gris">{suscripcion.email}</p>}
+            </div>
+          </div>
+          {estado === 'paused' && (
+            <p className="rounded-xl bg-fondo p-3 text-sm text-gris">Está pausado: no se cobra solo. Revisalo en tu Mercado Pago.</p>
+          )}
+          {confirmarBaja ? (
+            <div className="flex gap-2">
+              <Boton variante="peligro" className="flex-1" cargando={cargando === 'cancelar'} onClick={cancelar}>
+                Sí, apagarlo
+              </Boton>
+              <Boton variante="secundario" className="flex-1" onClick={() => setConfirmarBaja(false)}>
+                No
+              </Boton>
+            </div>
+          ) : (
+            <Boton variante="texto" onClick={() => setConfirmarBaja(true)}>
+              Apagar débito automático
+            </Boton>
+          )}
+        </div>
+      ) : monto <= 0 ? (
+        <p className="text-gris">No tenés cuota para pagar.</p>
+      ) : (
+        <div className="space-y-3">
+          {estado === 'pending' ? (
+            <p className="text-gris">Empezaste a activarlo pero falta autorizarlo en Mercado Pago.</p>
+          ) : (
+            <p className="text-gris">
+              Pagá la cuota sin acordarte: Mercado Pago te cobra <span className="cifra font-semibold text-tinta">{pesos(monto)}</span> todos
+              los meses. Lo apagás cuando quieras.
+            </p>
+          )}
+          <Campo
+            label="Email de tu cuenta de Mercado Pago"
+            type="email"
+            inputMode="email"
+            autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="tu@email.com"
+            error={error}
+          />
+          <Boton bloque icono={Repeat} cargando={cargando === 'activar'} onClick={activar}>
+            {estado === 'pending' ? 'Terminar en Mercado Pago' : 'Activar débito automático'}
+          </Boton>
+        </div>
+      )}
+    </Card>
   );
 }
 

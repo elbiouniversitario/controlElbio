@@ -12,6 +12,7 @@ import {
   ExcepcionCuota,
   Gasto,
   MetodoPago,
+  SuscripcionMP,
   NuevaPractica,
   NuevoCobro,
   PagoPendiente,
@@ -114,6 +115,13 @@ export interface Api {
   gastos(desde?: string): Promise<Gasto[]>;
   agregarGasto(g: Omit<Gasto, 'id'>): Promise<void>;
   borrarGasto(id: string): Promise<void>;
+  // ---- Mercado Pago ----
+  /** Link de pago (Checkout Pro) por lo que falta pagar de ese cargo. */
+  linkPagoMP(cargoId: string): Promise<string>;
+  suscripcionMP(): Promise<SuscripcionMP | null>;
+  /** Devuelve el link de MP donde el jugador autoriza el débito. */
+  activarSuscripcionMP(email: string): Promise<string>;
+  cancelarSuscripcionMP(): Promise<void>;
   excepciones(): Promise<ExcepcionCuota[]>;
   guardarExcepcion(e: ExcepcionCuota): Promise<void>;
   quitarExcepcion(jugadorId: string): Promise<void>;

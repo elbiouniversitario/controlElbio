@@ -20,6 +20,7 @@ import {
   Practica,
   Rol,
   saldoDe,
+  SuscripcionMP,
 } from './modelo';
 import { Player } from '../types';
 
@@ -126,6 +127,7 @@ let avisos: AvisoEnviado[] = [
   },
 ];
 let textos: Record<string, string> = { ...TEXTOS_DEFAULT };
+const suscripciones = new Map<string, SuscripcionMP>();
 let pin: string | null = null;
 let staffHasta: string | null = null;
 let fallosPin = 0;
@@ -389,6 +391,35 @@ export const apiDemo: Api = {
   async borrarGasto(id) {
     exigir('tesorero');
     gastos = gastos.filter((g) => g.id !== id);
+  },
+  // Demo: Mercado Pago se simula. El "pago" entra aprobado al instante.
+  async linkPagoMP(cargoId) {
+    await espera(400);
+    const c = cargos.find((x) => x.id === cargoId && (x.jugadorId === yo() || rolEfectivo() === 'tesorero'));
+    if (!c) throw new Error('Ese cobro no es tuyo');
+    const falta = saldoDe(c);
+    if (falta <= 0) throw new Error('Ese cobro ya está pago.');
+    c.pagos.push({ ...pago(c.id, c.jugadorId, falta, 'confirmado', 0), metodo: 'mercadopago' });
+    return '/?mp=ok';
+  },
+  async suscripcionMP() {
+    await espera();
+    return copia(suscripciones.get(yo() ?? '') ?? null);
+  },
+  async activarSuscripcionMP(email) {
+    await espera(400);
+    const id = yo();
+    if (!id) throw new Error('Primero vinculá tu ficha.');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) throw new Error('Poné el email de tu cuenta de Mercado Pago.');
+    const monto = excepciones.find((e) => e.jugadorId === id)?.monto ?? (Number(textos.cuota_monto?.replace(/\D/g, '')) || 0);
+    if (monto <= 0) throw new Error('No tenés cuota para pagar (estás exonerado).');
+    suscripciones.set(id, { estado: 'authorized', monto, email: email.trim().toLowerCase() });
+    return '/?mp=suscripcion';
+  },
+  async cancelarSuscripcionMP() {
+    await espera();
+    const s = suscripciones.get(yo() ?? '');
+    if (s) s.estado = 'cancelled';
   },
   async excepciones() {
     exigir('tesorero');

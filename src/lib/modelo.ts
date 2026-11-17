@@ -32,7 +32,14 @@ export type ResultadoCrearPin = 'ok' | 'no_es_staff' | 'ya_tiene_pin' | 'pin_inv
 // ---------------------------------------------------------------------------
 // Plata
 // ---------------------------------------------------------------------------
-export type MetodoPago = 'transferencia' | 'efectivo';
+export type MetodoPago = 'transferencia' | 'efectivo' | 'mercadopago';
+
+/** Débito automático de la cuota en Mercado Pago (null = nunca lo activó). */
+export interface SuscripcionMP {
+  estado: 'pending' | 'authorized' | 'paused' | 'cancelled';
+  monto: number;
+  email: string;
+}
 export type EstadoPago = 'informado' | 'confirmado' | 'rechazado';
 
 export interface Pago {

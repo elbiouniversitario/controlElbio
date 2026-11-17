@@ -9,6 +9,7 @@ import type {
   DestinoAviso,
   EstadoPago,
   MetodoPago,
+  SuscripcionMP,
   Pago,
   PagoPendiente,
   Perfil,
@@ -61,7 +62,28 @@ interface PagoRow {
   pagado_en?: string;
 }
 
-const metodo = (m: string): MetodoPago => (m === 'efectivo' ? 'efectivo' : 'transferencia');
+const metodo = (m: string): MetodoPago =>
+  m === 'efectivo' ? 'efectivo' : m === 'mercadopago' ? 'mercadopago' : 'transferencia';
+
+/** Llama a una función de Vercel de Mercado Pago con el login actual. */
+async function funcionMP<T>(ruta: string, cuerpo: unknown): Promise<T> {
+  const { data } = await db().auth.getSession();
+  const token = data.session?.access_token;
+  if (!token) throw new Error('Tu sesión venció. Volvé a entrar.');
+  let res: Response;
+  try {
+    res = await fetch(ruta, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify(cuerpo),
+    });
+  } catch {
+    throw new Error('Sin conexión. Probá de nuevo.');
+  }
+  const datos = (await res.json().catch(() => ({}))) as T & { error?: string };
+  if (!res.ok) throw new Error(datos.error || `Error ${res.status}`);
+  return datos;
+}
 
 const mapPago = (r: PagoRow): Pago => ({
   id: r.id,
@@ -290,6 +312,24 @@ export const apiSupabase: Api = {
     const { data, error } = await db().from('gastos').delete().eq('id', id).select('id');
     if (error) throw error;
     if (!data?.length) throw sinPermiso();
+  },
+  async linkPagoMP(cargoId) {
+    return (await funcionMP<{ url: string }>('/api/mp-preferencia', { cargoId })).url;
+  },
+  async suscripcionMP() {
+    const { data, error } = await db().from('suscripciones_mp').select('estado, monto, email').maybeSingle();
+    if (error) {
+      // Tabla todavía sin crear (migración sin aplicar): se comporta como "sin suscripción".
+      if (error.code === '42P01' || error.code === 'PGRST205') return null;
+      throw error;
+    }
+    return (data as SuscripcionMP | null) ?? null;
+  },
+  async activarSuscripcionMP(email) {
+    return (await funcionMP<{ url: string }>('/api/mp-suscripcion', { accion: 'crear', email })).url;
+  },
+  async cancelarSuscripcionMP() {
+    await funcionMP('/api/mp-suscripcion', { accion: 'cancelar' });
   },
   async excepciones() {
     const { data, error } = await db().from('excepciones_cuota').select('jugador_id, monto, motivo');

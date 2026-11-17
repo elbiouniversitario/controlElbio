@@ -321,7 +321,7 @@ function HojaRevisar({ pago, nombre, onCerrar, onListo }: { pago: PagoPendiente;
       )}
       <div className="flex flex-wrap gap-2">
         <Chip tono="neutro" icono={null}>
-          {pago.metodo === 'efectivo' ? 'Efectivo' : 'Transferencia'}
+          {pago.metodo === 'efectivo' ? 'Efectivo' : pago.metodo === 'mercadopago' ? 'Mercado Pago' : 'Transferencia'}
         </Chip>
         <Chip tono="warn">Por confirmar</Chip>
       </div>
@@ -369,7 +369,20 @@ function HojaCobro({ jugadores, onCerrar, onListo }: { jugadores: Player[]; onCe
     setCargando(true);
     try {
       await api.crearCobro({ concepto: concepto.trim(), fecha, vence: vence || null, cargos: destino.map((j) => ({ jugadorId: j.id, monto: n })) });
-      toast(`Cobro creado a ${destino.length} jugador${destino.length === 1 ? '' : 'es'}`);
+      // Aviso push a cada uno. Si falla, el cobro igual quedó creado.
+      let avisados = true;
+      try {
+        await api.mandarAviso(
+          `Nuevo cobro: ${concepto.trim()}`,
+          `${pesos(n)}. Pagalo desde la app con Mercado Pago.`,
+          quienes === 'todos' ? 'todos' : 'seleccion',
+          destino.map((j) => j.id)
+        );
+      } catch {
+        avisados = false;
+      }
+      const a = `${destino.length} jugador${destino.length === 1 ? '' : 'es'}`;
+      toast(avisados ? `Cobro creado y avisado a ${a}` : `Cobro creado a ${a} (no se pudo mandar el aviso)`);
       onListo();
     } catch (e) {
       toast(mensajeError(e), 'error');
@@ -388,7 +401,7 @@ function HojaCobro({ jugadores, onCerrar, onListo }: { jugadores: Player[]; onCe
         </Boton>
       }
     >
-      <p className="text-gris">Para algo que no es la cuota: camiseta, viaje, inscripción, multa.</p>
+      <p className="text-gris">Para algo que no es la cuota: asado, camiseta, viaje, inscripción, multa. A cada uno le llega un aviso para pagarlo con Mercado Pago.</p>
       <Campo label="Concepto" value={concepto} onChange={(e) => setConcepto(e.target.value)} placeholder="Ej. Camiseta 2027" />
       <Campo label="Monto por jugador" inputMode="numeric" value={monto} onChange={(e) => setMonto(e.target.value)} placeholder="Ej. 900" />
       <div className="grid grid-cols-2 gap-3">

@@ -91,8 +91,29 @@ function Raiz() {
   );
 }
 
+/** Vuelta desde Mercado Pago (back_url "/?mp=..."): avisa y limpia la URL. */
+const VUELTA_MP: Record<string, [string, 'ok' | 'error']> = {
+  ok: ['Pago aprobado. En unos segundos aparece en tu ficha.', 'ok'],
+  pendiente: ['El pago quedó pendiente en Mercado Pago. Cuando se acredite, aparece solo.', 'ok'],
+  error: ['El pago no se hizo. Podés probar de nuevo.', 'error'],
+  suscripcion: ['Listo. Cuando Mercado Pago confirme, el débito automático queda activo.', 'ok'],
+};
+
+function useVueltaMercadoPago() {
+  const toast = useToast();
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const mp = params.get('mp');
+    if (!mp) return;
+    const aviso = VUELTA_MP[mp];
+    if (aviso) toast(aviso[0], aviso[1]);
+    window.history.replaceState(null, '', window.location.pathname);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+}
+
 function Principal() {
   const { perfil } = useSesion();
+  useVueltaMercadoPago();
   const nav = NAV[perfil.rol];
   const [pestania, setPestania] = useState<Pestania>(nav[0] ?? 'ficha');
   // Si cambia el rol (entró o salió del modo staff), volver a la primera pestaña.
